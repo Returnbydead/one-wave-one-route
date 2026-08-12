@@ -237,10 +237,14 @@ function buildManualAssignments(
   });
 }
 
-function downloadCsv(assignments: Assignment[], route?: RouteCode) {
-  const selected = route
-    ? assignments.filter((item) => item.route === route)
-    : assignments;
+function downloadCsv(
+  assignments: Assignment[],
+  route?: RouteCode,
+  source?: Assignment["source"],
+) {
+  const selected = assignments.filter(
+    (item) => (!route || item.route === route) && (!source || item.source === source),
+  );
   const rows = ["error_message;so_id;staff_id"];
   selected.forEach((assignment) => {
     assignment.orders.forEach((order) => {
@@ -254,7 +258,8 @@ function downloadCsv(assignments: Assignment[], route?: RouteCode) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `one-wave-${(route ?? "all-route").toLowerCase().replaceAll(" ", "-")}-2026-08-12.csv`;
+  const kind = source === "manual" ? "-locked" : "";
+  anchor.download = `one-wave-${(route ?? "all-route").toLowerCase().replaceAll(" ", "-")}${kind}-2026-08-12.csv`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
@@ -326,6 +331,14 @@ export default function Home() {
     ],
     [autoAssignments, manualOverrides, ordersData, pickerRoster],
   );
+
+  const lockedSoCount = assignments
+    .filter(
+      (assignment) =>
+        assignment.source === "manual" &&
+        (activeRoute === "ALL" || assignment.route === activeRoute),
+    )
+    .reduce((total, assignment) => total + assignment.orders.length, 0);
 
   const manualRouteOrders = ordersData.filter(
     (order) => order.route === manualRoute,
@@ -782,6 +795,13 @@ export default function Home() {
             <div className="panel-head"><div><span>04</span><div><h3>Assignment preview</h3><p>Balanced by picker capacity · manual locks take priority</p></div></div></div>
             <div className="assignment-tools">
               <input aria-label="Cari assignment" placeholder="Search picker, zone, SO…" value={search} onChange={(event) => setSearch(event.target.value)} />
+              <button
+                className="soft-button locked-download"
+                disabled={!lockedSoCount}
+                onClick={() => downloadCsv(assignments, activeRoute === "ALL" ? undefined : activeRoute, "manual")}
+              >
+                ↓ Locked only ({lockedSoCount})
+              </button>
               <button className="soft-button" onClick={() => downloadCsv(assignments, activeRoute === "ALL" ? undefined : activeRoute)}>↓ Download CSV</button>
             </div>
           </div>

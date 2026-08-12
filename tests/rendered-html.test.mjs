@@ -49,6 +49,9 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /"SMN - MRY"/);
   assert.match(page, /"BSX"/);
   assert.match(page, /error_message;so_id;staff_id/);
+  assert.match(page, /↓ Locked only \(\{lockedSoCount\}\)/);
+  assert.match(page, /item\.source === source/);
+  assert.match(page, /source === "manual" \? "-locked"/);
   assert.match(page, /Manual SO assignment/);
   assert.match(page, /manualOverrides\[order\.soNumber\]/);
   assert.match(page, /Manual lock selalu menang atas auto-assignment/);

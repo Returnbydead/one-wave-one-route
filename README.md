@@ -10,7 +10,7 @@ V1 dashboard untuk membentuk assignment picker per route dan picking zone, lalu 
 - Membagi satu SO utuh ke satu picker dengan load balancing berbasis produktivitas
 - Download per route atau seluruh route dengan header `error_message;so_id;staff_id`
 
-UI saat ini memakai **Demo snapshot** agar flow bisa diuji tanpa menganggap koneksi Superset sudah live. Nilai productivity per zone juga masih draft sampai source final dikirim.
+UI membaca snapshot live lewat server route `/api/live`. Demo snapshot hanya dipakai sebagai fallback yang ditandai jelas jika backend belum siap atau sync gagal. Nilai productivity per zone masih draft sampai source final dikirim.
 
 ## Run locally
 
@@ -73,3 +73,21 @@ Picker roster contract:
 ```
 
 Keep the Superset session/cookie server-side. The browser should only receive the slim, already-filtered snapshot.
+
+## Google Apps Script backend
+
+Backend di `backend/Code.gs` dipasang sebagai file terpisah pada Apps Script yang terikat ke workbook route. Backend tersebut:
+
+- menjalankan query agregat Superset setiap 5 menit;
+- menulis `OWOR SO SNAPSHOT`, `OWOR PICKER SNAPSHOT`, dan `OWOR SYNC STATUS`;
+- membaca picker terjadwal dari `Schedule Manpower 2025`;
+- menyajikan compact JSON melalui Web App bertoken.
+
+Production runtime membutuhkan dua server-only environment variables:
+
+```text
+OWOR_GAS_ENDPOINT=https://script.google.com/macros/s/.../exec
+OWOR_GAS_TOKEN=<script-property-token>
+```
+
+Jika `OWOR SYNC STATUS` menunjukkan `SUPERSET_HTTP_401`, perbarui cookie Superset pada workbook cookie server-side. Tidak ada cookie Superset yang dikirim ke browser atau disimpan di repository.

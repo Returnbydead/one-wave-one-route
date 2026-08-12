@@ -172,6 +172,24 @@ button {
   width: 10px;
 }
 
+.source-state[data-status="live"] i {
+  background: var(--green);
+  border-color: #ccebe3;
+}
+
+.source-state[data-status="loading"] i {
+  animation: source-pulse 1.2s ease-in-out infinite;
+}
+
+.source-state[data-status="fallback"] i {
+  background: #d88335;
+  border-color: #f9dfc8;
+}
+
+@keyframes source-pulse {
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
 .source-state div {
   display: flex;
   flex-direction: column;

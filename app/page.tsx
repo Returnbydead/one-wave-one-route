@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PICKER_ROSTER } from "./picker-roster";
 
 type RouteCode = "SWL - PSG" | "SMN - MRY" | "BSX";
@@ -83,7 +83,7 @@ const AUTO_PICKERS: Picker[] = [
   { staffId: "51721", name: "Bagus Setiawan", zone: "SPR A1-1", productivity: 3200, shift: "05:00–14:00" },
 ];
 
-const SO_DATA: SalesOrder[] = [
+const DEMO_SO_DATA: SalesOrder[] = [
   { soNumber: "INV/SO/20260812/301/6131021", destination: "SWL", route: "SWL - PSG", zone: "MZE", qty: 680, sku: 42 },
   { soNumber: "INV/SO/20260812/301/6131027", destination: "SWL", route: "SWL - PSG", zone: "MZE", qty: 540, sku: 31 },
   { soNumber: "INV/SO/20260812/301/6131035", destination: "PSG", route: "SWL - PSG", zone: "MZF", qty: 790, sku: 55 },
@@ -111,6 +111,20 @@ const SO_DATA: SalesOrder[] = [
 ];
 
 const number = (value: number) => value.toLocaleString("id-ID");
+
+function formatSyncTime(value: string) {
+  if (!value) return "connecting backend…";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 function extractWmsSoId(soNumber: string) {
   return soNumber.replace(/\D/g, "").slice(-7).padStart(7, "0");
@@ -181,6 +195,7 @@ function buildAssignments(orders: SalesOrder[], pickers: Picker[]) {
 function buildManualAssignments(
   orders: SalesOrder[],
   overrides: ManualOverrides,
+  roster: Picker[],
 ) {
   const groups = new Map<string, SalesOrder[]>();
 
@@ -193,7 +208,7 @@ function buildManualAssignments(
 
   return [...groups.entries()].map(([key, assignedOrders]) => {
     const staffId = key.split("::")[1];
-    const rosterPicker = PICKER_ROSTER.find(
+    const rosterPicker = roster.find(
       (picker) => picker.staffId === staffId,
     );
     const zones = [...new Set(assignedOrders.map((order) => order.zone))];
@@ -253,31 +268,66 @@ export default function Home() {
   const [bulkPickerIds, setBulkPickerIds] = useState("");
   const [showPickerPool, setShowPickerPool] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<ManualOverrides>({});
+  const [liveOrders, setLiveOrders] = useState<SalesOrder[] | null>(null);
+  const [livePickers, setLivePickers] = useState<Picker[] | null>(null);
+  const [sourceStatus, setSourceStatus] = useState<"loading" | "live" | "fallback">("loading");
+  const [lastSyncedAt, setLastSyncedAt] = useState("");
   const [generated, setGenerated] = useState(true);
   const [search, setSearch] = useState("");
   const [showRules, setShowRules] = useState(false);
   const [toast, setToast] = useState("");
 
+  const ordersData = liveOrders ?? DEMO_SO_DATA;
+  const pickerRoster = livePickers ?? PICKER_ROSTER;
+
+  const refreshLiveData = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/live?t=${Date.now()}`, { cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok || payload.ok !== true || !Array.isArray(payload.orders) || !Array.isArray(payload.pickers)) {
+        throw new Error(payload.error || `HTTP ${response.status}`);
+      }
+      const orders = payload.orders.filter((order: SalesOrder) =>
+        ROUTES.some((route) => route.code === order.route),
+      ) as SalesOrder[];
+      setLiveOrders(orders);
+      setLivePickers(payload.pickers as Picker[]);
+      setLastSyncedAt(String(payload.generatedAt || ""));
+      setSourceStatus("live");
+      setManualOverrides((current) => {
+        const valid = new Set(orders.map((order) => order.soNumber));
+        return Object.fromEntries(Object.entries(current).filter(([soNumber]) => valid.has(soNumber)));
+      });
+    } catch {
+      setSourceStatus("fallback");
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void refreshLiveData(), 0);
+    return () => window.clearTimeout(timer);
+  }, [refreshLiveData]);
+
   const autoAssignments = useMemo(
     () =>
       generated
         ? buildAssignments(
-            SO_DATA.filter((order) => !manualOverrides[order.soNumber]),
+            ordersData.filter((order) => !manualOverrides[order.soNumber]),
             AUTO_PICKERS,
           )
         : [],
-    [generated, manualOverrides],
+    [generated, manualOverrides, ordersData],
   );
 
   const assignments = useMemo(
     () => [
       ...autoAssignments,
-      ...buildManualAssignments(SO_DATA, manualOverrides),
+      ...buildManualAssignments(ordersData, manualOverrides, pickerRoster),
     ],
-    [autoAssignments, manualOverrides],
+    [autoAssignments, manualOverrides, ordersData, pickerRoster],
   );
 
-  const manualRouteOrders = SO_DATA.filter(
+  const manualRouteOrders = ordersData.filter(
     (order) => order.route === manualRoute,
   );
 
@@ -285,7 +335,7 @@ export default function Home() {
     manualRouteOrders.map((order) => order.zone),
   );
 
-  const filteredPickers = PICKER_ROSTER.filter((picker) => {
+  const filteredPickers = pickerRoster.filter((picker) => {
     const query = pickerSearch.trim().toLowerCase();
     return (
       !query ||
@@ -312,7 +362,7 @@ export default function Home() {
   const routeStats = useMemo(
     () =>
       ROUTES.map((route) => {
-        const orders = SO_DATA.filter((item) => item.route === route.code);
+        const orders = ordersData.filter((item) => item.route === route.code);
         const routeAssignments = assignments.filter(
           (item) => item.route === route.code,
         );
@@ -325,7 +375,7 @@ export default function Home() {
           zones: new Set(orders.map((item) => item.zone)).size,
         };
       }),
-    [assignments],
+    [assignments, ordersData],
   );
 
   const zoneStats = useMemo(() => {
@@ -341,7 +391,7 @@ export default function Home() {
         assigned: number;
       }
     >();
-    SO_DATA.forEach((order) => {
+    ordersData.forEach((order) => {
       const key = `${order.route}::${order.zone}`;
       const current = rows.get(key) ?? {
         route: order.route,
@@ -370,7 +420,7 @@ export default function Home() {
           .map((item) => item.picker.staffId),
       ).size,
     }));
-  }, [assignments]);
+  }, [assignments, ordersData]);
 
   const filteredAssignments = assignments.filter((item) => {
     const routeMatch = activeRoute === "ALL" || item.route === activeRoute;
@@ -387,9 +437,9 @@ export default function Home() {
   });
 
   const totals = {
-    qty: SO_DATA.reduce((sum, item) => sum + item.qty, 0),
-    so: SO_DATA.length,
-    sku: SO_DATA.reduce((sum, item) => sum + item.sku, 0),
+    qty: ordersData.reduce((sum, item) => sum + item.qty, 0),
+    so: ordersData.length,
+    sku: ordersData.reduce((sum, item) => sum + item.sku, 0),
     mp: new Set(assignments.map((item) => item.picker.staffId)).size,
   };
 
@@ -444,7 +494,7 @@ export default function Home() {
     const loads = new Map(
       selectedPickerIds.map((staffId) => [staffId, 0]),
     );
-    const orderedOrders = SO_DATA.filter((order) =>
+    const orderedOrders = ordersData.filter((order) =>
       selectedOrders.includes(order.soNumber),
     ).sort((a, b) => b.qty - a.qty);
 
@@ -452,8 +502,8 @@ export default function Home() {
       const next = { ...current };
       orderedOrders.forEach((order) => {
         const selectedStaffId = [...loads.entries()].sort((a, b) => {
-          const aPicker = PICKER_ROSTER.find((picker) => picker.staffId === a[0]);
-          const bPicker = PICKER_ROSTER.find((picker) => picker.staffId === b[0]);
+          const aPicker = pickerRoster.find((picker) => picker.staffId === a[0]);
+          const bPicker = pickerRoster.find((picker) => picker.staffId === b[0]);
           const aCapacity = Math.max(1, aPicker?.productivity || 2000);
           const bCapacity = Math.max(1, bPicker?.productivity || 2000);
           return a[1] / aCapacity - b[1] / bCapacity;
@@ -496,11 +546,11 @@ export default function Home() {
             <h1>ONE WAVE <span>ONE ROUTE</span></h1>
           </div>
           <div className="top-actions">
-            <div className="source-state">
+            <div className="source-state" data-status={sourceStatus}>
               <i />
-              <div><strong>Demo snapshot</strong><span>12 Agu 2026 · 16:48</span></div>
+              <div><strong>{sourceStatus === "live" ? "Live Superset + GSheet" : sourceStatus === "loading" ? "Connecting live data" : "Demo fallback"}</strong><span>{sourceStatus === "live" ? formatSyncTime(lastSyncedAt) : sourceStatus === "loading" ? "checking compact snapshot…" : "backend belum siap"}</span></div>
             </div>
-            <button className="soft-button" onClick={() => flash("Snapshot demo sudah paling baru")}>↻ Refresh</button>
+            <button className="soft-button" onClick={() => { setSourceStatus("loading"); void refreshLiveData(); flash("Memeriksa snapshot live terbaru"); }}>↻ Refresh</button>
             <button className="primary-button" onClick={() => { setGenerated(true); flash(Object.keys(manualOverrides).length ? "Auto-assignment diperbarui, manual lock tetap aman" : "Assignment berhasil dihitung ulang"); }}>Generate assignment</button>
           </div>
         </header>
@@ -549,7 +599,7 @@ export default function Home() {
             </div>
             <div className="manual-route-tabs" aria-label="Pilih route untuk manual assignment">
               {ROUTES.map((route) => {
-                const locked = SO_DATA.filter(
+                const locked = ordersData.filter(
                   (order) => order.route === route.code && manualOverrides[order.soNumber],
                 ).length;
                 return (
@@ -558,7 +608,7 @@ export default function Home() {
                     className={manualRoute === route.code ? "active" : ""}
                     onClick={() => openManualRoute(route.code)}
                   >
-                    {route.code}<span>{locked}/{SO_DATA.filter((order) => order.route === route.code).length}</span>
+                    {route.code}<span>{locked}/{ordersData.filter((order) => order.route === route.code).length}</span>
                   </button>
                 );
               })}
@@ -590,7 +640,7 @@ export default function Home() {
           {showPickerPool && (
             <div className="picker-drawer">
               <div className="picker-drawer-head">
-                <div><p className="eyebrow">PICKER ROSTER</p><h4>Select manpower manually</h4><span>{PICKER_ROSTER.length} picker · snapshot dari Schedule Manpower 2025</span></div>
+                <div><p className="eyebrow">PICKER ROSTER</p><h4>Select manpower manually</h4><span>{pickerRoster.length} picker · {sourceStatus === "live" ? "live schedule hari ini" : "fallback snapshot"}</span></div>
                 <button onClick={() => setShowPickerPool(false)} aria-label="Tutup picker pool">×</button>
               </div>
 
@@ -609,7 +659,7 @@ export default function Home() {
                 <div><strong>Selected manpower</strong><span>{selectedPickerIds.length} picker ready for balancing</span></div>
                 <div className="picker-chips">
                   {selectedPickerIds.length ? selectedPickerIds.map((staffId) => {
-                    const picker = PICKER_ROSTER.find((item) => item.staffId === staffId);
+                    const picker = pickerRoster.find((item) => item.staffId === staffId);
                     return <button key={staffId} onClick={() => togglePicker(staffId)} title="Hapus dari pilihan"><span>{picker?.name ?? "Manual ID"}</span><b>{staffId}</b><i>×</i></button>;
                   }) : <em>Belum ada picker dipilih</em>}
                 </div>

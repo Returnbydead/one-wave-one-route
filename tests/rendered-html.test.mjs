@@ -32,7 +32,7 @@ test("server-renders the ONE WAVE ONE ROUTE dashboard", async () => {
   assert.match(html, /<title>ONE WAVE ONE ROUTE · CBT<\/title>/i);
   assert.match(html, /ONE WAVE/);
   assert.match(html, /ONE ROUTE/);
-  assert.match(html, /Demo snapshot/);
+  assert.match(html, /Connecting live data/);
   assert.match(html, /Generate assignment/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
@@ -54,6 +54,8 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /Manual lock selalu menang atas auto-assignment/);
   assert.match(page, /Assign \{selectedOrders\.length \|\| "selected"\} SO to/);
   assert.match(page, /Paste multiple Staff ID/);
+  assert.match(page, /\/api\/live/);
+  assert.match(page, /Live Superset \+ GSheet/);
   assert.match(page, /selectedPickerIds/);
   assert.equal((roster.match(/"staffId":/g) ?? []).length, 228);
   assert.match(roster, /Muhammad Faris Gumay/);

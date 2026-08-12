@@ -339,6 +339,7 @@ button {
 }
 
 .route-section,
+.manual-section,
 .operations-grid,
 .assignment-section {
   margin: 0 clamp(22px, 4vw, 58px);
@@ -514,6 +515,258 @@ button {
   font-size: 8px;
   margin: 0 -18px;
   padding: 10px 18px;
+}
+
+.manual-section {
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.manual-head {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+
+.manual-route-tabs {
+  background: #f1f3ef;
+  border-radius: 9px;
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+}
+
+.manual-route-tabs button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: #65716e;
+  cursor: pointer;
+  display: flex;
+  font-family: var(--mono);
+  font-size: 8px;
+  gap: 7px;
+  padding: 8px 10px;
+}
+
+.manual-route-tabs button span {
+  background: #e4e8e3;
+  border-radius: 99px;
+  color: #74807d;
+  font-size: 7px;
+  padding: 3px 5px;
+}
+
+.manual-route-tabs button.active {
+  background: var(--navy);
+  color: #fff;
+}
+
+.manual-route-tabs button.active span {
+  background: rgba(255, 255, 255, 0.14);
+  color: #c7d3d0;
+}
+
+.manual-command {
+  align-items: center;
+  background: #fbfcf9;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(190px, 1fr) minmax(190px, 260px) auto;
+  padding: 15px 20px;
+}
+
+.manual-command .eyebrow {
+  color: var(--orange);
+  font-size: 7px;
+  margin: 0 0 3px;
+}
+
+.manual-command h4 {
+  font-size: 19px;
+  letter-spacing: -0.04em;
+  margin: 0;
+}
+
+.manual-command > div > span {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 8px;
+}
+
+.staff-id-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.staff-id-field > span {
+  color: #66736f;
+  font-family: var(--mono);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.staff-id-field input {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  outline: none;
+  padding: 10px 11px;
+  width: 100%;
+}
+
+.staff-id-field input:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(47, 158, 133, 0.08);
+}
+
+.manual-assign-button {
+  min-width: 135px;
+  white-space: nowrap;
+}
+
+.so-table-wrap {
+  overflow-x: auto;
+}
+
+.so-table-row {
+  align-items: center;
+  border-top: 1px solid #edf0ed;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 28px minmax(200px, 1.35fr) 90px minmax(105px, 0.75fr) 80px minmax(105px, 0.75fr) 70px;
+  min-width: 850px;
+  padding: 10px 20px;
+  transition: background 130ms ease;
+}
+
+.so-table-row:hover {
+  background: #fafbf8;
+}
+
+.so-table-labels {
+  background: #f6f8f4;
+  border-top: 0;
+  color: #89938f;
+  font-family: var(--mono);
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding-bottom: 8px;
+  padding-top: 8px;
+  text-transform: uppercase;
+}
+
+.so-table-row.manual-locked {
+  background: #f0faf7;
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.so-check input {
+  accent-color: var(--orange);
+  cursor: pointer;
+  height: 14px;
+  width: 14px;
+}
+
+.so-table-row > span:not(.so-check) {
+  display: flex;
+  flex-direction: column;
+}
+
+.so-table-row strong {
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.so-table-row small {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 7px;
+  margin-top: 3px;
+}
+
+.so-number strong {
+  font-size: 11px;
+}
+
+.destination-badge {
+  align-self: flex-start;
+  background: var(--orange-soft);
+  border-radius: 5px;
+  color: var(--orange);
+  font-family: var(--mono);
+  font-size: 8px;
+  padding: 5px 7px;
+}
+
+.assignee-status strong {
+  color: var(--navy);
+}
+
+.manual-locked .assignee-status strong {
+  color: var(--green);
+}
+
+.clear-lock {
+  background: transparent;
+  border: 1px solid #b9d9d0;
+  border-radius: 6px;
+  color: var(--green);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 7px;
+  padding: 6px 8px;
+}
+
+.auto-mark {
+  color: #9aa5a2;
+  font-family: var(--mono);
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.manual-foot {
+  align-items: center;
+  background: #f8f9f6;
+  border-top: 1px solid var(--line);
+  color: #65716e;
+  display: flex;
+  font-family: var(--mono);
+  font-size: 8px;
+  justify-content: space-between;
+  padding: 11px 20px;
+}
+
+.manual-foot span i {
+  background: var(--green);
+  border-radius: 50%;
+  display: inline-block;
+  height: 6px;
+  margin-right: 6px;
+  width: 6px;
+}
+
+.manual-foot button {
+  background: transparent;
+  border: 0;
+  color: var(--orange);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 8px;
+}
+
+.manual-foot button:disabled {
+  color: #aeb7b4;
+  cursor: not-allowed;
 }
 
 .operations-grid {
@@ -810,6 +1063,22 @@ button {
   font-family: var(--mono);
   font-size: 7px;
   margin-top: 3px;
+}
+
+.picker-info strong em {
+  background: #ddf3ed;
+  border-radius: 99px;
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 6px;
+  font-style: normal;
+  margin-left: 5px;
+  padding: 3px 5px;
+  vertical-align: 1px;
+}
+
+.assignment-card[data-source="manual"] {
+  box-shadow: inset 3px 0 0 var(--green);
 }
 
 .assignment-route strong {
@@ -1133,6 +1402,29 @@ code {
     grid-template-columns: 1fr;
   }
 
+  .manual-head {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 13px;
+  }
+
+  .manual-route-tabs {
+    overflow-x: auto;
+  }
+
+  .manual-route-tabs button {
+    flex: 1 0 auto;
+    justify-content: center;
+  }
+
+  .manual-command {
+    grid-template-columns: 1fr minmax(180px, 240px);
+  }
+
+  .manual-command > div {
+    grid-column: 1 / -1;
+  }
+
   .route-card:last-child {
     grid-column: auto;
   }
@@ -1185,6 +1477,7 @@ code {
   }
 
   .route-section,
+  .manual-section,
   .operations-grid,
   .assignment-section {
     margin-left: 12px;
@@ -1204,6 +1497,24 @@ code {
 
   .route-grid {
     grid-template-columns: 1fr;
+  }
+
+  .manual-command {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-command > div {
+    grid-column: auto;
+  }
+
+  .manual-assign-button {
+    width: 100%;
+  }
+
+  .manual-foot {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
   }
 
   .assignment-tools {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PICKER_ROSTER } from "./picker-roster";
 
 type RouteCode = "SWL - PSG" | "SMN - MRY" | "BSX";
 
@@ -67,7 +68,7 @@ const ZONE_RULES: ZoneRule[] = [
   { zone: "SPR C1-1", productivity: 3000 },
 ];
 
-const PICKERS: Picker[] = [
+const AUTO_PICKERS: Picker[] = [
   { staffId: "52016", name: "Muhammad Faris Gumay", zone: "MZE", productivity: 2400, shift: "05:00–14:00" },
   { staffId: "49605", name: "Faizal Arifin", zone: "MZF", productivity: 2400, shift: "05:00–14:00" },
   { staffId: "48113", name: "Jonathan Syah", zone: "MZC 2", productivity: 2800, shift: "05:00–14:00" },
@@ -192,7 +193,9 @@ function buildManualAssignments(
 
   return [...groups.entries()].map(([key, assignedOrders]) => {
     const staffId = key.split("::")[1];
-    const rosterPicker = PICKERS.find((picker) => picker.staffId === staffId);
+    const rosterPicker = PICKER_ROSTER.find(
+      (picker) => picker.staffId === staffId,
+    );
     const zones = [...new Set(assignedOrders.map((order) => order.zone))];
     const productivity = rosterPicker?.productivity ?? assignedOrders.reduce(
       (sum, order) =>
@@ -244,8 +247,11 @@ function downloadCsv(assignments: Assignment[], route?: RouteCode) {
 export default function Home() {
   const [activeRoute, setActiveRoute] = useState<RouteCode | "ALL">("ALL");
   const [manualRoute, setManualRoute] = useState<RouteCode>("SWL - PSG");
-  const [manualStaffId, setManualStaffId] = useState("");
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [selectedPickerIds, setSelectedPickerIds] = useState<string[]>([]);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [bulkPickerIds, setBulkPickerIds] = useState("");
+  const [showPickerPool, setShowPickerPool] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<ManualOverrides>({});
   const [generated, setGenerated] = useState(true);
   const [search, setSearch] = useState("");
@@ -257,7 +263,7 @@ export default function Home() {
       generated
         ? buildAssignments(
             SO_DATA.filter((order) => !manualOverrides[order.soNumber]),
-            PICKERS,
+            AUTO_PICKERS,
           )
         : [],
     [generated, manualOverrides],
@@ -274,6 +280,24 @@ export default function Home() {
   const manualRouteOrders = SO_DATA.filter(
     (order) => order.route === manualRoute,
   );
+
+  const manualRouteZones = new Set(
+    manualRouteOrders.map((order) => order.zone),
+  );
+
+  const filteredPickers = PICKER_ROSTER.filter((picker) => {
+    const query = pickerSearch.trim().toLowerCase();
+    return (
+      !query ||
+      picker.staffId.includes(query) ||
+      picker.name.toLowerCase().includes(query) ||
+      picker.zone.toLowerCase().includes(query)
+    );
+  }).sort((a, b) => {
+    const aRelevant = manualRouteZones.has(a.zone) ? 0 : 1;
+    const bRelevant = manualRouteZones.has(b.zone) ? 0 : 1;
+    return aRelevant - bRelevant || a.zone.localeCompare(b.zone) || a.name.localeCompare(b.name);
+  });
 
   const autoAssigneeBySo = useMemo(() => {
     const assignees: Record<string, string> = {};
@@ -388,10 +412,28 @@ export default function Home() {
     );
   }
 
+  function togglePicker(staffId: string) {
+    setSelectedPickerIds((current) =>
+      current.includes(staffId)
+        ? current.filter((item) => item !== staffId)
+        : [...current, staffId],
+    );
+  }
+
+  function addBulkPickerIds() {
+    const ids = bulkPickerIds.match(/\d{4,8}/g) ?? [];
+    if (!ids.length) {
+      flash("Paste minimal satu Staff ID valid");
+      return;
+    }
+    setSelectedPickerIds((current) => [...new Set([...current, ...ids])]);
+    setBulkPickerIds("");
+    flash(`${ids.length} Staff ID ditambahkan ke picker pool`);
+  }
+
   function assignSelectedManually() {
-    const staffId = manualStaffId.replace(/\D/g, "");
-    if (staffId.length < 4) {
-      flash("Masukkan Staff ID valid (minimal 4 digit)");
+    if (!selectedPickerIds.length) {
+      flash("Pilih atau masukkan minimal satu picker");
       return;
     }
     if (!selectedOrders.length) {
@@ -399,16 +441,30 @@ export default function Home() {
       return;
     }
 
+    const loads = new Map(
+      selectedPickerIds.map((staffId) => [staffId, 0]),
+    );
+    const orderedOrders = SO_DATA.filter((order) =>
+      selectedOrders.includes(order.soNumber),
+    ).sort((a, b) => b.qty - a.qty);
+
     setManualOverrides((current) => {
       const next = { ...current };
-      selectedOrders.forEach((soNumber) => {
-        next[soNumber] = staffId;
+      orderedOrders.forEach((order) => {
+        const selectedStaffId = [...loads.entries()].sort((a, b) => {
+          const aPicker = PICKER_ROSTER.find((picker) => picker.staffId === a[0]);
+          const bPicker = PICKER_ROSTER.find((picker) => picker.staffId === b[0]);
+          const aCapacity = Math.max(1, aPicker?.productivity || 2000);
+          const bCapacity = Math.max(1, bPicker?.productivity || 2000);
+          return a[1] / aCapacity - b[1] / bCapacity;
+        })[0][0];
+        next[order.soNumber] = selectedStaffId;
+        loads.set(selectedStaffId, (loads.get(selectedStaffId) ?? 0) + order.qty);
       });
       return next;
     });
-    flash(`${selectedOrders.length} SO dikunci ke Staff ID ${staffId}`);
+    flash(`${selectedOrders.length} SO dibagi ke ${selectedPickerIds.length} picker`);
     setSelectedOrders([]);
-    setManualStaffId("");
   }
 
   function clearManualAssignment(soNumber: string) {
@@ -515,22 +571,71 @@ export default function Home() {
               <h4>{manualRoute}</h4>
               <span>{manualRouteOrders.length} candidate SO · {selectedOrders.length} selected</span>
             </div>
-            <label className="staff-id-field">
-              <span>Staff ID</span>
-              <input
-                aria-label="Staff ID untuk manual assignment"
-                inputMode="numeric"
-                maxLength={8}
-                placeholder="Contoh: 52016"
-                value={manualStaffId}
-                onChange={(event) => setManualStaffId(event.target.value.replace(/\D/g, ""))}
-                onKeyDown={(event) => { if (event.key === "Enter") assignSelectedManually(); }}
-              />
-            </label>
+            <div className="picker-pool-trigger-wrap">
+              <span>Picker pool · Schedule Manpower 2025</span>
+              <button
+                className={`picker-pool-trigger ${selectedPickerIds.length ? "has-selection" : ""}`}
+                onClick={() => setShowPickerPool((current) => !current)}
+                aria-expanded={showPickerPool}
+              >
+                <span>{selectedPickerIds.length ? `${selectedPickerIds.length} picker selected` : "Choose multiple pickers"}</span>
+                <b>{showPickerPool ? "−" : "+"}</b>
+              </button>
+            </div>
             <button className="primary-button manual-assign-button" onClick={assignSelectedManually}>
-              Assign {selectedOrders.length || "selected"} SO
+              Assign {selectedOrders.length || "selected"} SO to {selectedPickerIds.length || "picker"}
             </button>
           </div>
+
+          {showPickerPool && (
+            <div className="picker-drawer">
+              <div className="picker-drawer-head">
+                <div><p className="eyebrow">PICKER ROSTER</p><h4>Select manpower manually</h4><span>{PICKER_ROSTER.length} picker · snapshot dari Schedule Manpower 2025</span></div>
+                <button onClick={() => setShowPickerPool(false)} aria-label="Tutup picker pool">×</button>
+              </div>
+
+              <div className="picker-entry-tools">
+                <label>
+                  <span>Search roster</span>
+                  <input aria-label="Cari picker dari roster" placeholder="Nama, Staff ID, atau zona…" value={pickerSearch} onChange={(event) => setPickerSearch(event.target.value)} />
+                </label>
+                <label>
+                  <span>Paste multiple Staff ID</span>
+                  <div><input aria-label="Masukkan banyak Staff ID" inputMode="numeric" placeholder="52016, 49605, 48113" value={bulkPickerIds} onChange={(event) => setBulkPickerIds(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") addBulkPickerIds(); }} /><button onClick={addBulkPickerIds}>Add IDs</button></div>
+                </label>
+              </div>
+
+              <div className="selected-picker-strip">
+                <div><strong>Selected manpower</strong><span>{selectedPickerIds.length} picker ready for balancing</span></div>
+                <div className="picker-chips">
+                  {selectedPickerIds.length ? selectedPickerIds.map((staffId) => {
+                    const picker = PICKER_ROSTER.find((item) => item.staffId === staffId);
+                    return <button key={staffId} onClick={() => togglePicker(staffId)} title="Hapus dari pilihan"><span>{picker?.name ?? "Manual ID"}</span><b>{staffId}</b><i>×</i></button>;
+                  }) : <em>Belum ada picker dipilih</em>}
+                </div>
+                {selectedPickerIds.length > 0 && <button className="clear-picker-selection" onClick={() => setSelectedPickerIds([])}>Clear all</button>}
+              </div>
+
+              <div className="picker-list-head">
+                <span>Roster match</span><span>Home zone</span><span>Target prod</span><span>Select</span>
+              </div>
+              <div className="picker-list">
+                {filteredPickers.map((picker) => {
+                  const selected = selectedPickerIds.includes(picker.staffId);
+                  const relevant = manualRouteZones.has(picker.zone);
+                  return (
+                    <button className={selected ? "selected" : ""} key={picker.staffId} onClick={() => togglePicker(picker.staffId)}>
+                      <span className="picker-list-person"><i>{picker.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</i><span><strong>{picker.name}</strong><small>{picker.staffId}</small></span></span>
+                      <span><strong>{picker.zone}</strong>{relevant && <small>Route zone</small>}</span>
+                      <span><strong>{picker.productivity ? number(picker.productivity) : "—"}</strong><small>qty / shift</small></span>
+                      <span className="picker-select-mark">{selected ? "✓" : "+"}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="picker-drawer-foot"><span>Manual selection tidak mengambil manpower lain secara otomatis.</span><button onClick={() => setShowPickerPool(false)}>Done · {selectedPickerIds.length} selected</button></div>
+            </div>
+          )}
 
           <div className="so-table-wrap">
             <div className="so-table-row so-table-labels">

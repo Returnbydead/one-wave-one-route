@@ -38,10 +38,11 @@ test("server-renders the ONE WAVE ONE ROUTE dashboard", async () => {
 });
 
 test("keeps the V1 assignment and CSV contracts explicit", async () => {
-  const [page, layout, packageJson] = await Promise.all([
+  const [page, layout, packageJson, roster] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../app/picker-roster.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /"SWL - PSG"/);
@@ -51,7 +52,12 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /Manual SO assignment/);
   assert.match(page, /manualOverrides\[order\.soNumber\]/);
   assert.match(page, /Manual lock selalu menang atas auto-assignment/);
-  assert.match(page, /Assign \{selectedOrders\.length \|\| "selected"\} SO/);
+  assert.match(page, /Assign \{selectedOrders\.length \|\| "selected"\} SO to/);
+  assert.match(page, /Paste multiple Staff ID/);
+  assert.match(page, /selectedPickerIds/);
+  assert.equal((roster.match(/"staffId":/g) ?? []).length, 228);
+  assert.match(roster, /Muhammad Faris Gumay/);
+  assert.match(roster, /Jonathan Syah Romadhanu/);
   assert.match(
     page,
     /Math\.ceil\(totalQty \/ Math\.max\(1, rule\?\.productivity \?\? 2000\)\)/,

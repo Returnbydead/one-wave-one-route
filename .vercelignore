@@ -1,0 +1,10 @@
+.openai/
+backend/
+db/
+worker/
+drizzle.config.ts
+wrangler.jsonc
+dist/
+.vinext/
+outputs/
+work/

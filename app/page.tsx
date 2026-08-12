@@ -288,7 +288,13 @@ export default function Home() {
   const refreshLiveData = useCallback(async () => {
     try {
       const response = await fetch(`/api/live?t=${Date.now()}`, { cache: "no-store" });
-      const payload = await response.json();
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        orders?: SalesOrder[];
+        pickers?: Picker[];
+        generatedAt?: string;
+      };
       if (!response.ok || payload.ok !== true || !Array.isArray(payload.orders) || !Array.isArray(payload.pickers)) {
         throw new Error(payload.error || `HTTP ${response.status}`);
       }

@@ -29,7 +29,7 @@ test("server-renders the ONE WAVE ONE ROUTE dashboard", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>ONE WAVE ONE ROUTE · CBT<\/title>/i);
+  assert.match(html, /<title>ONE WAVE ONE ROUTE Â· CBT<\/title>/i);
   assert.match(html, /ONE WAVE/);
   assert.match(html, /ONE ROUTE/);
   assert.match(html, /Connecting live data/);
@@ -53,16 +53,16 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /"JLB"/);
   assert.match(page, /Assign by route/);
   assert.match(page, /Assign by zone/);
-  assert.match(page, /mode === "zone"\\s*\\? `\\$\\{normalizedZone\\(order\\.zone\\)\\}::\\$\\{staffId\\}`/);
-  assert.match(page, /buildManualAssignments\\(ordersData, manualOverrides, pickerRoster, assignmentMode\\)/);
+  assert.match(page, /mode === "zone"\s*\? `\$\{normalizedZone\(order\.zone\)\}::\$\{staffId\}`/);
+  assert.match(page, /buildManualAssignments\(ordersData, manualOverrides, pickerRoster, assignmentMode\)/);
   assert.match(page, /Pilih zone lintas route/i);
   assert.match(page, /Semua zone/i);
   assert.match(page, /aria-label="Pilih zone assignment"/);
-  assert.match(page, /mpRequired: Math\\.ceil\\(current\\.qty \\/ productivity\\)/);
-  assert.match(page, /\\{number\\(item\\.qty\\)\\} QTY/);
-  assert.match(page, /\\{item\\.mpRequired\\} MP/);
+  assert.match(page, /mpRequired: Math\.ceil\(current\.qty \/ productivity\)/);
+  assert.match(page, /\{number\(item\.qty\)\} QTY/);
+  assert.match(page, /\{item\.mpRequired\} MP/);
   assert.match(page, /error_message;so_id;staff_id/);
-  assert.match(page, /↓ Locked only \(\{lockedSoCount\}\)/);
+  assert.match(page, /â†“ Locked only \(\{lockedSoCount\}\)/);
   assert.match(page, /item\.source === source/);
   assert.match(page, /source === "manual" \? "-locked"/);
   assert.match(page, /Manual SO assignment/);
@@ -72,6 +72,10 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /Paste multiple Staff ID/);
   assert.match(page, /\/api\/live/);
   assert.match(page, /Live Superset \+ GSheet/);
+  assert.match(page, /Live picking monitor/);
+  assert.match(page, /picker\.activities\.map/);
+  assert.match(page, /activity\.pickedQty/);
+  assert.match(page, /activity\.remainingQty/);
   assert.match(page, /selectedPickerIds/);
   assert.equal((roster.match(/"staffId":/g) ?? []).length, 228);
   assert.match(roster, /Muhammad Faris Gumay/);
@@ -80,7 +84,7 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
     page,
     /Math\.ceil\(totalQty \/ Math\.max\(1, rule\?\.productivity \?\? 2000\)\)/,
   );
-  assert.match(layout, /ONE WAVE ONE ROUTE · CBT/);
+  assert.match(layout, /ONE WAVE ONE ROUTE Â· CBT/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });
 
@@ -93,5 +97,11 @@ test("keeps the Superset backend atomic per SO and origin rack zone", async () =
   assert.match(backend, /parsed_zone/);
   assert.match(backend, /ZONE_CONFLICT/);
   assert.match(backend, /OWOR SO CONFLICTS/);
+  assert.match(backend, /OWOR PICKING MONITOR/);
+  assert.match(backend, /SUM\(incoming_quantity\)/);
+  assert.match(backend, /picking_start_at/);
+  assert.match(backend, /picking_end_at/);
+  assert.match(backend, /normalizePicking_/);
   assert.doesNotMatch(backend, /Object\.keys\(order\.zones\)\.sort/);
 });
+

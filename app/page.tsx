@@ -298,6 +298,7 @@ function downloadCsv(
   const selected = assignments.filter((item) => (!source || item.source === source));
   const rows = ["error_message;so_id;staff_id"];
   selected.forEach((assignment) => {
+
     assignment.orders.filter((order) => !route || order.route === route).forEach((order) => {
       rows.push(`;${extractWmsSoId(order.soNumber)};${assignment.picker.staffId}`);
     });
@@ -506,7 +507,341 @@ export default function Home() {
     ordersData.forEach((order) => {
       const key = `${order.route}::${order.zone}`;
       const current = rows.get(key) ?? {
-        r…3890 tokens truncated…’" : "+"}</b>
+        route: order.route,
+        zone: order.zone,
+        qty: 0,
+        so: 0,
+        productivity:
+          ZONE_RULES.find((item) => item.zone === order.zone)?.productivity ??
+          2000,
+        required: 0,
+        assigned: 0,
+      };
+      current.qty += order.qty;
+      current.so += 1;
+      rows.set(key, current);
+    });
+    return [...rows.values()].map((row) => ({
+      ...row,
+      required: Math.ceil(row.qty / row.productivity),
+      assigned: new Set(
+        assignments
+          .filter((item) => assignmentHasRoute(item, row.route))
+          .filter((item) =>
+            item.orders.some((order) => order.zone === row.zone),
+          )
+          .map((item) => item.picker.staffId),
+      ).size,
+    }));
+  }, [assignments, ordersData]);
+
+  const filteredAssignments = assignments.filter((item) => {
+    const routeMatch = activeRoute === "ALL" || assignmentHasRoute(item, activeRoute);
+    const query = search.trim().toLowerCase();
+    const searchMatch =
+      !query ||
+      item.picker.name.toLowerCase().includes(query) ||
+      item.picker.staffId.includes(query) ||
+      item.zone.toLowerCase().includes(query) ||
+      item.orders.some((order) =>
+        order.soNumber.toLowerCase().includes(query),
+      );
+    return routeMatch && searchMatch;
+  });
+
+  const totals = {
+    qty: ordersData.reduce((sum, item) => sum + item.qty, 0),
+    so: ordersData.length,
+    sku: ordersData.reduce((sum, item) => sum + item.sku, 0),
+    mp: new Set(assignments.map((item) => item.picker.staffId)).size,
+  };
+
+  const pickingMonitor = useMemo(() => {
+    const groups = new Map<string, {
+      pickerId: string;
+      pickerName: string;
+      activities: PickingActivity[];
+      requestQty: number;
+      pickedQty: number;
+      remainingQty: number;
+      activeSo: number;
+      completedSo: number;
+      zones: Set<string>;
+      routes: Set<RouteCode>;
+    }>();
+    livePicking.forEach((activity) => {
+      const key = activity.pickerId || `UNASSIGNED::${activity.pickerName}`;
+      const current = groups.get(key) ?? {
+        pickerId: activity.pickerId, pickerName: activity.pickerName, activities: [],
+        requestQty: 0, pickedQty: 0, remainingQty: 0, activeSo: 0, completedSo: 0,
+        zones: new Set<string>(), routes: new Set<RouteCode>(),
+      };
+      current.activities.push(activity);
+      current.requestQty += activity.requestQty;
+      current.pickedQty += activity.pickedQty;
+      current.remainingQty += activity.remainingQty;
+      current.activeSo += activity.status === "IN_PROGRESS" ? 1 : 0;
+      current.completedSo += activity.status === "COMPLETED" ? 1 : 0;
+      current.zones.add(activity.zone);
+      current.routes.add(activity.route);
+      groups.set(key, current);
+    });
+    const query = monitorSearch.trim().toLowerCase();
+    return [...groups.values()]
+      .map((group) => ({
+        ...group,
+        activities: group.activities
+          .filter((activity) => monitorStatus === "ALL" || activity.status === monitorStatus)
+          .sort((a, b) => b.pickingStartAt.localeCompare(a.pickingStartAt)),
+        completionPct: group.requestQty > 0 ? Math.min(100, Math.round((group.pickedQty / group.requestQty) * 100)) : 0,
+      }))
+      .filter((group) => group.activities.length > 0)
+      .filter((group) => !query || group.pickerId.includes(query) || group.pickerName.toLowerCase().includes(query) || group.activities.some((activity) => activity.soNumber.toLowerCase().includes(query) || activity.zone.toLowerCase().includes(query) || activity.route.toLowerCase().includes(query)))
+      .sort((a, b) => b.activeSo - a.activeSo || b.remainingQty - a.remainingQty || a.pickerName.localeCompare(b.pickerName));
+  }, [livePicking, monitorSearch, monitorStatus]);
+
+
+  const pickingTotals = useMemo(() => ({
+    activePickers: new Set(livePicking.filter((item) => item.status === "IN_PROGRESS" && item.pickerId).map((item) => item.pickerId)).size,
+    activeSo: livePicking.filter((item) => item.status === "IN_PROGRESS").length,
+    completedSo: livePicking.filter((item) => item.status === "COMPLETED").length,
+    pickedQty: livePicking.reduce((sum, item) => sum + item.pickedQty, 0),
+    requestQty: livePicking.reduce((sum, item) => sum + item.requestQty, 0),
+  }), [livePicking]);
+
+  function flash(message: string) {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2500);
+  }
+
+  function openManualRoute(route: RouteCode) {
+    setManualRoute(route);
+    setActiveRoute(route);
+    setAssignmentMode("route");
+    setSelectedZone("ALL");
+    setSelectedOrders([]);
+  }
+
+  function selectAssignmentMode(mode: AssignmentMode) {
+    setAssignmentMode(mode);
+    setSelectedOrders([]);
+    if (mode === "zone") setActiveRoute("ALL");
+  }
+
+  function toggleOrder(soNumber: string) {
+    setSelectedOrders((current) =>
+      current.includes(soNumber)
+        ? current.filter((item) => item !== soNumber)
+        : [...current, soNumber],
+    );
+  }
+
+  function togglePicker(staffId: string) {
+    setSelectedPickerIds((current) =>
+      current.includes(staffId)
+        ? current.filter((item) => item !== staffId)
+        : [...current, staffId],
+    );
+  }
+
+  function addBulkPickerIds() {
+    const ids = bulkPickerIds.match(/\d{4,8}/g) ?? [];
+    if (!ids.length) {
+      flash("Paste minimal satu Staff ID valid");
+      return;
+    }
+    setSelectedPickerIds((current) => [...new Set([...current, ...ids])]);
+    setBulkPickerIds("");
+    flash(`${ids.length} Staff ID ditambahkan ke picker pool`);
+  }
+
+  function assignSelectedManually() {
+    if (!selectedPickerIds.length) {
+      flash("Pilih atau masukkan minimal satu picker");
+      return;
+    }
+    if (!selectedOrders.length) {
+      flash("Pilih minimal satu SO");
+      return;
+    }
+
+    const loads = new Map(
+      selectedPickerIds.map((staffId) => [staffId, 0]),
+    );
+    const orderedOrders = ordersData.filter((order) =>
+      selectedOrders.includes(order.soNumber),
+    ).sort((a, b) => b.qty - a.qty);
+
+    setManualOverrides((current) => {
+      const next = { ...current };
+      orderedOrders.forEach((order) => {
+        const selectedStaffId = [...loads.entries()].sort((a, b) => {
+          const aPicker = pickerRoster.find((picker) => picker.staffId === a[0]);
+          const bPicker = pickerRoster.find((picker) => picker.staffId === b[0]);
+          const aCapacity = Math.max(1, aPicker?.productivity || 2000);
+          const bCapacity = Math.max(1, bPicker?.productivity || 2000);
+          return a[1] / aCapacity - b[1] / bCapacity;
+        })[0][0];
+        next[order.soNumber] = selectedStaffId;
+        loads.set(selectedStaffId, (loads.get(selectedStaffId) ?? 0) + order.qty);
+      });
+      return next;
+    });
+    flash(`${selectedOrders.length} SO dibagi ke ${selectedPickerIds.length} picker`);
+    setSelectedOrders([]);
+  }
+
+  function clearManualAssignment(soNumber: string) {
+    setManualOverrides((current) => {
+      const next = { ...current };
+      delete next[soNumber];
+      return next;
+    });
+    flash("Manual assignment dilepas");
+  }
+
+  return (
+    <main className="app-shell">
+      <aside className="sidebar">
+        <div className="brand-mark">1W</div>
+        <nav aria-label="Navigasi utama">
+          <button className="nav-icon active" aria-label="Assignment board">âŒ</button>
+          <button className="nav-icon" aria-label="Data SO">â–¤</button>
+          <button className="nav-icon" aria-label="Manpower">â™™</button>
+          <button className="nav-icon" aria-label="Monitoring picking" onClick={() => document.getElementById("picking-monitor")?.scrollIntoView({ behavior: "smooth" })}>â—·</button>
+        </nav>
+        <button className="nav-icon bottom" aria-label="Pengaturan" onClick={() => setShowRules(true)}>âš™</button>
+      </aside>
+
+      <section className="workspace">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">CBT Â· OUTBOUND ORCHESTRATION</p>
+            <h1>ONE WAVE <span>ONE ROUTE</span></h1>
+          </div>
+          <div className="top-actions">
+            <div className="source-state" data-status={sourceStatus}>
+              <i />
+              <div><strong>{sourceStatus === "live" ? "Live Superset + GSheet" : sourceStatus === "loading" ? "Connecting live data" : "Demo fallback"}</strong><span>{sourceStatus === "live" ? formatSyncTime(lastSyncedAt) : sourceStatus === "loading" ? "checking compact snapshotâ€¦" : "backend belum siap"}</span></div>
+            </div>
+            <button className="soft-button" onClick={() => { setSourceStatus("loading"); void refreshLiveData(); flash("Memeriksa snapshot live terbaru"); }}>â†» Refresh</button>
+            <button className="primary-button" onClick={() => { setGenerated(true); flash(Object.keys(manualOverrides).length ? "Auto-assignment diperbarui, manual lock tetap aman" : "Assignment berhasil dihitung ulang"); }}>Generate assignment</button>
+          </div>
+        </header>
+
+        <section className="hero-grid">
+          <div className="hero-copy">
+            <div className="status-line"><span>WAVE 1</span><span>10 HUB</span><span>TRIAL V1</span></div>
+            <h2>Turn route volume into<br /><em>ready-to-upload</em> assignments.</h2>
+            <p>Demand per zone, manpower capacity, and whole-SO balancing in one operational view.</p>
+          </div>
+          <div className="hero-metrics">
+            <article><span>Total request</span><strong>{number(totals.qty)}</strong><small>qty Â· {number(totals.sku)} SKU</small></article>
+            <article><span>Candidate SO</span><strong>{number(totals.so)}</strong><small>10 hub Â· NEW</small></article>
+            <article className="accent"><span>MP required</span><strong>{number(totals.mp)}</strong><small>across {zoneStats.length} zone loads</small></article>
+          </div>
+        </section>
+
+        <section className="route-section">
+          <div className="section-heading">
+            <div><span>01</span><div><h3>Route demand</h3><p>Trial destinations from PLAN CBT AUG 2026</p></div></div>
+            <button className="text-button" onClick={() => setShowRules(true)}>View calculation rules â†—</button>
+          </div>
+          <div className="route-grid">
+            {routeStats.map((route) => (
+              <button
+                key={route.code}
+                className={`route-card ${activeRoute === route.code ? "selected" : ""}`}
+                onClick={() => openManualRoute(route.code)}
+                aria-pressed={manualRoute === route.code}
+                style={{ "--route-color": route.color } as React.CSSProperties}
+              >
+                <div className="route-top"><span>ROUTE {String(route.routeNo).padStart(2, "0")}</span><i>WAVE 1</i></div>
+                <h4>{route.code}</h4>
+                <p>{route.destinations.join("  Â·  ")}</p>
+                <div className="route-data"><div><strong>{number(route.qty)}</strong><span>REQUEST QTY</span></div><div><strong>{route.so}</strong><span>SO</span></div><div><strong>{route.mp}</strong><span>MP</span></div></div>
+                <div className="route-foot"><span>{route.zones} active zones</span><span>View & assign {route.so} SO â†’</span></div>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="manual-section panel">
+          <div className="manual-head">
+            <div className="panel-head">
+              <div><span>02</span><div><h3>Manual SO assignment</h3><p>Pilih route, centang SO, lalu lock ke Staff ID pilihan</p></div></div>
+            </div>
+            <div className="manual-route-tabs" aria-label="Pilih route untuk manual assignment">
+              {ROUTES.map((route) => {
+                const locked = ordersData.filter(
+                  (order) => order.route === route.code && manualOverrides[order.soNumber],
+                ).length;
+                return (
+                  <button
+                    key={route.code}
+                    className={manualRoute === route.code ? "active" : ""}
+                    onClick={() => openManualRoute(route.code)}
+                  >
+                    {route.code}<span>{locked}/{ordersData.filter((order) => order.route === route.code).length}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="assignment-mode-tabs" aria-label="Assignment grouping mode">
+              <button className={assignmentMode === "route" ? "active" : ""} onClick={() => selectAssignmentMode("route")}>Assign by route</button>
+              <button className={assignmentMode === "zone" ? "active" : ""} onClick={() => selectAssignmentMode("zone")}>Assign by zone</button>
+            </div>
+          </div>
+
+          {assignmentMode === "zone" && (
+            <div className="zone-selector" aria-label="Pilih zone assignment">
+              <div>
+                <p className="eyebrow">PILIH ZONE LINTAS ROUTE</p>
+                <h4>{selectedZone === "ALL" ? "Semua zone" : zoneOptions.find((item) => normalizedZone(item.zone) === selectedZone)?.zone}</h4>
+                <span>SO ditampilkan berdasarkan zone tanpa peduli route tujuan</span>
+              </div>
+              <div className="zone-selector-list">
+                <button
+                  className={selectedZone === "ALL" ? "active" : ""}
+                  onClick={() => { setSelectedZone("ALL"); setSelectedOrders([]); }}
+                >
+                  <strong>Semua zone</strong>
+                  <span>{ordersData.length} SO</span>
+                  <span className="zone-card-capacity">{number(zoneOptionTotals.qty)} QTY Â· {zoneOptionTotals.mpRequired} MP</span>
+                </button>
+                {zoneOptions.map((item) => {
+                  const value = normalizedZone(item.zone);
+                  return (
+                    <button
+                      className={selectedZone === value ? "active" : ""}
+                      key={value}
+                      onClick={() => { setSelectedZone(value); setSelectedOrders([]); }}
+                    >
+                      <strong>{item.zone}</strong>
+                      <span>{item.so} SO Â· {item.routes.size} route</span>
+                      <span className="zone-card-capacity">{number(item.qty)} QTY Â· {item.mpRequired} MP</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="manual-command">
+            <div>
+              <p className="eyebrow">{assignmentMode === "zone" ? "ACTIVE ZONE" : "ACTIVE ROUTE"}</p>
+              <h4>{assignmentMode === "zone" ? (selectedZone === "ALL" ? "Semua zone" : zoneOptions.find((item) => normalizedZone(item.zone) === selectedZone)?.zone) : manualRoute}</h4>
+              <span>{manualRouteOrders.length} candidate SO Â· {selectedOrders.length} selected</span>
+            </div>
+            <div className="picker-pool-trigger-wrap">
+              <span>Picker pool Â· Schedule Manpower 2025</span>
+              <button
+                className={`picker-pool-trigger ${selectedPickerIds.length ? "has-selection" : ""}`}
+                onClick={() => setShowPickerPool((current) => !current)}
+                aria-expanded={showPickerPool}
+              >
+                <span>{selectedPickerIds.length ? `${selectedPickerIds.length} picker selected` : "Choose multiple pickers"}</span>
+                <b>{showPickerPool ? "âˆ’" : "+"}</b>
               </button>
             </div>
             <button className="primary-button manual-assign-button" onClick={assignSelectedManually}>
@@ -565,6 +900,7 @@ export default function Home() {
           )}
 
           <div className="so-table-wrap">
+
             <div className="so-table-row so-table-labels">
               <span className="so-check">
                 <input
@@ -776,4 +1112,3 @@ export default function Home() {
     </main>
   );
 }
-

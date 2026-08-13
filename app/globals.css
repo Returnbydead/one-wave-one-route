@@ -659,7 +659,7 @@ button {
   color: #52635f;
   cursor: pointer;
   flex: 0 0 auto;
-  min-width: 104px;
+  min-width: 128px;
   padding: 8px 10px;
   text-align: left;
 }
@@ -680,6 +680,14 @@ button {
   margin-top: 3px;
 }
 
+.zone-selector-list button .zone-card-capacity {
+  color: var(--navy);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  margin-top: 5px;
+}
+
 .zone-selector-list button.active {
   background: var(--navy);
   border-color: var(--navy);
@@ -688,6 +696,10 @@ button {
 
 .zone-selector-list button.active span {
   color: #bcd0ca;
+}
+
+.zone-selector-list button.active .zone-card-capacity {
+  color: #fff;
 }
 
 .manual-command {

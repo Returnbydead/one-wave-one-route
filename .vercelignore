@@ -1,6 +1,7 @@
 .openai/
 backend/
 db/
+examples/
 worker/
 drizzle.config.ts
 wrangler.jsonc

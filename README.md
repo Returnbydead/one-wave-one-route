@@ -34,6 +34,8 @@ npm test
 
 Raw Superset item rows tidak boleh dikirim langsung ke browser atau Google Sheets. Dataset upstream harus memfilter operational date, lima destination trial, status eligible, lalu mengagregasi menjadi snapshot candidate SO yang ramping.
 
+Monitoring picking memakai query kedua yang tetap ramping pada grain SO + picker + zone. Backend hanya menyimpan field operasional yang dibutuhkan (`request_qty`, `picked_qty`, status, start/end) di sheet `OWOR PICKING MONITOR`; browser tidak pernah menerima raw item rows. Panel live mengelompokkan snapshot tersebut per picker dan menampilkan detail SO yang sedang dikerjakan, progress qty, zone, route, serta waktu mulai/selesai. Snapshot ikut trigger 5-menitan yang sama.
+
 ```text
 Superset dataset 400 (up to 1M item rows)
   -> filtered + aggregated query
@@ -93,3 +95,4 @@ OWOR_GAS_TOKEN=<script-property-token>
 ```
 
 Jika `OWOR SYNC STATUS` menunjukkan `SUPERSET_HTTP_401`, perbarui cookie Superset pada workbook cookie server-side. Tidak ada cookie Superset yang dikirim ke browser atau disimpan di repository.
+

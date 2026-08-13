@@ -29,7 +29,7 @@ test("server-renders the ONE WAVE ONE ROUTE dashboard", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>ONE WAVE ONE ROUTE Â· CBT<\/title>/i);
+  assert.match(html, /<title>ONE WAVE ONE ROUTE · CBT<\/title>/i);
   assert.match(html, /ONE WAVE/);
   assert.match(html, /ONE ROUTE/);
   assert.match(html, /Connecting live data/);
@@ -46,7 +46,8 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   ]);
 
   assert.match(page, /"SWL - PSG"/);
-  assert.match(page, /"SMN - MRY"/);
+  assert.match(page, /"CSA - KLD"/);
+  assert.doesNotMatch(page, /SMN|MRY/);
   assert.match(page, /"BSX"/);
   assert.match(page, /"CPT - PPL"/);
   assert.match(page, /"RDS - SLP"/);
@@ -62,7 +63,7 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /\{number\(item\.qty\)\} QTY/);
   assert.match(page, /\{item\.mpRequired\} MP/);
   assert.match(page, /error_message;so_id;staff_id/);
-  assert.match(page, /â†“ Locked only \(\{lockedSoCount\}\)/);
+  assert.match(page, /↓ Locked only \(\{lockedSoCount\}\)/);
   assert.match(page, /item\.source === source/);
   assert.match(page, /source === "manual" \? "-locked"/);
   assert.match(page, /Manual SO assignment/);
@@ -84,15 +85,17 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
     page,
     /Math\.ceil\(totalQty \/ Math\.max\(1, rule\?\.productivity \?\? 2000\)\)/,
   );
-  assert.match(layout, /ONE WAVE ONE ROUTE Â· CBT/);
+  assert.match(layout, /ONE WAVE ONE ROUTE · CBT/);
+  assert.doesNotMatch(page + layout, /Ã|Â|â[\u0080-\u00BF]|à¸|�/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });
 
 test("keeps the Superset backend atomic per SO and origin rack zone", async () => {
   const backend = await readFile(new URL("../backend/Code.gs", import.meta.url), "utf8");
-  for (const hub of ["SWL", "PSG", "SMN", "MRY", "BSX", "CPT", "PPL", "RDS", "SLP", "JLB"]) {
+  for (const hub of ["SWL", "PSG", "CSA", "KLD", "BSX", "CPT", "PPL", "RDS", "SLP", "JLB"]) {
     assert.match(backend, new RegExp(`\\b${hub}\\b`));
   }
+  assert.doesNotMatch(backend, /SMN|MRY/);
   assert.match(backend, /origin_rack_name/);
   assert.match(backend, /parsed_zone/);
   assert.match(backend, /ZONE_CONFLICT/);

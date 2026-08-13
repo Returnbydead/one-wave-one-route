@@ -4,7 +4,7 @@ V1 dashboard untuk membentuk assignment picker per route dan picking zone, lalu 
 
 ## V1 scope
 
-- Route: `SWL - PSG`, `SMN - MRY`, `BSX`, `CPT - PPL`, `RDS - SLP`, dan `JLB` (10 hub)
+- Route: `SWL - PSG`, `CSA - KLD`, `BSX`, `CPT - PPL`, `RDS - SLP`, dan `JLB` (10 hub)
 - Mode assignment dapat dipilih `By route` atau lintas route `By zone`
 - Menghitung kebutuhan picker per zone dengan `CEILING(request_qty / productivity_per_mp)`
 - Memilih picker aktif sesuai zone dan kapasitas

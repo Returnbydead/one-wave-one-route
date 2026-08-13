@@ -19,12 +19,12 @@ const OWOR = Object.freeze({
   SUPERSET_URL: 'https://dash.astronauts.id/api/v1/chart/data',
   DATASOURCE_ID: 400,
   PICKING_DATASOURCE_ID: 108,
-  DESTINATIONS: ['SWL', 'PSG', 'SMN', 'MRY', 'BSX', 'CPT', 'PPL', 'RDS', 'SLP', 'JLB'],
+  DESTINATIONS: ['SWL', 'PSG', 'CSA', 'KLD', 'BSX', 'CPT', 'PPL', 'RDS', 'SLP', 'JLB'],
   ROUTES: {
     SWL: 'SWL - PSG',
     PSG: 'SWL - PSG',
-    SMN: 'SMN - MRY',
-    MRY: 'SMN - MRY',
+    CSA: 'CSA - KLD',
+    KLD: 'CSA - KLD',
     BSX: 'BSX',
     CPT: 'CPT - PPL',
     PPL: 'CPT - PPL',
@@ -113,8 +113,8 @@ function fetchPickingRows_(cookie) {
   const destinationSql = `CASE
     WHEN UPPER(COALESCE(destination_name, '')) LIKE '%SWL%' THEN 'SWL'
     WHEN UPPER(COALESCE(destination_name, '')) LIKE '%PSG%' THEN 'PSG'
-    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%SMN%' THEN 'SMN'
-    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%MRY%' THEN 'MRY'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%CSA%' THEN 'CSA'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%KLD%' THEN 'KLD'
     WHEN UPPER(COALESCE(destination_name, '')) LIKE '%BSX%' THEN 'BSX'
     WHEN UPPER(COALESCE(destination_name, '')) LIKE '%CPT%' THEN 'CPT'
     WHEN UPPER(COALESCE(destination_name, '')) LIKE '%PPL%' THEN 'PPL'
@@ -230,8 +230,8 @@ function fetchSupersetRows_(cookie) {
   const destinationSql = `CASE
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%SWL%' THEN 'SWL'
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%PSG%' THEN 'PSG'
-    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%SMN%' THEN 'SMN'
-    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%MRY%' THEN 'MRY'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%CSA%' THEN 'CSA'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%KLD%' THEN 'KLD'
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%BSX%' THEN 'BSX'
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%CPT%' THEN 'CPT'
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%PPL%' THEN 'PPL'

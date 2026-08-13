@@ -358,11 +358,765 @@ export default function Home() {
         sync?: { status?: string; message?: string };
       };
       if (!response.ok || payload.ok !== true || !Array.isArray(payload.orders) || !Array.isArray(payload.pickers)) {
-        throw new Error(payload.error || `HTTó­7¶‰Ëkºwµç}É‘•È¹Í½9Õµ‰•Étì(€€€€€€€€€€€€€½¹ÍĞ…ÕÑ½MÑ…™˜€ô…ÕÑ½ÍÍ¥¹••	åM½m½É‘•È¹Í½9Õµ‰•Étì(€€€€€€€€€€€€€É•ÑÕÉ¸€ (€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”õíÍ¼µÑ…‰±”µÉ½Ü€‘íµ…¹Õ…±MÑ…™˜€ü€‰µ…¹Õ…°µ±½­•ˆ€è€ˆ‰õô­•äõí½É‘•È¹Í½9Õµ‰•Éôø(€€€€€€€€€€€€€€€€€€ñÍÁ…¸±…ÍÍ9…µ”ô‰Í¼µ¡•¬ˆøñ¥¹ÁÕĞÑåÁ”ô‰¡•­‰½àˆ…É¥„µ±…‰•°õíA¥±¥ M<€‘í•áÑÉ…Ñ]µÍM½%¡½É‘•È¹Í½9Õµ‰•È¥õô¡•­•õíÍ•±•Ñ•‘=É‘•ÉÌ¹¥¹±Õ‘•Ì¡½É‘•È¹Í½9Õµ‰•È¥ô½¹¡…¹”õì ¤€ôøÑ½±•=É‘•È¡½É‘•È¹Í½9Õµ‰•È¥ô€¼øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€ñÍÁ…¸±…ÍÍ9…µ”ô‰Í¼µ¹Õµ‰•ÈˆøñÍÑÉ½¹œùí•áÑÉ…Ñ]µÍM½%¡½É‘•È¹Í½9Õµ‰•È¥ôğ½ÍÑÉ½¹œøñÍµ…±°ùí½É‘•È¹Í½9Õµ‰•Éôğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€ñÍÁ…¸øñˆ±…ÍÍ9…µ”ô‰‘•ÍÑ¥¹…Ñ¥½¸µ‰…‘”ˆùí½É‘•È¹‘•ÍÑ¥¹…Ñ¥½¹ôğ½ˆøğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€ñÍÁ…¸øñÍÑÉ½¹œùí½É‘•È¹é½¹•ôğ½ÍÑÉ½¹œøñÍµ…±°ùí½É‘•È¹Í­ÕôM-Tğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€ñÍÁ…¸øñÍÑÉ½¹œùí¹Õµ‰•È¡½É‘•È¹ÅÑä¥ôğ½ÍÑÉ½¹œøñÍµ…±°ùÅÑäğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€ñÍÁ…¸±…ÍÍ9…µ”ô‰…ÍÍ¥¹•”µÍÑ…ÑÕÌˆø(€€€€€€€€€€€€€€€€€€€€ñÍÑÉ½¹œùíµ…¹Õ…±MÑ…™˜€üü…ÕÑ½MÑ…™˜€üü€‰U¹…ÍÍ¥¹•‰ôğ½ÍÑÉ½¹œø(€€€€€€€€€€€€€€€€€€€€ñÍµ…±°ùíµ…¹Õ…±MÑ…™˜€ü€‰5…¹Õ…°±½¬ˆ€è…ÕÑ½MÑ…™˜€ü€‰ÕÑ¼Á±…¸ˆ€è€‰]…¥Ñ¥¹œ‰ôğ½Íµ…±°ø(€€€€€€€€€€€€€€€€€€ğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€ñÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€íµ…¹Õ…±MÑ…™˜€ü€ (€€€€€€€€€€€€€€€€€€€€€€ñ‰ÕÑÑ½¸±…ÍÍ9…µ”ô‰±•…Èµ±½¬ˆ½¹±¥¬õì ¤€ôø±•…É5…¹Õ…±ÍÍ¥¹µ•¹Ğ¡½É‘•È¹Í½9Õµ‰•È¥ôùI•±•…Í”ğ½‰ÕÑÑ½¸ø(€€€€€€€€€€€€€€€€€€€€¤€è€ (€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸±…ÍÍ9…µ”ô‰…ÕÑ¼µµ…É¬ˆùUQ<ğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€¥ô(€€€€€€€€€€€€€€€€€€ğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€€€€€¤ì(€€€€€€€€€€€ô¥ô(€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µ…¹Õ…°µ™½½Ğˆø(€€€€€€€€€€€€ñÍÁ…¸øñ¤€¼ø5…¹Õ…°±½¬Í•±…±Ôµ•¹…¹œ…Ñ…Ì…ÕÑ¼µ…ÍÍ¥¹µ•¹Ğ‘…¸±…¹ÍÕ¹œ‘¥Õ¹…­…¸Á…‘„MX¸ğ½ÍÁ…¸ø(€€€€€€€€€€€€ñ‰ÕÑÑ½¸(€€€€€€€€€€€€€‘¥Í…‰±•õì…µ…¹Õ…±I½ÕÑ•=É‘•ÉÌ¹Í½µ” ¡½É‘•È¤€ôøµ…¹Õ…±=Ù•ÉÉ¥‘•Ím½É‘•È¹Í½9Õµ‰•Ét¥ô(€€€€€€€€€€€€€½¹±¥¬õì ¤€ôøì(€€€€€€€€€€€€€€€Í•Ñ5…¹Õ…±=Ù•ÉÉ¥‘•Ì ¡ÕÉÉ•¹Ğ¤€ôøì(€€€€€€€€€€€€€€€€€½¹ÍĞ¹•áĞ€ôì€¸¸¹ÕÉÉ•¹Ğôì(€€€€€€€€€€€€€€€€€µ…¹Õ…±I½ÕÑ•=É‘•ÉÌ¹™½É…  ¡½É‘•È¤€ôø‘•±•Ñ”¹•áÑm½É‘•È¹Í½9Õµ‰•Ét¤ì(€€€€€€€€€€€€€€€€€É•ÑÕÉ¸¹•áĞì(€€€€€€€€€€€€€€€ô¤ì(€€€€€€€€€€€€€€€™±…Í ¡5…¹Õ…°±½¬€‘í…ÍÍ¥¹µ•¹Ñ5½‘”€ôôô€‰é½¹”ˆ€ü€‰é½¹”ˆ€è€‰É½ÕÑ”‰ô‘¥‰•ÉÍ¥¡­…¹€¤ì(€€€€€€€€€€€€€õô(€€€€€€€€€€€€ù±•…Èí…ÍÍ¥¹µ•¹Ñ5½‘”€ôôô€‰é½¹”ˆ€ü€‰é½¹”ˆ€è€‰É½ÕÑ”‰ô±½­Ìğ½‰ÕÑÑ½¸ø(€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€ğ½Í•Ñ¥½¸ø((€€€€€€€€ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰½Á•É…Ñ¥½¹ÌµÉ¥ˆø(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰é½¹”µÁ…¹•°Á…¹•°ˆø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Á…¹•°µ¡•…ˆøñ‘¥ØøñÍÁ…¸øÀÌğ½ÍÁ…¸øñ‘¥Øøñ Ìù5…¹Á½İ•È‰äé½¹”ğ½ ÌøñÀùI•ÅÕ¥É•5@€ôÉ•ÅÕ•ÍĞÅÑäƒÜé½¹”ÁÉ½‘ÕÑ¥Ù¥Ñäğ½Àøğ½‘¥Øøğ½‘¥ØøñÍÁ…¸±…ÍÍ9…µ”ô‰Á¥±°ˆùíé½¹•MÑ…ÑÌ¹±•¹Ñ¡ô1=Lğ½ÍÁ…¸øğ½‘¥Øø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰é½¹”µÑ…‰±”ˆø(€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Ñ…‰±”µÉ½ÜÑ…‰±”µ±…‰•±ÌˆøñÍÁ…¸ùI½ÕÑ”€¼é½¹”ğ½ÍÁ…¸øñÍÁ…¸ù•µ…¹ğ½ÍÁ…¸øñÍÁ…¸ùAÉ½€¼5@ğ½ÍÁ…¸øñÍÁ…¸ù9••ğ½ÍÁ…¸øñÍÁ…¸ù½Ù•É…”ğ½ÍÁ…¸øğ½‘¥Øø(€€€€€€€€€€€€€íé½¹•MÑ…ÑÌ(€€€€€€€€€€€€€€€€¹™¥±Ñ•È ¡É½Ü¤€ôø…Ñ¥Ù•I½ÕÑ”€ôôô€‰10ˆñğÉ½Ü¹É½ÕÑ”€ôôô…Ñ¥Ù•I½ÕÑ”¤(€€€€€€€€€€€€€€€€¹µ…À ¡É½Ü¤€ôøì(€€€€€€€€€€€€€€€€€½¹ÍĞÁ•É•¹Ñ…”€ô5…Ñ ¹µ¥¸ ÄÀÀ°5…Ñ ¹É½Õ¹ ¡É½Ü¹…ÍÍ¥¹•€¼É½Ü¹É•ÅÕ¥É•¤€¨€ÄÀÀ¤¤ì(€€€€€€€€€€€€€€€€€É•ÑÕÉ¸€ (€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Ñ…‰±”µÉ½Üˆ­•äõí€‘íÉ½Ü¹É½ÕÑ•ô´‘íÉ½Ü¹é½¹•õôø(€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸øñÍÑÉ½¹œùíÉ½Ü¹é½¹•ôğ½ÍÑÉ½¹œøñÍµ…±°ùíÉ½Ü¹É½ÕÑ•ôğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸øñÍÑÉ½¹œùí¹Õµ‰•È¡É½Ü¹ÅÑä¥ôğ½ÍÑÉ½¹œøñÍµ…±°ùíÉ½Ü¹Í½ôM<ğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸øñÍÑÉ½¹œùí¹Õµ‰•È¡É½Ü¹ÁÉ½‘ÕÑ¥Ù¥Ñä¥ôğ½ÍÑÉ½¹œøñÍµ…±°ùÅÑä€¼Í¡¥™Ğğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸±…ÍÍ9…µ”ô‰¹••ˆøñˆùíÉ½Ü¹É•ÅÕ¥É•‘ôğ½ˆøñÍµ…±°ù5@ğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸±…ÍÍ9…µ”ô‰½Ù•É…”ˆøñ¤øñ•´ÍÑå±”õíìİ¥‘Ñ è€‘íÁ•É•¹Ñ…•ô•€õô€¼øğ½¤øñÍµ…±°ùíÉ½Ü¹…ÍÍ¥¹•‘ô½íÉ½Ü¹É•ÅÕ¥É•‘ô…ÍÍ¥¹•ğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€€€€€€€€€¤ì(€€€€€€€€€€€€€€€ô¥ô(€€€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€ğ½‘¥Øø((€€€€€€€€€€ñ…Í¥‘”±…ÍÍ9…µ”ô‰É•…‘¥¹•ÍÌµÁ…¹•°Á…¹•°ˆø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰É•…‘¥¹•ÍÌµ½É‰¥ĞˆøñÍÑÉ½¹œùíÑ½Ñ…±Ì¹µÁôğ½ÍÑÉ½¹œøñÍÁ…¸ù5@Idğ½ÍÁ…¸øğ½‘¥Øø(€€€€€€€€€€€€ñ Ìù…Á…¥Ñä¥Ì½Ù•É•ğ½ Ìø(€€€€€€€€€€€€ñÀù±°é½¹”‘•µ…¹¡…Ì„Í¡•‘Õ±•Á¥­•Èİ¥Ñ „Ù…±¥ÍÑ…™˜%¸ğ½Àø(€€€€€€€€€€€€ñ‘°øñ‘¥Øøñ‘ĞùM¡•‘Õ±”Í½ÕÉ”ğ½‘Ğøñ‘øÄÈµÕœ´ÈÀÈØğ½‘øğ½‘¥Øøñ‘¥Øøñ‘ĞùM¡¥™ĞÁÉ¥½É¥Ñäğ½‘Ğøñ‘øÀÔèÀÃŠLÄĞèÀÀğ½‘øğ½‘¥Øøñ‘¥Øøñ‘ĞùM<ÍÁ±¥ĞÁ½±¥äğ½‘Ğøñ‘ù]¡½±”M<ğ½‘øğ½‘¥Øøğ½‘°ø(€€€€€€€€€€€€ñ‰ÕÑÑ½¸½¹±¥¬õì ¤€ôøÍ•ÑM¡½İIÕ±•Ì¡ÑÉÕ”¥ôù%¹ÍÁ•ĞÍ½ÕÉ”µ…ÁÁ¥¹œğ½‰ÕÑÑ½¸ø(€€€€€€€€€€ğ½…Í¥‘”ø(€€€€€€€€ğ½Í•Ñ¥½¸ø((€€€€€€€€ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰µ½¹¥Ñ½ÈµÍ•Ñ¥½¸Á…¹•°ˆ¥ô‰Á¥­¥¹œµµ½¹¥Ñ½Èˆø(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µ½¹¥Ñ½Èµ¡•…ˆø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Á…¹•°µ¡•…ˆøñ‘¥ØøñÍÁ…¸øÀĞğ½ÍÁ…¸øñ‘¥Øøñ Ìù1¥Ù”Á¥­¥¹œµ½¹¥Ñ½Èğ½ ÌøñÀù­Ñ¥Ù¥Ñ…Ì…­ÑÕ…°]5LÕ¹ÑÕ¬M<=¹”]…Ù”=¹”I½ÕÑ”ƒ
-ÜÁ¥­¥¹œÉ•™É•Í Í•­¥Ñ…È€ÌÀµ•¹¥Ğğ½Àøğ½‘¥Øøğ½‘¥Øøğ½‘¥Øø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µ½¹¥Ñ½ÈµÑ½½±Ìˆø(€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µ½¹¥Ñ½ÈµÑ…‰Ìˆ…É¥„µ±…‰•°ô‰¥±Ñ•ÈÍÑ…ÑÕÌÁ¥­¥¹œˆø(€€€€€€€€€€€€€€€ì¡l‰%9}AI=IMLˆ°€‰]%Q%9ˆ°€‰=5A1Qˆ°€‰10‰t…Ì½¹ÍĞ¤¹µ…À ¡ÍÑ…ÑÕÌ¤€ôø€ (€€€€€€€€€€€€€€€€€€ñ‰ÕÑÑ½¸­•äõíÍÑ…ÑÕÍô±…ÍÍ9…µ”õíµ½¹¥Ñ½ÉMÑ…ÑÕÌ€ôôôÍÑ…ÑÕÌ€ü€‰…Ñ¥Ù”ˆ€è€ˆ‰ô½¹±¥¬õì ¤€ôøÍ•Ñ5½¹¥Ñ½ÉMÑ…ÑÕÌ¡ÍÑ…ÑÕÌ¥ôùíÍÑ…ÑÕÌ€ôôô€‰%9}AI=IMLˆ€ü€‰%¸ÁÉ½É•ÍÌˆ€èÍÑ…ÑÕÌ€ôôô€‰10ˆ€ü€‰±°ˆ€èÍÑ…ÑÕÌ¹Ñ½1½İ•É…Í” ¥ôğ½‰ÕÑÑ½¸ø(€€€€€€€€€€€€€€€€¤¥ô(€€€€€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€€€€€ñ¥¹ÁÕĞ…É¥„µ±…‰•°ô‰…É¤µ½¹¥Ñ½É¥¹œÁ¥­¥¹œˆÁ±…•¡½±‘•Èô‰…É¤Á¥­•È°M<°é½¹”°É½ÕÑ”¸¸¸ˆÙ…±Õ”õíµ½¹¥Ñ½ÉM•…É¡ô½¹¡…¹”õì¡•Ù•¹Ğ¤€ôøÍ•Ñ5½¹¥Ñ½ÉM•…É ¡•Ù•¹Ğ¹Ñ…É•Ğ¹Ù…±Õ”¥ô€¼ø(€€€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µ½¹¥Ñ½Èµ­Á¥Ìˆø(€€€€€€€€€€€€ñ…ÉÑ¥±”øñÍÁ…¸ùÑ¥Ù”Á¥­•Èğ½ÍÁ…¸øñÍÑÉ½¹œùí¹Õµ‰•È¡Á¥­¥¹Q½Ñ…±Ì¹…Ñ¥Ù•A¥­•ÉÌ¥ôğ½ÍÑÉ½¹œøñÍµ…±°ùÍ•‘…¹œÁ¥­¥¹œğ½Íµ…±°øğ½…ÉÑ¥±”ø(€€€€€€€€€€€€ñ…ÉÑ¥±”øñÍÁ…¸ùM<¥¸ÁÉ½É•ÍÌğ½ÍÁ…¸øñÍÑÉ½¹œùí¹Õµ‰•È¡Á¥­¥¹Q½Ñ…±Ì¹…Ñ¥Ù•M¼¥ôğ½ÍÑÉ½¹œøñÍµ…±°ù‰•±Õ´Í•±•Í…¤ğ½Íµ…±°øğ½…ÉÑ¥±”ø(€€€€€€€€€€€€ñ…ÉÑ¥±”øñÍÁ…¸ùM<½µÁ±•Ñ•ğ½ÍÁ…¸øñÍÑÉ½¹œùí¹Õµ‰•È¡Á¥­¥¹Q½Ñ…±Ì¹½µÁ±•Ñ•‘M¼¥ôğ½ÍÑÉ½¹œøñÍµ…±°ù¡…É¤¥¹¤ğ½Íµ…±°øğ½…ÉÑ¥±”ø(€€€€€€€€€€€€ñ…ÉÑ¥±”øñÍÁ…¸ùA¥­•ÅÑäğ½ÍÁ…¸øñÍÑÉ½¹œùí¹Õµ‰•È¡Á¥­¥¹Q½Ñ…±Ì¹Á¥­•‘EÑä¥ôğ½ÍÑÉ½¹œøñÍµ…±°ù½˜í¹Õµ‰•È¡Á¥­¥¹Q½Ñ…±Ì¹É•ÅÕ•ÍÑEÑä¥ôÉ•ÅÕ•ÍĞğ½Íµ…±°øğ½…ÉÑ¥±”ø(€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€ì…±¥Ù•A¥­¥¹œ¹±•¹Ñ €ü€ (€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰•µÁÑäµÍÑ…Ñ”ˆøñÍÑÉ½¹œùM¹…ÁÍ¡½ĞÁ¥­¥¹œ‰•±Õ´Ñ•ÉÍ•‘¥„ğ½ÍÑÉ½¹œøñÍÁ…¸ù	…­•¹…ÍÍ¥¹µ•¹ĞÑ•Ñ…À…­Ñ¥˜¸5½¹¥Ñ½É¥¹œµÕ¹Õ°Í•Ñ•±… É•Í½ÕÉ”=]=HA%-%95=9%Q=HÑ•ÉÍ¥¹­É½¸¸ğ½ÍÁ…¸øğ½‘¥Øø(€€€€€€€€€€¤€è€…Á¥­¥¹5½¹¥Ñ½È¹±•¹Ñ €ü€ (€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰•µÁÑäµÍÑ…Ñ”ˆøñÍÑÉ½¹œùQ¥‘…¬…‘„…­Ñ¥Ù¥Ñ…ÌÁ…‘„™¥±Ñ•È¥¹¤ğ½ÍÑÉ½¹œøñÍÁ…¸ù½‰„Á¥±¥ ÍÑ…ÑÕÌ±…¥¸…Ñ…Ô­½Í½¹­…¸Á•¹…É¥…¸¸ğ½ÍÁ…¸øğ½‘¥Øø(€€€€€€€€€€¤€è€ (€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µ½¹¥Ñ½Èµ±¥ÍĞˆø(€€€€€€€€€€€€€íÁ¥­¥¹5½¹¥Ñ½È¹µ…À ¡Á¥­•È¤€ôøì(€€€€€€€€€€€€€€€½¹ÍĞ­•ä€ôÁ¥­•È¹Á¥­•É%ñğU9MM%9èè‘íÁ¥­•È¹Á¥­•É9…µ•õ€ì(€€€€€€€€€€€€€€€½¹ÍĞ½Á•¸€ô•áÁ…¹‘•‘A¥­•È€ôôô­•äì(€€€€€€€€€€€€€€€É•ÑÕÉ¸€ (€€€€€€€€€€€€€€€€€€ñ…ÉÑ¥±”±…ÍÍ9…µ”ô‰µ½¹¥Ñ½ÈµÁ¥­•Èˆ­•äõí­•åô‘…Ñ„µ½Á•¸õí½Á•¹ôø(€€€€€€€€€€€€€€€€€€€€ñ‰ÕÑÑ½¸±…ÍÍ9…µ”ô‰µ½¹¥Ñ½ÈµÁ¥­•ÈµÍÕµµ…Éäˆ½¹±¥¬õì ¤€ôøÍ•ÑáÁ…¹‘•‘A¥­•È¡½Á•¸€ü€ˆˆ€è­•ä¥ô…É¥„µ•áÁ…¹‘•õí½Á•¹ôø(€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸±…ÍÍ9…µ”ô‰Á¥­•Èµ…Ù…Ñ…ÈˆùíÁ¥­•È¹Á¥­•É9…µ”¹ÍÁ±¥Ğ ˆ€ˆ¤¹Í±¥” À°€È¤¹µ…À ¡Á…ÉĞ¤€ôøÁ…ÉÑlÁt¤¹©½¥¸ ˆˆ¤ñğ€ˆü‰ôğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸±…ÍÍ9…µ”ô‰µ½¹¥Ñ½ÈµÁ¥­•Èµ¹…µ”ˆøñÍÑÉ½¹œùíÁ¥­•È¹Á¥­•É9…µ•ôğ½ÍÑÉ½¹œøñÍµ…±°ùíÁ¥­•È¹Á¥­•É%ñğ€‰‰•±Õ´…‘„Á¥­•È%‰ôƒ
-Üíl¸¸¹Á¥­•È¹é½¹•Ít¹©½¥¸ ˆ°€ˆ¥ôğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸øñÍÑÉ½¹œùíÁ¥­•È¹…Ñ¥Ù¥Ñ¥•Ì¹±•¹Ñ¡ôğ½ÍÑÉ½¹œøñÍµ…±°ùM<Í¡½İ¸ğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸øñÍÑÉ½¹œùí¹Õµ‰•È¡Á¥­•È¹É•µ…¥¹¥¹EÑä¥ôğ½ÍÑÉ½¹œøñÍµ…±°ùÉ•µ…¥¹¥¹œÅÑäğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸±…ÍÍ9…µ”ô‰µ½¹¥Ñ½ÈµÁÉ½É•ÍÌˆøñ¤øñ•´ÍÑå±”õíìİ¥‘Ñ è€‘íÁ¥­•È¹½µÁ±•Ñ¥½¹AÑô•€õô€¼øğ½¤øñÍµ…±°ùíÁ¥­•È¹½µÁ±•Ñ¥½¹AÑô”Á¥­•ğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€ñˆùí½Á•¸€ü€‹Š"Hˆ€è€ˆ¬‰ôğ½ˆø(€€€€€€€€€€€€€€€€€€€€ğ½‰ÕÑÑ½¸ø(€€€€€€€€€€€€€€€€€€€í½Á•¸€˜˜€ (€€€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µ½¹¥Ñ½Èµ‘•Ñ…¥°ˆø(€€€€€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µ½¹¥Ñ½Èµ‘•Ñ…¥°µ±…‰•°ˆøñÍÁ…¸ùM<€¼‘•ÍÑ¥¹…Ñ¥½¸ğ½ÍÁ…¸øñÍÁ…¸ùi½¹”€¼É½ÕÑ”ğ½ÍÁ…¸øñÍÁ…¸ùAÉ½É•ÍÌğ½ÍÁ…¸øñÍÁ…¸ùQ¥µ¥¹œğ½ÍÁ…¸øñÍÁ…¸ùMÑ…ÑÕÌğ½ÍÁ…¸øğ½‘¥Øø(€€€€€€€€€€€€€€€€€€€€€€€íÁ¥­•È¹…Ñ¥Ù¥Ñ¥•Ì¹µ…À ¡…Ñ¥Ù¥Ñä¤€ôø€ (€€€€€€€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µ½¹¥Ñ½ÈµÍ¼ˆ­•äõí€‘í…Ñ¥Ù¥Ñä¹Í½9Õµ‰•Éô´‘í…Ñ¥Ù¥Ñä¹é½¹•ô´‘í…Ñ¥Ù¥Ñä¹Á¥­•É%‘õôø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸øñÍÑÉ½¹œùí•áÑÉ…Ñ]µÍM½%¡…Ñ¥Ù¥Ñä¹Í½9Õµ‰•È¥ôğ½ÍÑÉ½¹œøñÍµ…±°ùí…Ñ¥Ù¥Ñä¹‘•ÍÑ¥¹…Ñ¥½¹ôƒ
-Üí…Ñ¥Ù¥Ñä¹Í­ÕôM-Tğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸øñÍÑÉ½¹œùí…Ñ¥Ù¥Ñä¹é½¹•ôğ½ÍÑÉ½¹œøñÍµ…±°ùí…Ñ¥Ù¥Ñä¹É½ÕÑ•ôğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸±…ÍÍ9…µ”ô‰µ½¹¥Ñ½ÈµÍ¼µÁÉ½É•ÍÌˆøñÍÑÉ½¹œùí¹Õµ‰•È¡…Ñ¥Ù¥Ñä¹Á¥­•‘EÑä¥ô€¼í¹Õµ‰•È¡…Ñ¥Ù¥Ñä¹É•ÅÕ•ÍÑEÑä¥ôğ½ÍÑÉ½¹œøñ¤øñ•´ÍÑå±”õíìİ¥‘Ñ è€‘í…Ñ¥Ù¥Ñä¹½µÁ±•Ñ¥½¹AÑô•€õô€¼øğ½¤øñÍµ…±°ùí¹Õµ‰•È¡…Ñ¥Ù¥Ñä¹É•µ…¥¹¥¹EÑä¥ôÉ•µ…¥¹¥¹œğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸øñÍÑÉ½¹œùí™½Éµ…Ñ±½¬¡…Ñ¥Ù¥Ñä¹Á¥­¥¹MÑ…ÉÑĞ¥ôƒŠHí™½Éµ…Ñ±½¬¡…Ñ¥Ù¥Ñä¹Á¥­¥¹¹‘Ğ¥ôğ½ÍÑÉ½¹œøñÍµ…±°ùÍÑ…ÉĞƒŠH•¹ğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸øñ•´±…ÍÍ9…µ”õíÍÑ…ÑÕÌµ¡¥À€‘í…Ñ¥Ù¥Ñä¹ÍÑ…ÑÕÌ¹Ñ½1½İ•É…Í” ¥õôùí…Ñ¥Ù¥Ñä¹ÍÑ…ÑÕÌ¹É•Á±…” ‰|ˆ°€ˆ€ˆ¥ôğ½•´øñÍµ…±°ùí…Ñ¥Ù¥Ñä¹É…İMÑ…ÑÕÌñğ€‰]5L‰ôğ½Íµ…±°øğ½ÍÁ…¸ø(€€€€€€€€€€€€€€€€€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€€€€€€€€€€€€€€€¤¥ô(€€€€€€€€€€€€€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€€€€€€€€€€€¥ô(€€€€€€€€€€€€€€€€€€ğ½…ÉÑ¥±”ø(€€€€€€€€€€€€€€€€¤ì(€€€€€€€€€€€€€ô¥ô(€€€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€¥ô(€€€€€€€€ğ½Í•Ñ¥½¸ø((€€€€€€€€ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰…ÍÍ¥¹µ•¹ĞµÍ•Ñ¥½¸Á…¹•°ˆø(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰…ÍÍ¥¹µ•¹Ğµ¡•…ˆø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Á…¹•°µ¡•…ˆøñ‘¥ØøñÍÁ…¸øÀÔğ½ÍÁ…¸øñ‘¥Øøñ ÌùÍÍ¥¹µ•¹ĞÁÉ•Ù¥•Üğ½ ÌøñÀùí…ÍÍ¥¹µ•¹Ñ5½‘”€ôôô€‰é½¹”ˆ€ü€‰É½ÍÌµÉ½ÕÑ”‰…±…¹¥¹œ‰äé½¹”ˆ€è€‰	…±…¹•‰äÉ½ÕÑ”…¹Á¥­•È…Á…¥Ñä‰ôƒ
-Üµ…¹Õ…°±½­ÌÑ…­”ÁÉ¥½É¥Ñäğ½Àøğ½‘¥Øøğ½‘¥Øøğ½‘¥Øø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰…ÍÍ¥¹µ•¹ĞµÑ½½±Ìˆø(€€€€€€€€€€€€€€ñ¥¹ÁÕĞ…É¥„µ±…‰•°ô‰…É¤…ÍÍ¥¹µ•¹ĞˆÁ±…•¡½±‘•Èô‰M•…É Á¥­•È°é½¹”°M<¸¸¸ˆÙ…±Õ”õíÍ•…É¡ô½¹¡…¹”õì¡•Ù•¹Ğ¤€ôøÍ•ÑM•…É ¡•Ù•¹Ğ¹Ñ…É•Ğ¹Ù…±Õ”¥ô€¼ø(€€€€€€€€€€€€€€ñ‰ÕÑÑ½¸(€€€€€€€€€€€€€€€±…ÍÍ9…µ”ô‰Í½™Ğµ‰ÕÑÑ½¸±½­•µ‘½İ¹±½…ˆ(€€€€€€€€€€€€€€€‘¥Í…‰±•õì…±½­•‘M½½Õ¹Ñô(€€€€€€€€€€€€€€€½¹±¥¬õì ¤€ôø‘½İ¹±½…‘ÍØ¡…ÍÍ¥¹µ•¹ÑÌ°…Ñ¥Ù•I½ÕÑ”€ôôô€‰10ˆ€üÕ¹‘•™¥¹•€è…Ñ¥Ù•I½ÕÑ”°€‰µ…¹Õ…°ˆ¥ô(€€€€€€€€€€€€€€ø(€€€€€€€€€€€€€€€ƒŠL1½­•½¹±ä€¡í±½­•‘M½½Õ¹Ñô¤(€€€€€€€€€€€€€€ğ½‰ÕÑÑ½¸ø(€€€€€€€€€€€€€€ñ‰ÕÑÑ½¸±…ÍÍ9…µ”ô‰Í½™Ğµ‰ÕÑÑ½¸ˆ½¹±¥¬õì ¤€ôø‘½İ¹±½…‘ÍØ¡…ÍÍ¥¹µ•¹ÑÌ°…Ñ¥Ù•I½ÕÑ”€ôôô€‰10ˆ€üÕ¹‘•™¥¹•€è…Ñ¥Ù•I½ÕÑ”¥ôûŠL½İ¹±½…MXğ½‰ÕÑÑ½¸ø(€€€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€ì……ÍÍ¥¹µ•¹ÑÌ¹±•¹Ñ €ü€ (€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰•µÁÑäµÍÑ…Ñ”ˆøñÍÑÉ½¹œùÍÍ¥¹µ•¹Ğ‰•±Õ´‘¥‰Õ…Ğğ½ÍÑÉ½¹œøñÍÁ…¸ù-±¥¬•¹•É…Ñ”…ÍÍ¥¹µ•¹ĞÕ¹ÑÕ¬µ•µ‰…¤…¹‘¥‘…Ñ”M<¸ğ½ÍÁ…¸øğ½‘¥Øø(€€€€€€€€€€¤€è€ (€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰…ÍÍ¥¹µ•¹Ğµ±¥ÍĞˆø(€€€€€€€€€€€€€í™¥±Ñ•É•‘ÍÍ¥¹µ•¹ÑÌ¹µ…À ¡…ÍÍ¥¹µ•¹Ğ°¥¹‘•à¤€ôøì(€€€€€€€€€€€€€€€½¹ÍĞ±½…€ô5…Ñ ¹É½Õ¹ ¡…ÍÍ¥¹µ•¹Ğ¹Ñ½Ñ…±EÑä€¼…ÍÍ¥¹µ•¹Ğ¹Á¥­•È¹ÁÉ½‘ÕÑ¥Ù¥Ñä¤€¨€ÄÀÀ¤ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸€ (€€€€€€€€€€€€€€€€€€ñ…ÉÑ¥±”±…ÍÍ9…µ”ô‰…ÍÍ¥¹µ•¹Ğµ…Éˆ‘…Ñ„µÍ½ÕÉ”õí…ÍÍ¥¹µ•¹Ğ¹Í½ÕÉ•ô­•äõí€‘í…ÍÍ¥¹µ•¹Ğ¹Í½ÕÉ•ô´‘í…ÍÍ¥¹µ•¹Ğ¹É½ÕÑ•ô´‘í…ÍÍ¥¹µ•¹Ğ¹é½¹•ô´‘í…ÍÍ¥¹µ•¹Ğ¹Á¥­•È¹ÍÑ…™™%‘õôø(€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰…ÍÍ¥¹µ•¹Ğµ¥¹‘•àˆùíMÑÉ¥¹œ¡¥¹‘•à€¬€Ä¤¹Á…‘MÑ…ÉĞ È°€ˆÀˆ¥ôğ½‘¥Øø(€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Á¥­•Èµ…Ù…Ñ…Èˆùí…ÍÍ¥¹µ•¹Ğ¹Á¥­•È¹¹…µ”¹ÍÁ±¥Ğ ˆ€ˆ¤¹Í±¥” À°€È¤¹µ…À ¡Á…ÉĞ¤€ôøÁ…ÉÑlÁt¤¹©½¥¸ ˆˆ¥ôğ½‘¥Øø(€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Á¥­•Èµ¥¹™¼ˆøñÍÑÉ½¹œùí…ÍÍ¥¹µ•¹Ğ¹Á¥­•È¹¹…µ•ôí…ÍÍ¥¹µ•¹Ğ¹Í½ÕÉ”€ôôô€‰µ…¹Õ…°ˆ€˜˜€ñ•´ù59U0ğ½•´ùôğ½ÍÑÉ½¹œøñÍÁ…¸ùí…ÍÍ¥¹µ•¹Ğ¹Á¥­•È¹ÍÑ…™™%‘ôƒ
-Üí…ÍÍ¥¹µ•¹Ğ¹Á¥­•È¹Í¡¥™Ñôğ½ÍÁ…¸øğ½‘¥Øø(€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰…ÍÍ¥¹µ•¹ĞµÉ½ÕÑ”ˆøñÍÑÉ½¹œùí…ÍÍ¥¹µ•¹Ğ¹é½¹•ôğ½ÍÑÉ½¹œøñÍÁ…¸ùí…ÍÍ¥¹µ•¹Ğ¹É½ÕÑ•ôğ½ÍÁ…¸øğ½‘¥Øø(€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰…ÍÍ¥¹µ•¹Ğµ±½…ˆøñ‘¥ØøñÍÑÉ½¹œùí¹Õµ‰•È¡…ÍÍ¥¹µ•¹Ğ¹Ñ½Ñ…±EÑä¥ôğ½ÍÑÉ½¹œøñÍÁ…¸ùí…ÍÍ¥¹µ•¹Ğ¹Í½ÕÉ”€ôôô€‰µ…¹Õ…°ˆ€ü€‰µ…¹Õ…°±½­•ÅÑäˆ€è€¼€‘í¹Õµ‰•È¡…ÍÍ¥¹µ•¹Ğ¹Á¥­•È¹ÁÉ½‘ÕÑ¥Ù¥Ñä¥ôÅÑåôğ½ÍÁ…¸øğ½‘¥Øøñ¤øñ•´±…ÍÍ9…µ”õí±½…€ø€ÄÀÀ€˜˜…ÍÍ¥¹µ•¹Ğ¹Í½ÕÉ”€ôôô€‰…ÕÑ¼ˆ€ü€‰½Ù•Èˆ€è€ˆ‰ôÍÑå±”õíìİ¥‘Ñ è…ÍÍ¥¹µ•¹Ğ¹Í½ÕÉ”€ôôô€‰µ…¹Õ…°ˆ€ü€ˆÄÀÀ”ˆ€è€‘í5…Ñ ¹µ¥¸ ÄÀÀ°±½…¥ô•€õô€¼øğ½¤øğ½‘¥Øø(€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰…ÍÍ¥¹µ•¹ĞµÍ¼ˆøñÍÑÉ½¹œùí…ÍÍ¥¹µ•¹Ğ¹½É‘•ÉÌ¹±•¹Ñ¡ôğ½ÍÑÉ½¹œøñÍÁ…¸ùM<ğ½ÍÁ…¸øğ½‘¥Øø(€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰±½…µ‰…‘”ˆ‘…Ñ„µ½Ù•Èõí±½…€ø€ÄÀÀ€˜˜…ÍÍ¥¹µ•¹Ğ¹Í½ÕÉ”€ôôô€‰…ÕÑ¼‰ôùí…ÍÍ¥¹µ•¹Ğ¹Í½ÕÉ”€ôôô€‰µ…¹Õ…°ˆ€ü€‰1=-ˆ€è€‘í±½…‘ô•ôğ½‘¥Øø(€€€€€€€€€€€€€€€€€€ğ½…ÉÑ¥±”ø(€€€€€€€€€€€€€€€€¤ì(€€€€€€€€€€€€€ô¥ô(€€€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€¥ô(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰…ÍÍ¥¹µ•¹Ğµ™½½Ñ•Èˆø(€€€€€€€€€€€€ñ‘¥ØøñÍÁ…¸±…ÍÍ9…µ”ô‰Í…™”µ‘½Ğˆ€¼ø±°É½İÌ¡…Ù”Ù…±¥€ñ½‘”ùÍ½}¥ğ½½‘”ø€¬€ñ½‘”ùÍÑ…™™}¥ğ½½‘”øƒ
-Üí=‰©•Ğ¹­•åÌ¡µ…¹Õ…±=Ù•ÉÉ¥‘•Ì¤¹±•¹Ñ¡ôµ…¹Õ…°±½­Ìğ½‘¥Øø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰™½½Ñ•Èµ…Ñ¥½¹Ìˆøñ‰ÕÑÑ½¸½¹±¥¬õì ¤€ôøìÍ•Ñ•¹•É…Ñ•¡™…±Í”¤ìÍ•Ñ5…¹Õ…±=Ù•ÉÉ¥‘•Ì¡íô¤ìÍ•ÑM•±•Ñ•‘=É‘•ÉÌ¡mt¤ì™±…Í  ‰M•µÕ„…ÍÍ¥¹µ•¹Ğ‘¥É•Í•Ğˆ¤ìõôùI•Í•Ğ…±°ğ½‰ÕÑÑ½¸øñ‰ÕÑÑ½¸½¹±¥¬õì ¤€ôø‘½İ¹±½…‘ÍØ¡…ÍÍ¥¹µ•¹ÑÌ¥ôù½İ¹±½……±°É½ÕÑ•Ì€ñÍÁ…¸ûŠLğ½ÍÁ…¸øğ½‰ÕÑÑ½¸øğ½‘¥Øø(€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€ğ½Í•Ñ¥½¸ø(€€€€€€ğ½Í•Ñ¥½¸ø((€€€€€íÍ¡½İIÕ±•Ì€˜˜€ (€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µ½‘…°µ‰…­‘É½ÀˆÉ½±”ô‰ÁÉ•Í•¹Ñ…Ñ¥½¸ˆ½¹5½ÕÍ•½İ¸õì¡•Ù•¹Ğ¤€ôøì¥˜€¡•Ù•¹Ğ¹Ñ…É•Ğ€ôôô•Ù•¹Ğ¹ÕÉÉ•¹ÑQ…É•Ğ¤Í•ÑM¡½İIÕ±•Ì¡™…±Í”¤ìõôø(€€€€€€€€€€ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰ÉÕ±•Ìµµ½‘…°ˆÉ½±”ô‰‘¥…±½œˆ…É¥„µµ½‘…°ô‰ÑÉÕ”ˆ…É¥„µ±…‰•±±•‘‰äô‰ÉÕ±•ÌµÑ¥Ñ±”ˆø(€€€€€€€€€€€€ñ‰ÕÑÑ½¸±…ÍÍ9…µ”ô‰µ½‘…°µ±½Í”ˆ½¹±¥¬õì ¤€ôøÍ•ÑM¡½İIÕ±•Ì¡™…±Í”¥ô…É¥„µ±…‰•°ô‰QÕÑÕÀˆû\ğ½‰ÕÑÑ½¸ø(€€€€€€€€€€€€ñÀ±…ÍÍ9…µ”ô‰•å•‰É½ÜˆùXÄ1U1Q%=8=9QIPğ½Àø(€€€€€€€€€€€€ñ È¥ô‰ÉÕ±•ÌµÑ¥Ñ±”ˆùÍÍ¥¹µ•¹ĞÉÕ±•Ìğ½ Èø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰ÉÕ±”µ‰±½¬ˆøñÍÁ…¸øÄğ½ÍÁ…¸øñ‘¥ØøñÍÑÉ½¹œù±¥¥‰¥±¥Ñäğ½ÍÑÉ½¹œøñÀùM<ÍÑ…ÑÕÌ9\‘…¸‘•ÍÑ¥¹…Ñ¥½¸Ñ•Éµ…ÍÕ¬M]0€¼AM€¼M€¼-1€¼	M`€¼AP€¼AA0€¼IL€¼M1@€¼)1¸ğ½Àøğ½‘¥Øøğ½‘¥Øø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰ÉÕ±”µ‰±½¬ˆøñÍÁ…¸øÈğ½ÍÁ…¸øñ‘¥ØøñÍÑÉ½¹œù5…¹Á½İ•È¹••ğ½ÍÑÉ½¹œøñÀøñ½‘”ù%1%9¡é½¹”É•ÅÕ•ÍĞÅÑä€¼ÁÉ½‘ÕÑ¥Ù¥ÑäÁ•È5@é½¹”¤ğ½½‘”øğ½Àøğ½‘¥Øøğ½‘¥Øø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰ÉÕ±”µ‰±½¬ˆøñÍÁ…¸øÌğ½ÍÁ…¸øñ‘¥ØøñÍÑÉ½¹œùA¥­•ÈÉ½ÍÑ•Èğ½ÍÑÉ½¹œøñÀù)½ˆQ¥Ñ±”€ôA¥­•È°Í¡•‘Õ±”…­Ñ¥˜Á…‘„½Á•É…Ñ¥½¹…°‘…Ñ”°ÍÑ…™˜%Ù…±¥°‰Õ­…¸=d½ÕÑ¤½¥é¥¸¸ğ½Àøğ½‘¥Øøğ½‘¥Øø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰ÉÕ±”µ‰±½¬ˆøñÍÁ…¸øĞğ½ÍÁ…¸øñ‘¥ØøñÍÑÉ½¹œù]5L½ÕÑÁÕĞğ½ÍÑÉ½¹œøñÀøñ½‘”ù•ÉÉ½É}µ•ÍÍ…”íÍ½}¥íÍÑ…™™}¥ğ½½‘”øƒ
-ÜÍ…ÑÔM<¡…¹å„µ•µ¥±¥­¤Í…ÑÔÍÑ…™˜%¸ğ½Àøğ½‘¥Øøğ½‘¥Øø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰ÉÕ±”µ‰±½¬ˆøñÍÁ…¸øÔğ½ÍÁ…¸øñ‘¥ØøñÍÑÉ½¹œùÑ½µ¥Œé½¹”ğ½ÍÑÉ½¹œøñÀùi½¹”‰•É…Í…°‘…É¤€ñ½‘”ù½É¥¥¹}É…­}¹…µ”ğ½½‘”ø¸M<‘•¹…¸±•‰¥ ‘…É¤Í…ÑÔé½¹”µ…ÍÕ¬€ñ½‘”ùi=9}=91%Pğ½½‘”ø‘…¸Ñ¥‘…¬¥­ÕĞ…ÕÑ¼µ…ÍÍ¥¹µ•¹Ğ¸ğ½Àøğ½‘¥Øøğ½‘¥Øø(€€€€€€€€€€€€ñ Ìùi½¹”ÁÉ½‘ÕÑ¥Ù¥Ñä‘É…™Ğğ½ Ìø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰ÉÕ±”µÉ¥ˆùíi=9}IU1L¹µ…À ¡ÉÕ±”¤€ôø€ñ‘¥Ø­•äõíÉÕ±”¹é½¹•ôøñÍÁ…¸ùíÉÕ±”¹é½¹•ôğ½ÍÁ…¸øñÍÑÉ½¹œùí¹Õµ‰•È¡ÉÕ±”¹ÁÉ½‘ÕÑ¥Ù¥Ñä¥ôğ½ÍÑÉ½¹œøñÍµ…±°ùÅÑä€¼5@ğ½Íµ…±°øğ½‘¥Øø¥ôğ½‘¥Øø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µ½‘…°µ¹½Ñ”ˆù•µ¼Ù…±Õ•ÌƒŠPÉ•Á±…”İ¥Ñ Ñ¡”™¥¹…°ÁÉ½‘ÕÑ¥Ù¥ÑäµÁ•Èµé½¹”Í½ÕÉ”‰•™½É”±¥Ù”ÑÉ¥…°¸ğ½‘¥Øø(€€€€€€€€€€ğ½Í•Ñ¥½¸ø(€€€€€€€€ğ½‘¥Øø(€€€€€€¥ô((€€€€€íÑ½…ÍĞ€˜˜€ñ‘¥Ø±…ÍÍ9…µ”ô‰Ñ½…ÍĞˆÉ½±”ô‰ÍÑ…ÑÕÌˆûŠrLíÑ½…ÍÑôğ½‘¥Øùô(€€€€ğ½µ…¥¸ø(€€¤ì)ô4(
+        throw new Error(payload.error || `HTTP ${response.status}`);
+      }
+      const orders = payload.orders.filter((order: SalesOrder) =>
+        ROUTES.some((route) => route.code === order.route),
+      ) as SalesOrder[];
+      setLiveOrders(orders);
+      setLivePickers(payload.pickers as Picker[]);
+      setLivePicking(Array.isArray(payload.picking) ? payload.picking as PickingActivity[] : []);
+      setLastSyncedAt(String(payload.generatedAt || ""));
+      setSourceMessage(String(payload.sync?.message || ""));
+      setSourceStatus(payload.stale ? "stale" : "live");
+      setManualOverrides((current) => {
+        const valid = new Set(orders.map((order) => order.soNumber));
+        return Object.fromEntries(Object.entries(current).filter(([soNumber]) => valid.has(soNumber)));
+      });
+    } catch {
+      setSourceMessage("");
+      setSourceStatus("fallback");
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void refreshLiveData(), 0);
+    return () => window.clearTimeout(timer);
+  }, [refreshLiveData]);
+
+  const autoAssignments = useMemo(
+    () =>
+      generated
+        ? buildAssignments(
+            ordersData.filter((order) => !manualOverrides[order.soNumber]),
+            livePickers ?? AUTO_PICKERS,
+            assignmentMode,
+          )
+        : [],
+    [assignmentMode, generated, livePickers, manualOverrides, ordersData],
+  );
+
+  const assignments = useMemo(
+    () => [
+      ...autoAssignments,
+      ...buildManualAssignments(ordersData, manualOverrides, pickerRoster, assignmentMode),
+    ],
+    [assignmentMode, autoAssignments, manualOverrides, ordersData, pickerRoster],
+  );
+
+  const lockedSoCount = assignments
+    .filter(
+      (assignment) =>
+        assignment.source === "manual" &&
+        (activeRoute === "ALL" || assignmentHasRoute(assignment, activeRoute)),
+    )
+    .reduce((total, assignment) => total + assignment.orders.length, 0);
+
+  const zoneOptions = useMemo(() => {
+    const groups = new Map<string, { zone: string; so: number; qty: number; routes: Set<RouteCode> }>();
+    ordersData.forEach((order) => {
+      const key = normalizedZone(order.zone);
+      const current = groups.get(key) ?? { zone: order.zone, so: 0, qty: 0, routes: new Set<RouteCode>() };
+      current.so += 1;
+      current.qty += order.qty;
+      current.routes.add(order.route);
+      groups.set(key, current);
+    });
+    return [...groups.values()]
+      .map((current) => {
+        const productivity = ZONE_RULES.find(
+          (rule) => normalizedZone(rule.zone) === normalizedZone(current.zone),
+        )?.productivity ?? 2000;
+        return {
+          ...current,
+          mpRequired: Math.ceil(current.qty / productivity),
+        };
+      })
+      .sort((a, b) => a.zone.localeCompare(b.zone));
+  }, [ordersData]);
+
+  const zoneOptionTotals = zoneOptions.reduce(
+    (totals, item) => ({
+      qty: totals.qty + item.qty,
+      mpRequired: totals.mpRequired + item.mpRequired,
+    }),
+    { qty: 0, mpRequired: 0 },
+  );
+
+  const manualRouteOrders = ordersData.filter((order) =>
+    assignmentMode === "zone"
+      ? selectedZone === "ALL" || normalizedZone(order.zone) === selectedZone
+      : order.route === manualRoute,
+  );
+
+  const manualRouteZones = new Set(
+    manualRouteOrders.map((order) => order.zone),
+  );
+
+  const filteredPickers = pickerRoster.filter((picker) => {
+    const query = pickerSearch.trim().toLowerCase();
+    return (
+      !query ||
+      picker.staffId.includes(query) ||
+      picker.name.toLowerCase().includes(query) ||
+      picker.zone.toLowerCase().includes(query)
+    );
+  }).sort((a, b) => {
+    const aRelevant = manualRouteZones.has(a.zone) ? 0 : 1;
+    const bRelevant = manualRouteZones.has(b.zone) ? 0 : 1;
+    return aRelevant - bRelevant || a.zone.localeCompare(b.zone) || a.name.localeCompare(b.name);
+  });
+
+  const autoAssigneeBySo = useMemo(() => {
+    const assignees: Record<string, string> = {};
+    autoAssignments.forEach((assignment) => {
+      assignment.orders.forEach((order) => {
+        assignees[order.soNumber] = assignment.picker.staffId;
+      });
+    });
+    return assignees;
+  }, [autoAssignments]);
+
+  const routeStats = useMemo(
+    () =>
+      ROUTES.map((route) => {
+        const orders = ordersData.filter((item) => item.route === route.code);
+        const routeAssignments = assignments.filter(
+          (item) => assignmentHasRoute(item, route.code),
+        );
+        return {
+          ...route,
+          so: orders.length,
+          qty: orders.reduce((sum, item) => sum + item.qty, 0),
+          sku: orders.reduce((sum, item) => sum + item.sku, 0),
+          mp: new Set(routeAssignments.map((item) => item.picker.staffId)).size,
+          zones: new Set(orders.map((item) => item.zone)).size,
+        };
+      }),
+    [assignments, ordersData],
+  );
+
+  const zoneStats = useMemo(() => {
+    const rows = new Map<
+      string,
+      {
+        route: RouteCode;
+        zone: string;
+        qty: number;
+        so: number;
+        productivity: number;
+        required: number;
+        assigned: number;
+      }
+    >();
+    ordersData.forEach((order) => {
+      const key = `${order.route}::${order.zone}`;
+      const current = rows.get(key) ?? {
+        route: order.route,
+        zone: order.zone,
+        qty: 0,
+        so: 0,
+        productivity:
+          ZONE_RULES.find((item) => item.zone === order.zone)?.productivity ??
+          2000,
+        required: 0,
+        assigned: 0,
+      };
+      current.qty += order.qty;
+      current.so += 1;
+      rows.set(key, current);
+    });
+    return [...rows.values()].map((row) => ({
+      ...row,
+      required: Math.ceil(row.qty / row.productivity),
+      assigned: new Set(
+        assignments
+          .filter((item) => assignmentHasRoute(item, row.route))
+          .filter((item) =>
+            item.orders.some((order) => order.zone === row.zone),
+          )
+          .map((item) => item.picker.staffId),
+      ).size,
+    }));
+  }, [assignments, ordersData]);
+
+  const filteredAssignments = assignments.filter((item) => {
+    const routeMatch = activeRoute === "ALL" || assignmentHasRoute(item, activeRoute);
+    const query = search.trim().toLowerCase();
+    const searchMatch =
+      !query ||
+      item.picker.name.toLowerCase().includes(query) ||
+      item.picker.staffId.includes(query) ||
+      item.zone.toLowerCase().includes(query) ||
+      item.orders.some((order) =>
+        order.soNumber.toLowerCase().includes(query),
+      );
+    return routeMatch && searchMatch;
+  });
+
+  const totals = {
+    qty: ordersData.reduce((sum, item) => sum + item.qty, 0),
+    so: ordersData.length,
+    sku: ordersData.reduce((sum, item) => sum + item.sku, 0),
+    mp: new Set(assignments.map((item) => item.picker.staffId)).size,
+  };
+
+  const pickingMonitor = useMemo(() => {
+    const groups = new Map<string, {
+      pickerId: string;
+      pickerName: string;
+      activities: PickingActivity[];
+      requestQty: number;
+      pickedQty: number;
+      remainingQty: number;
+      activeSo: number;
+      completedSo: number;
+      zones: Set<string>;
+      routes: Set<RouteCode>;
+    }>();
+    livePicking.forEach((activity) => {
+      const key = activity.pickerId || `UNASSIGNED::${activity.pickerName}`;
+      const current = groups.get(key) ?? {
+        pickerId: activity.pickerId, pickerName: activity.pickerName, activities: [],
+        requestQty: 0, pickedQty: 0, remainingQty: 0, activeSo: 0, completedSo: 0,
+        zones: new Set<string>(), routes: new Set<RouteCode>(),
+      };
+      current.activities.push(activity);
+      current.requestQty += activity.requestQty;
+      current.pickedQty += activity.pickedQty;
+      current.remainingQty += activity.remainingQty;
+      current.activeSo += activity.status === "IN_PROGRESS" ? 1 : 0;
+      current.completedSo += activity.status === "COMPLETED" ? 1 : 0;
+      current.zones.add(activity.zone);
+      current.routes.add(activity.route);
+      groups.set(key, current);
+    });
+    const query = monitorSearch.trim().toLowerCase();
+    return [...groups.values()]
+      .map((group) => ({
+        ...group,
+        activities: group.activities
+          .filter((activity) => monitorStatus === "ALL" || activity.status === monitorStatus)
+          .sort((a, b) => b.pickingStartAt.localeCompare(a.pickingStartAt)),
+        completionPct: group.requestQty > 0 ? Math.min(100, Math.round((group.pickedQty / group.requestQty) * 100)) : 0,
+      }))
+      .filter((group) => group.activities.length > 0)
+      .filter((group) => !query || group.pickerId.includes(query) || group.pickerName.toLowerCase().includes(query) || group.activities.some((activity) => activity.soNumber.toLowerCase().includes(query) || activity.zone.toLowerCase().includes(query) || activity.route.toLowerCase().includes(query)))
+      .sort((a, b) => b.activeSo - a.activeSo || b.remainingQty - a.remainingQty || a.pickerName.localeCompare(b.pickerName));
+  }, [livePicking, monitorSearch, monitorStatus]);
+
+
+  const pickingTotals = useMemo(() => ({
+    activePickers: new Set(livePicking.filter((item) => item.status === "IN_PROGRESS" && item.pickerId).map((item) => item.pickerId)).size,
+    activeSo: livePicking.filter((item) => item.status === "IN_PROGRESS").length,
+    completedSo: livePicking.filter((item) => item.status === "COMPLETED").length,
+    pickedQty: livePicking.reduce((sum, item) => sum + item.pickedQty, 0),
+    requestQty: livePicking.reduce((sum, item) => sum + item.requestQty, 0),
+  }), [livePicking]);
+
+  function flash(message: string) {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2500);
+  }
+
+  function openManualRoute(route: RouteCode) {
+    setManualRoute(route);
+    setActiveRoute(route);
+    setAssignmentMode("route");
+    setSelectedZone("ALL");
+    setSelectedOrders([]);
+  }
+
+  function selectAssignmentMode(mode: AssignmentMode) {
+    setAssignmentMode(mode);
+    setSelectedOrders([]);
+    if (mode === "zone") setActiveRoute("ALL");
+  }
+
+  function toggleOrder(soNumber: string) {
+    setSelectedOrders((current) =>
+      current.includes(soNumber)
+        ? current.filter((item) => item !== soNumber)
+        : [...current, soNumber],
+    );
+  }
+
+  function togglePicker(staffId: string) {
+    setSelectedPickerIds((current) =>
+      current.includes(staffId)
+        ? current.filter((item) => item !== staffId)
+        : [...current, staffId],
+    );
+  }
+
+  function addBulkPickerIds() {
+    const ids = bulkPickerIds.match(/\d{4,8}/g) ?? [];
+    if (!ids.length) {
+      flash("Paste minimal satu Staff ID valid");
+      return;
+    }
+    setSelectedPickerIds((current) => [...new Set([...current, ...ids])]);
+    setBulkPickerIds("");
+    flash(`${ids.length} Staff ID ditambahkan ke picker pool`);
+  }
+
+  function assignSelectedManually() {
+    if (!selectedPickerIds.length) {
+      flash("Pilih atau masukkan minimal satu picker");
+      return;
+    }
+    if (!selectedOrders.length) {
+      flash("Pilih minimal satu SO");
+      return;
+    }
+
+    const loads = new Map(
+      selectedPickerIds.map((staffId) => [staffId, 0]),
+    );
+    const orderedOrders = ordersData.filter((order) =>
+      selectedOrders.includes(order.soNumber),
+    ).sort((a, b) => b.qty - a.qty);
+
+    setManualOverrides((current) => {
+      const next = { ...current };
+      orderedOrders.forEach((order) => {
+        const selectedStaffId = [...loads.entries()].sort((a, b) => {
+          const aPicker = pickerRoster.find((picker) => picker.staffId === a[0]);
+          const bPicker = pickerRoster.find((picker) => picker.staffId === b[0]);
+          const aCapacity = Math.max(1, aPicker?.productivity || 2000);
+          const bCapacity = Math.max(1, bPicker?.productivity || 2000);
+          return a[1] / aCapacity - b[1] / bCapacity;
+        })[0][0];
+        next[order.soNumber] = selectedStaffId;
+        loads.set(selectedStaffId, (loads.get(selectedStaffId) ?? 0) + order.qty);
+      });
+      return next;
+    });
+    flash(`${selectedOrders.length} SO dibagi ke ${selectedPickerIds.length} picker`);
+    setSelectedOrders([]);
+  }
+
+  function clearManualAssignment(soNumber: string) {
+    setManualOverrides((current) => {
+      const next = { ...current };
+      delete next[soNumber];
+      return next;
+    });
+    flash("Manual assignment dilepas");
+  }
+
+  return (
+    <main className="app-shell">
+      <aside className="sidebar">
+        <div className="brand-mark">1W</div>
+        <nav aria-label="Navigasi utama">
+          <button className="nav-icon active" aria-label="Assignment board">âŒ</button>
+          <button className="nav-icon" aria-label="Data SO">â–¤</button>
+          <button className="nav-icon" aria-label="Manpower">â™™</button>
+          <button className="nav-icon" aria-label="Monitoring picking" onClick={() => document.getElementById("picking-monitor")?.scrollIntoView({ behavior: "smooth" })}>â–·</button>
+        </nav>
+        <button className="nav-icon bottom" aria-label="Pengaturan" onClick={() => setShowRules(true)}>âš™</button>
+      </aside>
+
+      <section className="workspace">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">CBT Â· OUTBOUND ORCHESTRATION</p>
+            <h1>ONE WAVE <span>ONE ROUTE</span></h1>
+          </div>
+          <div className="top-actions">
+            <div className="source-state" data-status={sourceStatus}>
+              <i />
+              <div>
+                <strong>{sourceStatus === "live" ? "Live Superset + GSheet" : sourceStatus === "stale" ? "Last snapshot Â· sync paused" : sourceStatus === "loading" ? "Connecting live data" : "Demo fallback"}</strong>
+                <span title={sourceMessage}>{sourceStatus === "live" || sourceStatus === "stale" ? formatSyncTime(lastSyncedAt) : sourceStatus === "loading" ? "checking compact snapshot..." : "backend belum siap"}</span>
+              </div>
+            </div>
+            <button className="soft-button" onClick={() => { setSourceStatus("loading"); void refreshLiveData(); flash("Memeriksa snapshot live terbaru"); }}>â†» Refresh</button>
+            <button className="primary-button" onClick={() => { setGenerated(true); flash(Object.keys(manualOverrides).length ? "Auto-assignment diperbarui, manual lock tetap aman" : "Assignment berhasil dihitung ulang"); }}>Generate assignment</button>
+          </div>
+        </header>
+
+        <section className="hero-grid">
+          <div className="hero-copy">
+            <div className="status-line"><span>WAVE 1</span><span>10 HUB</span><span>TRIAL V1</span></div>
+            <h2>Turn route volume into<br /><em>ready-to-upload</em> assignments.</h2>
+            <p>Demand per zone, manpower capacity, and whole-SO balancing in one operational view.</p>
+          </div>
+          <div className="hero-metrics">
+            <article><span>Total request</span><strong>{number(totals.qty)}</strong><small>qty Â· {number(totals.sku)} SKU</small></article>
+            <article><span>Candidate SO</span><strong>{number(totals.so)}</strong><small>10 hub Â· NEW</small></article>
+            <article className="accent"><span>MP required</span><strong>{number(totals.mp)}</strong><small>across {zoneStats.length} zone loads</small></article>
+          </div>
+        </section>
+
+        <section className="route-section">
+          <div className="section-heading">
+            <div><span>01</span><div><h3>Route demand</h3><p>Trial destinations from PLAN CBT AUG 2026</p></div></div>
+            <button className="text-button" onClick={() => setShowRules(true)}>View calculation rules â†—</button>
+          </div>
+          <div className="route-grid">
+            {routeStats.map((route) => (
+              <button
+                key={route.code}
+                className={`route-card ${activeRoute === route.code ? "selected" : ""}`}
+                onClick={() => openManualRoute(route.code)}
+                aria-pressed={manualRoute === route.code}
+                style={{ "--route-color": route.color } as React.CSSProperties}
+              >
+                <div className="route-top"><span>ROUTE {String(route.routeNo).padStart(2, "0")}</span><i>WAVE 1</i></div>
+                <h4>{route.code}</h4>
+                <p>{route.destinations.join("  Â·  ")}</p>
+                <div className="route-data"><div><strong>{number(route.qty)}</strong><span>REQUEST QTY</span></div><div><strong>{route.so}</strong><span>SO</span></div><div><strong>{route.mp}</strong><span>MP</span></div></div>
+                <div className="route-foot"><span>{route.zones} active zones</span><span>View & assign {route.so} SO â†’</span></div>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="manual-section panel">
+          <div className="manual-head">
+            <div className="panel-head">
+              <div><span>02</span><div><h3>Manual SO assignment</h3><p>Pilih route, centang SO, lalu lock ke Staff ID pilihan</p></div></div>
+            </div>
+            <div className="manual-route-tabs" aria-label="Pilih route untuk manual assignment">
+              {ROUTES.map((route) => {
+                const locked = ordersData.filter(
+                  (order) => order.route === route.code && manualOverrides[order.soNumber],
+                ).length;
+                return (
+                  <button
+                    key={route.code}
+                    className={manualRoute === route.code ? "active" : ""}
+                    onClick={() => openManualRoute(route.code)}
+                  >
+                    {route.code}<span>{locked}/{ordersData.filter((order) => order.route === route.code).length}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="assignment-mode-tabs" aria-label="Assignment grouping mode">
+              <button className={assignmentMode === "route" ? "active" : ""} onClick={() => selectAssignmentMode("route")}>Assign by route</button>
+              <button className={assignmentMode === "zone" ? "active" : ""} onClick={() => selectAssignmentMode("zone")}>Assign by zone</button>
+            </div>
+          </div>
+
+          {assignmentMode === "zone" && (
+            <div className="zone-selector" aria-label="Pilih zone assignment">
+              <div>
+                <p className="eyebrow">PILIH ZONE LINTAS ROUTE</p>
+                <h4>{selectedZone === "ALL" ? "Semua zone" : zoneOptions.find((item) => normalizedZone(item.zone) === selectedZone)?.zone}</h4>
+                <span>SO ditampilkan berdasarkan zone tanpa peduli route tujuan</span>
+              </div>
+              <div className="zone-selector-list">
+                <button
+                  className={selectedZone === "ALL" ? "active" : ""}
+                  onClick={() => { setSelectedZone("ALL"); setSelectedOrders([]); }}
+                >
+                  <strong>Semua zone</strong>
+                  <span>{ordersData.length} SO</span>
+                  <span className="zone-card-capacity">{number(zoneOptionTotals.qty)} QTY Â· {zoneOptionTotals.mpRequired} MP</span>
+                </button>
+                {zoneOptions.map((item) => {
+                  const value = normalizedZone(item.zone);
+                  return (
+                    <button
+                      className={selectedZone === value ? "active" : ""}
+                      key={value}
+                      onClick={() => { setSelectedZone(value); setSelectedOrders([]); }}
+                    >
+                      <strong>{item.zone}</strong>
+                      <span>{item.so} SO Â· {item.routes.size} route</span>
+                      <span className="zone-card-capacity">{number(item.qty)} QTY Â· {item.mpRequired} MP</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="manual-command">
+            <div>
+              <p className="eyebrow">{assignmentMode === "zone" ? "ACTIVE ZONE" : "ACTIVE ROUTE"}</p>
+              <h4>{assignmentMode === "zone" ? (selectedZone === "ALL" ? "Semua zone" : zoneOptions.find((item) => normalizedZone(item.zone) === selectedZone)?.zone) : manualRoute}</h4>
+              <span>{manualRouteOrders.length} candidate SO Â· {selectedOrders.length} selected</span>
+            </div>
+            <div className="picker-pool-trigger-wrap">
+              <span>Picker pool Â· Schedule Manpower 2025</span>
+              <button
+                className={`picker-pool-trigger ${selectedPickerIds.length ? "has-selection" : ""}`}
+                onClick={() => setShowPickerPool((current) => !current)}
+                aria-expanded={showPickerPool}
+              >
+                <span>{selectedPickerIds.length ? `${selectedPickerIds.length} picker selected` : "Choose multiple pickers"}</span>
+                <b>{showPickerPool ? "âˆ’" : "+"}</b>
+              </button>
+            </div>
+            <button className="primary-button manual-assign-button" onClick={assignSelectedManually}>
+              Assign {selectedOrders.length || "selected"} SO to {selectedPickerIds.length || "picker"}
+            </button>
+          </div>
+
+          {showPickerPool && (
+            <div className="picker-drawer">
+              <div className="picker-drawer-head">
+                <div><p className="eyebrow">PICKER ROSTER</p><h4>Select manpower manually</h4><span>{pickerRoster.length} picker Â· {sourceStatus === "live" || sourceStatus === "stale" ? "schedule snapshot hari ini" : "fallback snapshot"}</span></div>
+                <button onClick={() => setShowPickerPool(false)} aria-label="Tutup picker pool">Ã—</button>
+              </div>
+
+              <div className="picker-entry-tools">
+                <label>
+                  <span>Search roster</span>
+                  <input aria-label="Cari picker dari roster" placeholder="Nama, Staff ID, atau zona..." value={pickerSearch} onChange={(event) => setPickerSearch(event.target.value)} />
+                </label>
+                <label>
+                  <span>Paste multiple Staff ID</span>
+                  <div><input aria-label="Masukkan banyak Staff ID" inputMode="numeric" placeholder="52016, 49605, 48113" value={bulkPickerIds} onChange={(event) => setBulkPickerIds(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") addBulkPickerIds(); }} /><button onClick={addBulkPickerIds}>Add IDs</button></div>
+                </label>
+              </div>
+
+              <div className="selected-picker-strip">
+                <div><strong>Selected manpower</strong><span>{selectedPickerIds.length} picker ready for balancing</span></div>
+                <div className="picker-chips">
+                  {selectedPickerIds.length ? selectedPickerIds.map((staffId) => {
+                    const picker = pickerRoster.find((item) => item.staffId === staffId);
+                    return <button key={staffId} onClick={() => togglePicker(staffId)} title="Hapus dari pilihan"><span>{picker?.name ?? "Manual ID"}</span><b>{staffId}</b><i>Ã—</i></button>;
+                  }) : <em>Belum ada picker dipilih</em>}
+                </div>
+                {selectedPickerIds.length > 0 && <button className="clear-picker-selection" onClick={() => setSelectedPickerIds([])}>Clear all</button>}
+              </div>
+
+              <div className="picker-list-head">
+                <span>Roster match</span><span>Home zone</span><span>Target prod</span><span>Select</span>
+              </div>
+              <div className="picker-list">
+                {filteredPickers.map((picker) => {
+                  const selected = selectedPickerIds.includes(picker.staffId);
+                  const relevant = manualRouteZones.has(picker.zone);
+                  return (
+                    <button className={selected ? "selected" : ""} key={picker.staffId} onClick={() => togglePicker(picker.staffId)}>
+                      <span className="picker-list-person"><i>{picker.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</i><span><strong>{picker.name}</strong><small>{picker.staffId}</small></span></span>
+                      <span><strong>{picker.zone}</strong>{relevant && <small>Route zone</small>}</span>
+                      <span><strong>{picker.productivity ? number(picker.productivity) : "â€”"}</strong><small>qty / shift</small></span>
+                      <span className="picker-select-mark">{selected ? "âœ“" : "+"}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="picker-drawer-foot"><span>Manual selection tidak mengambil manpower lain secara otomatis.</span><button onClick={() => setShowPickerPool(false)}>Done Â· {selectedPickerIds.length} selected</button></div>
+            </div>
+          )}
+
+          <div className="so-table-wrap">
+
+            <div className="so-table-row so-table-labels">
+              <span className="so-check">
+                <input
+                  type="checkbox"
+                  aria-label={assignmentMode === "zone" ? `Pilih semua SO zone ${selectedZone}` : `Pilih semua SO route ${manualRoute}`}
+                  checked={selectedOrders.length === manualRouteOrders.length}
+                  onChange={() =>
+                    setSelectedOrders(
+                      selectedOrders.length === manualRouteOrders.length
+                        ? []
+                        : manualRouteOrders.map((order) => order.soNumber),
+                    )
+                  }
+                />
+              </span>
+              <span>SO ID</span><span>Destination</span><span>Zone</span><span>Request</span><span>Assignee</span><span>Action</span>
+            </div>
+            {manualRouteOrders.map((order) => {
+              const manualStaff = manualOverrides[order.soNumber];
+              const autoStaff = autoAssigneeBySo[order.soNumber];
+              return (
+                <div className={`so-table-row ${manualStaff ? "manual-locked" : ""}`} key={order.soNumber}>
+                  <span className="so-check"><input type="checkbox" aria-label={`Pilih SO ${extractWmsSoId(order.soNumber)}`} checked={selectedOrders.includes(order.soNumber)} onChange={() => toggleOrder(order.soNumber)} /></span>
+                  <span className="so-number"><strong>{extractWmsSoId(order.soNumber)}</strong><small>{order.soNumber}</small></span>
+                  <span><b className="destination-badge">{order.destination}</b></span>
+                  <span><strong>{order.zone}</strong><small>{order.sku} SKU</small></span>
+                  <span><strong>{number(order.qty)}</strong><small>qty</small></span>
+                  <span className="assignee-status">
+                    <strong>{manualStaff ?? autoStaff ?? "Unassigned"}</strong>
+                    <small>{manualStaff ? "Manual lock" : autoStaff ? "Auto plan" : "Waiting"}</small>
+                  </span>
+                  <span>
+                    {manualStaff ? (
+                      <button className="clear-lock" onClick={() => clearManualAssignment(order.soNumber)}>Release</button>
+                    ) : (
+                      <span className="auto-mark">AUTO</span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="manual-foot">
+            <span><i /> Manual lock selalu menang atas auto-assignment dan langsung digunakan pada CSV.</span>
+            <button
+              disabled={!manualRouteOrders.some((order) => manualOverrides[order.soNumber])}
+              onClick={() => {
+                setManualOverrides((current) => {
+                  const next = { ...current };
+                  manualRouteOrders.forEach((order) => delete next[order.soNumber]);
+                  return next;
+                });
+                flash(`Manual lock ${assignmentMode === "zone" ? "zone" : "route"} dibersihkan`);
+              }}
+            >Clear {assignmentMode === "zone" ? "zone" : "route"} locks</button>
+          </div>
+        </section>
+
+        <section className="operations-grid">
+          <div className="zone-panel panel">
+            <div className="panel-head"><div><span>03</span><div><h3>Manpower by zone</h3><p>Required MP = request qty Ã· zone productivity</p></div></div><span className="pill">{zoneStats.length} LOADS</span></div>
+            <div className="zone-table">
+              <div className="table-row table-labels"><span>Route / zone</span><span>Demand</span><span>Prod / MP</span><span>Need</span><span>Coverage</span></div>
+              {zoneStats
+                .filter((row) => activeRoute === "ALL" || row.route === activeRoute)
+                .map((row) => {
+                  const percentage = Math.min(100, Math.round((row.assigned / row.required) * 100));
+                  return (
+                    <div className="table-row" key={`${row.route}-${row.zone}`}>
+                      <span><strong>{row.zone}</strong><small>{row.route}</small></span>
+                      <span><strong>{number(row.qty)}</strong><small>{row.so} SO</small></span>
+                      <span><strong>{number(row.productivity)}</strong><small>qty / shift</small></span>
+                      <span className="need"><b>{row.required}</b><small>MP</small></span>
+                      <span className="coverage"><i><em style={{ width: `${percentage}%` }} /></i><small>{row.assigned}/{row.required} assigned</small></span>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+          <aside className="readiness-panel panel">
+            <div className="readiness-orbit"><strong>{totals.mp}</strong><span>MP READY</span></div>
+            <h3>Capacity is covered</h3>
+            <p>All zone demand has a scheduled picker with a valid staff ID.</p>
+            <dl><div><dt>Schedule source</dt><dd>12-Aug-2026</dd></div><div><dt>Shift priority</dt><dd>05:00â€“14:00</dd></div><div><dt>SO split policy</dt><dd>Whole SO</dd></div></dl>
+            <button onClick={() => setShowRules(true)}>Inspect source mapping</button>
+          </aside>
+        </section>
+
+        <section className="monitor-section panel" id="picking-monitor">
+          <div className="monitor-head">
+            <div className="panel-head"><div><span>04</span><div><h3>Live picking monitor</h3><p>Aktivitas aktual WMS untuk SO One Wave One Route Â· picking refresh sekitar 30 menit</p></div></div></div>
+            <div className="monitor-tools">
+              <div className="monitor-tabs" aria-label="Filter status picking">
+                {(["IN_PROGRESS", "WAITING", "COMPLETED", "ALL"] as const).map((status) => (
+                  <button key={status} className={monitorStatus === status ? "active" : ""} onClick={() => setMonitorStatus(status)}>{status === "IN_PROGRESS" ? "In progress" : status === "ALL" ? "All" : status.toLowerCase()}</button>
+                ))}
+              </div>
+              <input aria-label="Cari monitoring picking" placeholder="Cari picker, SO, zone, route..." value={monitorSearch} onChange={(event) => setMonitorSearch(event.target.value)} />
+            </div>
+          </div>
+          <div className="monitor-kpis">
+            <article><span>Active picker</span><strong>{number(pickingTotals.activePickers)}</strong><small>sedang picking</small></article>
+            <article><span>SO in progress</span><strong>{number(pickingTotals.activeSo)}</strong><small>belum selesai</small></article>
+            <article><span>SO completed</span><strong>{number(pickingTotals.completedSo)}</strong><small>hari ini</small></article>
+            <article><span>Picked qty</span><strong>{number(pickingTotals.pickedQty)}</strong><small>of {number(pickingTotals.requestQty)} request</small></article>
+          </div>
+          {!livePicking.length ? (
+            <div className="empty-state"><strong>Snapshot picking belum tersedia</strong><span>Backend assignment tetap aktif. Monitoring muncul setelah resource OWOR PICKING MONITOR tersinkron.</span></div>
+          ) : !pickingMonitor.length ? (
+            <div className="empty-state"><strong>Tidak ada aktivitas pada filter ini</strong><span>Coba pilih status lain atau kosongkan pencarian.</span></div>
+          ) : (
+            <div className="monitor-list">
+              {pickingMonitor.map((picker) => {
+                const key = picker.pickerId || `UNASSIGNED::${picker.pickerName}`;
+                const open = expandedPicker === key;
+                return (
+                  <article className="monitor-picker" key={key} data-open={open}>
+                    <button className="monitor-picker-summary" onClick={() => setExpandedPicker(open ? "" : key)} aria-expanded={open}>
+                      <span className="picker-avatar">{picker.pickerName.split(" ").slice(0, 2).map((part) => part[0]).join("") || "?"}</span>
+                      <span className="monitor-picker-name"><strong>{picker.pickerName}</strong><small>{picker.pickerId || "belum ada picker ID"} Â· {[...picker.zones].join(", ")}</small></span>
+                      <span><strong>{picker.activities.length}</strong><small>SO shown</small></span>
+                      <span><strong>{number(picker.remainingQty)}</strong><small>remaining qty</small></span>
+                      <span className="monitor-progress"><i><em style={{ width: `${picker.completionPct}%` }} /></i><small>{picker.completionPct}% picked</small></span>
+                      <b>{open ? "âˆ’" : "+"}</b>
+                    </button>
+                    {open && (
+                      <div className="monitor-detail">
+                        <div className="monitor-detail-label"><span>SO / destination</span><span>Zone / route</span><span>Progress</span><span>Timing</span><span>Status</span></div>
+                        {picker.activities.map((activity) => (
+                          <div className="monitor-so" key={`${activity.soNumber}-${activity.zone}-${activity.pickerId}`}>
+                            <span><strong>{extractWmsSoId(activity.soNumber)}</strong><small>{activity.destination} Â· {activity.sku} SKU</small></span>
+                            <span><strong>{activity.zone}</strong><small>{activity.route}</small></span>
+                            <span className="monitor-so-progress"><strong>{number(activity.pickedQty)} / {number(activity.requestQty)}</strong><i><em style={{ width: `${activity.completionPct}%` }} /></i><small>{number(activity.remainingQty)} remaining</small></span>
+                            <span><strong>{formatClock(activity.pickingStartAt)} â†’ {formatClock(activity.pickingEndAt)}</strong><small>start â†’ end</small></span>
+                            <span><em className={`status-chip ${activity.status.toLowerCase()}`}>{activity.status.replace("_", " ")}</em><small>{activity.rawStatus || "WMS"}</small></span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section className="assignment-section panel">
+          <div className="assignment-head">
+            <div className="panel-head"><div><span>05</span><div><h3>Assignment preview</h3><p>{assignmentMode === "zone" ? "Cross-route balancing by zone" : "Balanced by route and picker capacity"} Â· manual locks take priority</p></div></div></div>
+            <div className="assignment-tools">
+              <input aria-label="Cari assignment" placeholder="Search picker, zone, SO..." value={search} onChange={(event) => setSearch(event.target.value)} />
+              <button
+                className="soft-button locked-download"
+                disabled={!lockedSoCount}
+                onClick={() => downloadCsv(assignments, activeRoute === "ALL" ? undefined : activeRoute, "manual")}
+              >
+                â†“ Locked only ({lockedSoCount})
+              </button>
+              <button className="soft-button" onClick={() => downloadCsv(assignments, activeRoute === "ALL" ? undefined : activeRoute)}>â†“ Download CSV</button>
+            </div>
+          </div>
+          {!assignments.length ? (
+            <div className="empty-state"><strong>Assignment belum dibuat</strong><span>Klik Generate assignment untuk membagi candidate SO.</span></div>
+          ) : (
+            <div className="assignment-list">
+              {filteredAssignments.map((assignment, index) => {
+                const load = Math.round((assignment.totalQty / assignment.picker.productivity) * 100);
+                return (
+                  <article className="assignment-card" data-source={assignment.source} key={`${assignment.source}-${assignment.route}-${assignment.zone}-${assignment.picker.staffId}`}>
+                    <div className="assignment-index">{String(index + 1).padStart(2, "0")}</div>
+                    <div className="picker-avatar">{assignment.picker.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</div>
+                    <div className="picker-info"><strong>{assignment.picker.name} {assignment.source === "manual" && <em>MANUAL</em>}</strong><span>{assignment.picker.staffId} Â· {assignment.picker.shift}</span></div>
+                    <div className="assignment-route"><strong>{assignment.zone}</strong><span>{assignment.route}</span></div>
+                    <div className="assignment-load"><div><strong>{number(assignment.totalQty)}</strong><span>{assignment.source === "manual" ? "manual locked qty" : `/ ${number(assignment.picker.productivity)} qty`}</span></div><i><em className={load > 100 && assignment.source === "auto" ? "over" : ""} style={{ width: assignment.source === "manual" ? "100%" : `${Math.min(100, load)}%` }} /></i></div>
+                    <div className="assignment-so"><strong>{assignment.orders.length}</strong><span>SO</span></div>
+                    <div className="load-badge" data-over={load > 100 && assignment.source === "auto"}>{assignment.source === "manual" ? "LOCKED" : `${load}%`}</div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+          <div className="assignment-footer">
+            <div><span className="safe-dot" /> All rows have valid <code>so_id</code> + <code>staff_id</code> Â· {Object.keys(manualOverrides).length} manual locks</div>
+            <div className="footer-actions"><button onClick={() => { setGenerated(false); setManualOverrides({}); setSelectedOrders([]); flash("Semua assignment direset"); }}>Reset all</button><button onClick={() => downloadCsv(assignments)}>Download all routes <span>â†“</span></button></div>
+          </div>
+        </section>
+      </section>
+
+      {showRules && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowRules(false); }}>
+          <section className="rules-modal" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+            <button className="modal-close" onClick={() => setShowRules(false)} aria-label="Tutup">Ã—</button>
+            <p className="eyebrow">V1 CALCULATION CONTRACT</p>
+            <h2 id="rules-title">Assignment rules</h2>
+            <div className="rule-block"><span>1</span><div><strong>Eligibility</strong><p>SO status NEW dan destination termasuk SWL / PSG / CSA / KLD / BSX / CPT / PPL / RDS / SLP / JLB.</p></div></div>
+            <div className="rule-block"><span>2</span><div><strong>Manpower need</strong><p><code>CEILING(zone request qty / productivity per MP zone)</code></p></div></div>
+            <div className="rule-block"><span>3</span><div><strong>Picker roster</strong><p>Job Title = Picker, schedule aktif pada operational date, staff ID valid, bukan OFF DAY/cuti/izin.</p></div></div>
+            <div className="rule-block"><span>4</span><div><strong>WMS output</strong><p><code>error_message;so_id;staff_id</code> Â· satu SO hanya memiliki satu staff ID.</p></div></div>
+            <div className="rule-block"><span>5</span><div><strong>Atomic zone</strong><p>Zone berasal dari <code>origin_rack_name</code>. SO dengan lebih dari satu zone masuk <code>ZONE_CONFLICT</code> dan tidak ikut auto-assignment.</p></div></div>
+            <h3>Zone productivity draft</h3>
+            <div className="rule-grid">{ZONE_RULES.map((rule) => <div key={rule.zone}><span>{rule.zone}</span><strong>{number(rule.productivity)}</strong><small>qty / MP</small></div>)}</div>
+            <div className="modal-note">Demo values â€” replace with the final productivity-per-zone source before live trial.</div>
+          </section>
+        </div>
+      )}
+
+      {toast && <div className="toast" role="status">âœ“ {toast}</div>}
+    </main>
+  );
+}

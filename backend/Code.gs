@@ -315,7 +315,22 @@ function fetchSupersetRows_(cookie) {
   return parseSuperset_(text, ['so_number', 'destination_code', 'parsed_zone', 'request_qty', 'sku_count']);
 }
 
-function normalizeOrders_(rows)Ûí¢G§²ÚîÆ­yßrders = [];
+function normalizeOrders_(rows) {
+  const bySo = {};
+  rows.forEach((row) => {
+    const soNumber = String(row.so_number || '').trim();
+    const destination = String(row.destination_code || '').trim().toUpperCase();
+    const zone = String(row.parsed_zone || 'UNMAPPED').trim().toUpperCase() || 'UNMAPPED';
+    if (!soNumber || !OWOR.ROUTES[destination]) return;
+    if (!bySo[soNumber]) bySo[soNumber] = { soNumber, destinations: {}, qty: 0, sku: 0, zones: {} };
+    const qty = Number(row.request_qty || 0);
+    const sku = Number(row.sku_count || 0);
+    bySo[soNumber].qty += qty;
+    bySo[soNumber].sku += sku;
+    bySo[soNumber].destinations[destination] = true;
+    bySo[soNumber].zones[zone] = (bySo[soNumber].zones[zone] || 0) + qty;
+  });
+  const orders = [];
   const conflicts = [];
   Object.keys(bySo).forEach((key) => {
     const order = bySo[key];

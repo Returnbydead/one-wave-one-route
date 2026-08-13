@@ -58,6 +58,9 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /Pilih zone lintas route/i);
   assert.match(page, /Semua zone/i);
   assert.match(page, /aria-label="Pilih zone assignment"/);
+  assert.match(page, /mpRequired: Math\\.ceil\\(current\\.qty \\/ productivity\\)/);
+  assert.match(page, /\\{number\\(item\\.qty\\)\\} QTY/);
+  assert.match(page, /\\{item\\.mpRequired\\} MP/);
   assert.match(page, /error_message;so_id;staff_id/);
   assert.match(page, /↓ Locked only \(\{lockedSoCount\}\)/);
   assert.match(page, /item\.source === source/);

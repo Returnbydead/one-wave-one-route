@@ -617,6 +617,79 @@ button {
   color: #fff;
 }
 
+.zone-selector {
+  align-items: center;
+  background: #f2f8f5;
+  border-bottom: 1px solid #d8e6df;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(180px, 240px) 1fr;
+  padding: 14px 20px;
+}
+
+.zone-selector .eyebrow {
+  color: var(--green);
+  font-size: 7px;
+  margin: 0 0 3px;
+}
+
+.zone-selector h4 {
+  font-size: 17px;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.zone-selector > div > span {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 8px;
+}
+
+.zone-selector-list {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 3px;
+}
+
+.zone-selector-list button {
+  background: #fff;
+  border: 1px solid #cfddd6;
+  border-radius: 8px;
+  color: #52635f;
+  cursor: pointer;
+  flex: 0 0 auto;
+  min-width: 104px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.zone-selector-list button strong,
+.zone-selector-list button span {
+  display: block;
+}
+
+.zone-selector-list button strong {
+  font-size: 10px;
+}
+
+.zone-selector-list button span {
+  color: #7b8985;
+  font-family: var(--mono);
+  font-size: 7px;
+  margin-top: 3px;
+}
+
+.zone-selector-list button.active {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
+.zone-selector-list button.active span {
+  color: #bcd0ca;
+}
+
 .manual-command {
   align-items: center;
   background: #fbfcf9;
@@ -1814,6 +1887,10 @@ code {
     grid-template-columns: 1fr minmax(180px, 240px);
   }
 
+  .zone-selector {
+    grid-template-columns: 1fr;
+  }
+
   .manual-command > div {
     grid-column: 1 / -1;
   }
@@ -1902,6 +1979,11 @@ code {
 
   .manual-command {
     grid-template-columns: 1fr;
+  }
+
+  .zone-selector {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   .manual-command > div {

@@ -290,6 +290,7 @@ export default function Home() {
   const [showPickerPool, setShowPickerPool] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<ManualOverrides>({});
   const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("route");
+  const [selectedZone, setSelectedZone] = useState("ALL");
   const [liveOrders, setLiveOrders] = useState<SalesOrder[] | null>(null);
   const [livePickers, setLivePickers] = useState<Picker[] | null>(null);
   const [sourceStatus, setSourceStatus] = useState<"loading" | "live" | "fallback">("loading");
@@ -364,8 +365,23 @@ export default function Home() {
     )
     .reduce((total, assignment) => total + assignment.orders.length, 0);
 
-  const manualRouteOrders = ordersData.filter(
-    (order) => order.route === manualRoute,
+  const zoneOptions = useMemo(() => {
+    const groups = new Map<string, { zone: string; so: number; qty: number; routes: Set<RouteCode> }>();
+    ordersData.forEach((order) => {
+      const key = normalizedZone(order.zone);
+      const current = groups.get(key) ?? { zone: order.zone, so: 0, qty: 0, routes: new Set<RouteCode>() };
+      current.so += 1;
+      current.qty += order.qty;
+      current.routes.add(order.route);
+      groups.set(key, current);
+    });
+    return [...groups.values()].sort((a, b) => a.zone.localeCompare(b.zone));
+  }, [ordersData]);
+
+  const manualRouteOrders = ordersData.filter((order) =>
+    assignmentMode === "zone"
+      ? selectedZone === "ALL" || normalizedZone(order.zone) === selectedZone
+      : order.route === manualRoute,
   );
 
   const manualRouteZones = new Set(
@@ -488,7 +504,15 @@ export default function Home() {
   function openManualRoute(route: RouteCode) {
     setManualRoute(route);
     setActiveRoute(route);
+    setAssignmentMode("route");
+    setSelectedZone("ALL");
     setSelectedOrders([]);
+  }
+
+  function selectAssignmentMode(mode: AssignmentMode) {
+    setAssignmentMode(mode);
+    setSelectedOrders([]);
+    if (mode === "zone") setActiveRoute("ALL");
   }
 
   function toggleOrder(soNumber: string) {
@@ -651,15 +675,45 @@ export default function Home() {
               })}
             </div>
             <div className="assignment-mode-tabs" aria-label="Assignment grouping mode">
-              <button className={assignmentMode === "route" ? "active" : ""} onClick={() => setAssignmentMode("route")}>Assign by route</button>
-              <button className={assignmentMode === "zone" ? "active" : ""} onClick={() => setAssignmentMode("zone")}>Assign by zone</button>
+              <button className={assignmentMode === "route" ? "active" : ""} onClick={() => selectAssignmentMode("route")}>Assign by route</button>
+              <button className={assignmentMode === "zone" ? "active" : ""} onClick={() => selectAssignmentMode("zone")}>Assign by zone</button>
             </div>
           </div>
 
+          {assignmentMode === "zone" && (
+            <div className="zone-selector" aria-label="Pilih zone assignment">
+              <div>
+                <p className="eyebrow">PILIH ZONE LINTAS ROUTE</p>
+                <h4>{selectedZone === "ALL" ? "Semua zone" : zoneOptions.find((item) => normalizedZone(item.zone) === selectedZone)?.zone}</h4>
+                <span>SO ditampilkan berdasarkan zone tanpa peduli route tujuan</span>
+              </div>
+              <div className="zone-selector-list">
+                <button
+                  className={selectedZone === "ALL" ? "active" : ""}
+                  onClick={() => { setSelectedZone("ALL"); setSelectedOrders([]); }}
+                >
+                  <strong>Semua zone</strong><span>{ordersData.length} SO</span>
+                </button>
+                {zoneOptions.map((item) => {
+                  const value = normalizedZone(item.zone);
+                  return (
+                    <button
+                      className={selectedZone === value ? "active" : ""}
+                      key={value}
+                      onClick={() => { setSelectedZone(value); setSelectedOrders([]); }}
+                    >
+                      <strong>{item.zone}</strong><span>{item.so} SO · {item.routes.size} route</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="manual-command">
             <div>
-              <p className="eyebrow">ACTIVE ROUTE</p>
-              <h4>{manualRoute}</h4>
+              <p className="eyebrow">{assignmentMode === "zone" ? "ACTIVE ZONE" : "ACTIVE ROUTE"}</p>
+              <h4>{assignmentMode === "zone" ? (selectedZone === "ALL" ? "Semua zone" : zoneOptions.find((item) => normalizedZone(item.zone) === selectedZone)?.zone) : manualRoute}</h4>
               <span>{manualRouteOrders.length} candidate SO · {selectedOrders.length} selected</span>
             </div>
             <div className="picker-pool-trigger-wrap">
@@ -733,7 +787,7 @@ export default function Home() {
               <span className="so-check">
                 <input
                   type="checkbox"
-                  aria-label={`Pilih semua SO route ${manualRoute}`}
+                  aria-label={assignmentMode === "zone" ? `Pilih semua SO zone ${selectedZone}` : `Pilih semua SO route ${manualRoute}`}
                   checked={selectedOrders.length === manualRouteOrders.length}
                   onChange={() =>
                     setSelectedOrders(
@@ -781,9 +835,9 @@ export default function Home() {
                   manualRouteOrders.forEach((order) => delete next[order.soNumber]);
                   return next;
                 });
-                flash(`Manual lock route ${manualRoute} dibersihkan`);
+                flash(`Manual lock ${assignmentMode === "zone" ? "zone" : "route"} dibersihkan`);
               }}
-            >Clear route locks</button>
+            >Clear {assignmentMode === "zone" ? "zone" : "route"} locks</button>
           </div>
         </section>
 

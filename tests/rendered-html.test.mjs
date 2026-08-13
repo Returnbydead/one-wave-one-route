@@ -53,6 +53,9 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /"JLB"/);
   assert.match(page, /Assign by route/);
   assert.match(page, /Assign by zone/);
+  assert.match(page, /Pilih zone lintas route/i);
+  assert.match(page, /Semua zone/i);
+  assert.match(page, /aria-label="Pilih zone assignment"/);
   assert.match(page, /error_message;so_id;staff_id/);
   assert.match(page, /↓ Locked only \(\{lockedSoCount\}\)/);
   assert.match(page, /item\.source === source/);

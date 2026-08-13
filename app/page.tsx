@@ -214,22 +214,26 @@ function buildManualAssignments(
   orders: SalesOrder[],
   overrides: ManualOverrides,
   roster: Picker[],
+  mode: AssignmentMode,
 ) {
   const groups = new Map<string, SalesOrder[]>();
 
   orders.forEach((order) => {
     const staffId = overrides[order.soNumber];
     if (!staffId) return;
-    const key = `${order.route}::${staffId}`;
+    const key = mode === "zone"
+      ? `${normalizedZone(order.zone)}::${staffId}`
+      : `${order.route}::${staffId}`;
     groups.set(key, [...(groups.get(key) ?? []), order]);
   });
 
   return [...groups.entries()].map(([key, assignedOrders]) => {
-    const staffId = key.split("::")[1];
+    const staffId = key.split("::").at(-1)!;
     const rosterPicker = roster.find(
       (picker) => picker.staffId === staffId,
     );
     const zones = [...new Set(assignedOrders.map((order) => order.zone))];
+    const routes = [...new Set(assignedOrders.map((order) => order.route))];
     const productivity = rosterPicker?.productivity ?? assignedOrders.reduce(
       (sum, order) =>
         sum +
@@ -238,8 +242,10 @@ function buildManualAssignments(
       0,
     );
 
+    const route: Assignment["route"] = routes.length === 1 ? routes[0] : "MULTI ROUTE";
+
     return {
-      route: assignedOrders[0].route,
+      route,
       zone: zones.length === 1 ? zones[0] : `${zones.length} zones`,
       picker: rosterPicker ?? {
         staffId,
@@ -352,9 +358,9 @@ export default function Home() {
   const assignments = useMemo(
     () => [
       ...autoAssignments,
-      ...buildManualAssignments(ordersData, manualOverrides, pickerRoster),
+      ...buildManualAssignments(ordersData, manualOverrides, pickerRoster, assignmentMode),
     ],
-    [autoAssignments, manualOverrides, ordersData, pickerRoster],
+    [assignmentMode, autoAssignments, manualOverrides, ordersData, pickerRoster],
   );
 
   const lockedSoCount = assignments

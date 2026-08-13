@@ -142,10 +142,7 @@ function fetchSupersetRows_(cookie) {
     adhocMetric_('SUM(request_quantity)', 'request_qty'),
     adhocMetric_('COUNT(DISTINCT sku_number)', 'sku_count'),
   ];
-  const filters = [
-    { col: 'supply_order_created_at_date_adjusted', op: 'TEMPORAL_RANGE', val: 'Current day' },
-    { col: 'status', op: 'IN', val: ['NEW'] },
-  ];
+  const filters = [];
   const destinationsWhere = OWOR.DESTINATIONS.map((code) => `UPPER(destination_name_adjusted) LIKE '%${code}%'`).join(' OR ');
   const where = `so_number LIKE 'INV/SO/%' AND UPPER(COALESCE(origin_rack_name, '')) LIKE 'CBT-%' AND (${destinationsWhere})`;
   const query = {
@@ -158,10 +155,7 @@ function fetchSupersetRows_(cookie) {
     datasource: { id: OWOR.DATASOURCE_ID, type: 'table' }, force: true, queries: [query],
     form_data: {
       datasource: '400__table', viz_type: 'table', query_mode: 'aggregate', groupby: columns,
-      metrics, adhoc_filters: [
-        adhocFilter_('supply_order_created_at_date_adjusted', 'TEMPORAL_RANGE', 'Current day'),
-        adhocFilter_('status', 'IN', ['NEW']),
-      ], row_limit: 100000,
+      metrics, adhoc_filters: [], row_limit: 100000,
     },
     result_format: 'json', result_type: 'results',
   };

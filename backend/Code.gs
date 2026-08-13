@@ -19,6 +19,9 @@ const OWOR = Object.freeze({
   SUPERSET_URL: 'https://dash.astronauts.id/api/v1/chart/data',
   DATASOURCE_ID: 400,
   PICKING_DATASOURCE_ID: 108,
+  SYNC_WINDOW_START_HOUR: 4,
+  SYNC_WINDOW_END_HOUR: 20,
+  QUOTA_COOLDOWN_MS: 6 * 60 * 60 * 1000,
   DESTINATIONS: ['SWL', 'PSG', 'CSA', 'KLD', 'BSX', 'CPT', 'PPL', 'RDS', 'SLP', 'JLB'],
   ROUTES: {
     SWL: 'SWL - PSG',
@@ -38,72 +41,106 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('ONE WAVE ONE ROUTE')
     .addItem('Setup backend', 'setupOworBackend')
-    .addItem('Sync now', 'syncOworNow')
-    .addItem('Install 5-minute trigger', 'installOworTrigger')
+    .addItem('Sync all now', 'syncOworFullNow')
+    .addItem('Install quota-safe trigger', 'installOworTrigger')
     .addToUi();
 }
 
 function setupOworBackend() {
   ensureSheets_();
   installOworTrigger();
-  return syncOworNow();
+  return syncOworFullNow();
 }
 
 function installOworTrigger() {
   ScriptApp.getProjectTriggers()
     .filter((trigger) => trigger.getHandlerFunction() === 'syncOworNow')
     .forEach((trigger) => ScriptApp.deleteTrigger(trigger));
-  ScriptApp.newTrigger('syncOworNow').timeBased().everyMinutes(5).create();
-  return { ok: true, trigger: 'every 5 minutes' };
+  ScriptApp.newTrigger('syncOworNow').timeBased().everyMinutes(15).create();
+  return { ok: true, trigger: 'every 15 minutes; alternating orders/picking during 04:00-20:00 WIB' };
 }
 
-function syncOworNow() {
+function syncOworFullNow() {
+  return runOworSync_('all', false);
+}
+
+function syncOworNow(event) {
+  const scheduled = Boolean(event && event.triggerUid);
+  if (!scheduled) return syncOworFullNow();
+  if (!isWithinSyncWindow_()) return { ok: true, skipped: true, message: 'Outside 04:00-20:00 WIB sync window.' };
+  if (quotaCooldownActive_()) return { ok: false, skipped: true, quotaPaused: true, message: 'UrlFetch quota cooldown is active; last valid snapshot retained.' };
+  return runOworSync_(nextScheduledSource_(), true);
+}
+
+function runOworSync_(source, scheduled) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return { ok: false, skipped: true, message: 'Sync already running.' };
 
   const startedAt = new Date();
+  const previous = readStatus_();
   try {
     ensureSheets_();
     assertRouteConfig_();
     const cookie = readSupersetCookie_();
-    const supersetRows = fetchSupersetRows_(cookie);
-    const normalized = normalizeOrders_(supersetRows);
-    const orders = normalized.orders;
-    const conflicts = normalized.conflicts;
-    const pickingRows = fetchPickingRows_(cookie);
-    const picking = normalizePicking_(pickingRows);
+    let supersetRows = null;
+    let orders = null;
+    let conflicts = null;
+    let picking = null;
+    if (source === 'orders' || source === 'all') {
+      supersetRows = fetchSupersetRows_(cookie);
+      const normalized = normalizeOrders_(supersetRows);
+      orders = normalized.orders;
+      conflicts = normalized.conflicts;
+    }
+    if (source === 'picking' || source === 'all') {
+      picking = normalizePicking_(fetchPickingRows_(cookie));
+    }
     const pickers = readScheduledPickers_();
     const generatedAt = new Date();
 
-    writeOrderSnapshot_(orders, generatedAt);
-    writeConflictSnapshot_(conflicts, generatedAt);
+    if (orders) writeOrderSnapshot_(orders, generatedAt);
+    if (conflicts) writeConflictSnapshot_(conflicts, generatedAt);
     writePickerSnapshot_(pickers, generatedAt);
-    writePickingSnapshot_(picking, generatedAt);
+    if (picking) writePickingSnapshot_(picking, generatedAt);
+    if (scheduled) advanceScheduledSource_(source);
+    clearQuotaCooldown_();
     writeStatus_('SUCCESS', {
       startedAt,
       generatedAt,
       operationalDate: todayIso_(),
-      supersetRows: supersetRows.length,
-      orders: orders.length,
-      zoneConflicts: conflicts.length,
+      supersetRows: supersetRows ? supersetRows.length : previous.supersetRows,
+      orders: orders ? orders.length : previous.orders,
+      zoneConflicts: conflicts ? conflicts.length : previous.zoneConflicts,
       pickers: pickers.length,
-      picking: picking.length,
-      message: 'Compact snapshot ready.',
+      picking: picking ? picking.length : previous.picking,
+      ordersGeneratedAt: orders ? generatedAt : previous.ordersGeneratedAt,
+      pickingGeneratedAt: picking ? generatedAt : previous.pickingGeneratedAt,
+      nextSource: scheduled ? nextScheduledSource_() : previous.nextSource,
+      quotaResumeAt: '',
+      message: `Compact ${source} snapshot ready.`,
     });
-    return { ok: true, orders: orders.length, zoneConflicts: conflicts.length, pickers: pickers.length, picking: picking.length, generatedAt: generatedAt.toISOString() };
+    return { ok: true, source, orders: orders ? orders.length : previous.orders, zoneConflicts: conflicts ? conflicts.length : previous.zoneConflicts, pickers: pickers.length, picking: picking ? picking.length : previous.picking, generatedAt: generatedAt.toISOString() };
   } catch (error) {
-    writeStatus_('ERROR', {
+    const quotaPaused = isQuotaError_(error);
+    if (quotaPaused) setQuotaCooldown_();
+    const status = quotaPaused ? 'QUOTA_PAUSED' : 'DEGRADED';
+    const quotaResumeAt = quotaPaused ? quotaResumeAt_() : previous.quotaResumeAt;
+    writeStatus_(status, {
       startedAt,
-      generatedAt: new Date(),
-      operationalDate: todayIso_(),
-      supersetRows: 0,
-      orders: 0,
-      zoneConflicts: 0,
-      pickers: 0,
-      picking: 0,
-      message: safeError_(error),
+      generatedAt: previous.generatedAt || new Date(),
+      operationalDate: previous.operationalDate || todayIso_(),
+      supersetRows: previous.supersetRows,
+      orders: previous.orders,
+      zoneConflicts: previous.zoneConflicts,
+      pickers: previous.pickers,
+      picking: previous.picking,
+      ordersGeneratedAt: previous.ordersGeneratedAt,
+      pickingGeneratedAt: previous.pickingGeneratedAt,
+      nextSource: nextScheduledSource_(),
+      quotaResumeAt,
+      message: `${safeError_(error)} Last valid snapshot retained.`,
     });
-    throw error;
+    return { ok: false, source, status, quotaPaused, error: safeError_(error), lastSnapshotRetained: true, quotaResumeAt };
   } finally {
     lock.releaseLock();
   }
@@ -278,22 +315,7 @@ function fetchSupersetRows_(cookie) {
   return parseSuperset_(text, ['so_number', 'destination_code', 'parsed_zone', 'request_qty', 'sku_count']);
 }
 
-function normalizeOrders_(rows) {
-  const bySo = {};
-  rows.forEach((row) => {
-    const soNumber = String(row.so_number || '').trim();
-    const destination = String(row.destination_code || '').trim().toUpperCase();
-    const zone = String(row.parsed_zone || 'UNMAPPED').trim().toUpperCase() || 'UNMAPPED';
-    if (!soNumber || !OWOR.ROUTES[destination]) return;
-    if (!bySo[soNumber]) bySo[soNumber] = { soNumber, destinations: {}, qty: 0, sku: 0, zones: {} };
-    const qty = Number(row.request_qty || 0);
-    const sku = Number(row.sku_count || 0);
-    bySo[soNumber].qty += qty;
-    bySo[soNumber].sku += sku;
-    bySo[soNumber].destinations[destination] = true;
-    bySo[soNumber].zones[zone] = (bySo[soNumber].zones[zone] || 0) + qty;
-  });
-  const orders = [];
+function normalizeOrders_(rows)Ûí¢G§²ÚîÆ­yßrders = [];
   const conflicts = [];
   Object.keys(bySo).forEach((key) => {
     const order = bySo[key];
@@ -357,13 +379,13 @@ function buildSnapshot_() {
   const pickerSheet = ss.getSheetByName(OWOR.PICKER_SHEET);
   const pickingSheet = ss.getSheetByName(OWOR.PICKING_SHEET);
   const status = readStatus_();
-  if (!orderSheet || !pickerSheet || status.status !== 'SUCCESS') return { ok: false, error: 'FEED_NOT_READY', sync: status };
+  if (!orderSheet || !pickerSheet || status.status === 'NOT_READY') return { ok: false, error: 'FEED_NOT_READY', sync: status };
   const orderRows = orderSheet.getLastRow() > 1 ? orderSheet.getRange(2, 1, orderSheet.getLastRow() - 1, 7).getValues() : [];
   const pickerRows = pickerSheet.getLastRow() > 1 ? pickerSheet.getRange(2, 1, pickerSheet.getLastRow() - 1, 7).getValues() : [];
   const pickingRows = pickingSheet && pickingSheet.getLastRow() > 1 ? pickingSheet.getRange(2, 1, pickingSheet.getLastRow() - 1, 15).getValues() : [];
   const conflictRows = conflictSheet && conflictSheet.getLastRow() > 1 ? conflictSheet.getRange(2, 1, conflictSheet.getLastRow() - 1, 6).getValues() : [];
   return {
-    ok: true, generatedAt: status.generatedAt, operationalDate: status.operationalDate,
+    ok: true, stale: status.status !== 'SUCCESS', generatedAt: status.generatedAt, operationalDate: status.operationalDate,
     source: 'Superset dataset 400 + Google Sheets', sync: status,
     orders: orderRows.filter((row) => row[0]).map((row) => ({ soNumber: String(row[0]), destination: String(row[1]), route: String(row[2]), zone: String(row[3]), qty: Number(row[4]), sku: Number(row[5]) })),
     conflicts: conflictRows.filter((row) => row[0]).map((row) => ({ soNumber: String(row[0]), destinations: String(row[1]), zones: String(row[2]), qty: Number(row[3]), reason: String(row[4]) })),
@@ -381,7 +403,7 @@ function writeConflictSnapshot_(conflicts, generatedAt) {
   sheet.setFrozenRows(1);
 }
 
-function buildHealth_() { const status = readStatus_(); return { ok: status.status === 'SUCCESS', source: 'OWOR GAS', sync: status }; }
+function buildHealth_() { const status = readStatus_(); return { ok: status.status === 'SUCCESS', degraded: status.status !== 'SUCCESS', source: 'OWOR GAS', sync: status }; }
 
 function writeOrderSnapshot_(orders, generatedAt) {
   const sheet = SpreadsheetApp.openById(OWOR.TARGET_SPREADSHEET_ID).getSheetByName(OWOR.SO_SHEET);
@@ -416,19 +438,37 @@ function writeStatus_(status, detail) {
   const values = [
     ['key', 'value'], ['status', status], ['operational_date', detail.operationalDate],
     ['started_at', detail.startedAt], ['generated_at', detail.generatedAt],
-    ['superset_rows', detail.supersetRows], ['orders', detail.orders], ['zone_conflicts', detail.zoneConflicts || 0], ['pickers', detail.pickers], ['picking', detail.picking || 0], ['message', detail.message],
+    ['orders_generated_at', detail.ordersGeneratedAt || ''], ['picking_generated_at', detail.pickingGeneratedAt || ''],
+    ['superset_rows', detail.supersetRows], ['orders', detail.orders], ['zone_conflicts', detail.zoneConflicts || 0], ['pickers', detail.pickers], ['picking', detail.picking || 0],
+    ['next_source', detail.nextSource || 'orders'], ['quota_resume_at', detail.quotaResumeAt || ''], ['message', detail.message],
   ];
   sheet.getRange(1, 1, values.length, 2).setValues(values);
   sheet.setFrozenRows(1);
 }
 
 function readStatus_() {
-  const sheet = SpreadsheetApp.openById(OWOR.TARGET_SPREADSHEET_ID).getSheetByName(OWOR.STATUS_SHEET);
+  const ss = SpreadsheetApp.openById(OWOR.TARGET_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(OWOR.STATUS_SHEET);
   if (!sheet || sheet.getLastRow() < 2) return { status: 'NOT_READY' };
   const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getDisplayValues();
   const data = {}; rows.forEach((row) => { data[String(row[0])] = row[1]; });
-  return { status: data.status || 'UNKNOWN', operationalDate: data.operational_date || '', generatedAt: data.generated_at || '', supersetRows: Number(data.superset_rows || 0), orders: Number(data.orders || 0), zoneConflicts: Number(data.zone_conflicts || 0), pickers: Number(data.pickers || 0), picking: Number(data.picking || 0), message: data.message || '' };
+  const status = data.status || 'UNKNOWN';
+  const ordersGeneratedAt = data.orders_generated_at || snapshotGeneratedAt_(ss, OWOR.SO_SHEET, 7) || data.generated_at || '';
+  const pickingGeneratedAt = data.picking_generated_at || snapshotGeneratedAt_(ss, OWOR.PICKING_SHEET, 15) || data.generated_at || '';
+  return {
+    status, operationalDate: data.operational_date || '',
+    generatedAt: status === 'SUCCESS' ? data.generated_at || ordersGeneratedAt : ordersGeneratedAt || pickingGeneratedAt || data.generated_at || '',
+    ordersGeneratedAt, pickingGeneratedAt,
+    supersetRows: Number(data.superset_rows || 0), orders: Number(data.orders || 0) || snapshotRowCount_(ss, OWOR.SO_SHEET),
+    zoneConflicts: Number(data.zone_conflicts || 0) || snapshotRowCount_(ss, OWOR.CONFLICT_SHEET),
+    pickers: Number(data.pickers || 0) || snapshotRowCount_(ss, OWOR.PICKER_SHEET),
+    picking: Number(data.picking || 0) || snapshotRowCount_(ss, OWOR.PICKING_SHEET), nextSource: data.next_source || 'orders',
+    quotaResumeAt: data.quota_resume_at || '', message: data.message || '',
+  };
 }
+
+function snapshotRowCount_(ss, sheetName) { const sheet = ss.getSheetByName(sheetName); return sheet ? Math.max(0, sheet.getLastRow() - 1) : 0; }
+function snapshotGeneratedAt_(ss, sheetName, column) { const sheet = ss.getSheetByName(sheetName); if (!sheet || sheet.getLastRow() < 2) return ''; const value = sheet.getRange(2, column).getValue(); return value instanceof Date && !isNaN(value.getTime()) ? value.toISOString() : String(value || ''); }
 
 function ensureSheets_() {
   const ss = SpreadsheetApp.openById(OWOR.TARGET_SPREADSHEET_ID);
@@ -466,6 +506,14 @@ function adhocColumn_(sqlExpression, label) { return { expressionType: 'SQL', sq
 function adhocMetric_(sqlExpression, label) { return { expressionType: 'SQL', sqlExpression, label, hasCustomLabel: true, optionName: `metric_${label}` }; }
 function adhocFilter_(subject, operator, comparator) { return { clause: 'WHERE', comparator, datasourceWarning: false, expressionType: 'SIMPLE', filterOptionName: `filter_${String(subject).replace(/[^A-Za-z0-9]/g, '_')}`, isExtra: false, isNew: false, operator, operatorId: operator === 'NOT IN' ? 'NOT_IN' : operator, sqlExpression: null, subject }; }
 function extractCookieValue_(cookie, names) { for (let i = 0; i < names.length; i += 1) { const match = new RegExp(`(?:^|;\\s*)${names[i]}=([^;]+)`, 'i').exec(cookie); if (match) return match[1]; } return ''; }
+function isWithinSyncWindow_() { const hour = Number(Utilities.formatDate(new Date(), OWOR.TIME_ZONE, 'H')); return hour >= OWOR.SYNC_WINDOW_START_HOUR && hour < OWOR.SYNC_WINDOW_END_HOUR; }
+function nextScheduledSource_() { return PropertiesService.getScriptProperties().getProperty('OWOR_NEXT_SOURCE') === 'picking' ? 'picking' : 'orders'; }
+function advanceScheduledSource_(completedSource) { PropertiesService.getScriptProperties().setProperty('OWOR_NEXT_SOURCE', completedSource === 'orders' ? 'picking' : 'orders'); }
+function quotaResumeAt_() { const value = Number(PropertiesService.getScriptProperties().getProperty('OWOR_QUOTA_RESUME_AT') || 0); return value ? new Date(value).toISOString() : ''; }
+function quotaCooldownActive_() { return Number(PropertiesService.getScriptProperties().getProperty('OWOR_QUOTA_RESUME_AT') || 0) > Date.now(); }
+function setQuotaCooldown_() { PropertiesService.getScriptProperties().setProperty('OWOR_QUOTA_RESUME_AT', String(Date.now() + OWOR.QUOTA_COOLDOWN_MS)); }
+function clearQuotaCooldown_() { PropertiesService.getScriptProperties().deleteProperty('OWOR_QUOTA_RESUME_AT'); }
+function isQuotaError_(error) { return /premium urlfetch|service invoked too many times.*urlfetch|urlfetch.*too many times/i.test(String(error && error.message ? error.message : error)); }
 function todayIso_() { return Utilities.formatDate(new Date(), OWOR.TIME_ZONE, 'yyyy-MM-dd'); }
 function normalizeDate_(value) { if (value instanceof Date && !isNaN(value.getTime())) return Utilities.formatDate(value, OWOR.TIME_ZONE, 'yyyy-MM-dd'); const text = String(value || '').trim(); const parsed = new Date(text); return isNaN(parsed.getTime()) ? '' : Utilities.formatDate(parsed, OWOR.TIME_ZONE, 'yyyy-MM-dd'); }
 function safeError_(error) { return String(error && error.message ? error.message : error).replace(/cookie\s*[:=].*/ig, 'cookie=[REDACTED]').slice(0, 500); }

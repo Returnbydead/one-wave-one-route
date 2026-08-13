@@ -34,7 +34,7 @@ npm test
 
 Raw Superset item rows tidak boleh dikirim langsung ke browser atau Google Sheets. Dataset upstream harus memfilter operational date, lima destination trial, status eligible, lalu mengagregasi menjadi snapshot candidate SO yang ramping.
 
-Monitoring picking memakai query kedua yang tetap ramping pada grain SO + picker + zone. Backend hanya menyimpan field operasional yang dibutuhkan (`request_qty`, `picked_qty`, status, start/end) di sheet `OWOR PICKING MONITOR`; browser tidak pernah menerima raw item rows. Panel live mengelompokkan snapshot tersebut per picker dan menampilkan detail SO yang sedang dikerjakan, progress qty, zone, route, serta waktu mulai/selesai. Snapshot ikut trigger 5-menitan yang sama.
+Monitoring picking memakai query kedua yang tetap ramping pada grain SO + picker + zone. Backend hanya menyimpan field operasional yang dibutuhkan (`request_qty`, `picked_qty`, status, start/end) di sheet `OWOR PICKING MONITOR`; browser tidak pernah menerima raw item rows. Panel live mengelompokkan snapshot tersebut per picker dan menampilkan detail SO yang sedang dikerjakan, progress qty, zone, route, serta waktu mulai/selesai. Trigger quota-safe berjalan tiap 15 menit pada pukul 04:00-20:00 WIB dan bergantian memperbarui SO/picking, sehingga tiap feed diperbarui sekitar 30 menit.
 
 ```text
 Superset dataset 400 (up to 1M item rows)
@@ -82,10 +82,12 @@ Keep the Superset session/cookie server-side. The browser should only receive th
 
 Backend di `backend/Code.gs` dipasang sebagai file terpisah pada Apps Script yang terikat ke workbook route. Backend tersebut:
 
-- menjalankan query agregat Superset setiap 5 menit;
+- menjalankan trigger quota-safe tiap 15 menit pada pukul 04:00-20:00 WIB, bergantian antara query SO dan picking;
 - menulis `OWOR SO SNAPSHOT`, `OWOR SO CONFLICTS`, `OWOR PICKER SNAPSHOT`, dan `OWOR SYNC STATUS`;
 - membaca picker terjadwal dari `Schedule Manpower 2025`;
 - menyajikan compact JSON melalui Web App bertoken.
+
+Jika kuota `UrlFetch` sedang habis, backend mengubah status menjadi `QUOTA_PAUSED`, menahan retry selama enam jam, dan tetap menyajikan snapshot valid terakhir sebagai data stale. Tombol `Sync all now` tetap tersedia untuk refresh manual penuh (dua request) setelah kuota pulih.
 
 Production runtime membutuhkan dua server-only environment variables:
 

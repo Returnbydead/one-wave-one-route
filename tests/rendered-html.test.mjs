@@ -73,6 +73,8 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /Paste multiple Staff ID/);
   assert.match(page, /\/api\/live/);
   assert.match(page, /Live Superset \+ GSheet/);
+  assert.match(page, /Last snapshot · sync paused/);
+  assert.match(page, /payload\.stale/);
   assert.match(page, /Live picking monitor/);
   assert.match(page, /picker\.activities\.map/);
   assert.match(page, /activity\.pickedQty/);
@@ -106,5 +108,23 @@ test("keeps the Superset backend atomic per SO and origin rack zone", async () =
   assert.match(backend, /picking_end_at/);
   assert.match(backend, /normalizePicking_/);
   assert.doesNotMatch(backend, /Object\.keys\(order\.zones\)\.sort/);
+});
+
+test("keeps scheduled sync within the UrlFetch daily budget", async () => {
+  const backend = await readFile(new URL("../backend/Code.gs", import.meta.url), "utf8");
+
+  assert.match(backend, /everyMinutes\(15\)/);
+  assert.doesNotMatch(backend, /everyMinutes\(5\)/);
+  assert.match(backend, /SYNC_WINDOW_START_HOUR:\s*4/);
+  assert.match(backend, /SYNC_WINDOW_END_HOUR:\s*20/);
+  assert.match(backend, /nextScheduledSource_/);
+  assert.match(backend, /source === 'orders' \|\| source === 'all'/);
+  assert.match(backend, /source === 'picking' \|\| source === 'all'/);
+  assert.match(backend, /QUOTA_PAUSED/);
+  assert.match(backend, /quotaCooldownActive_/);
+  assert.match(backend, /isQuotaError_/);
+  assert.match(backend, /last valid snapshot retained/i);
+  assert.match(backend, /snapshotRowCount_/);
+  assert.match(backend, /snapshotGeneratedAt_/);
 });
 

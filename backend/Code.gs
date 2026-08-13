@@ -11,18 +11,24 @@ const OWOR = Object.freeze({
   ROUTE_SHEET: 'PLAN CBT AUG 2026',
   MANPOWER_SHEET: 'Schedule Manpower 2025',
   SO_SHEET: 'OWOR SO SNAPSHOT',
+  CONFLICT_SHEET: 'OWOR SO CONFLICTS',
   PICKER_SHEET: 'OWOR PICKER SNAPSHOT',
   STATUS_SHEET: 'OWOR SYNC STATUS',
   TIME_ZONE: 'Asia/Jakarta',
   SUPERSET_URL: 'https://dash.astronauts.id/api/v1/chart/data',
   DATASOURCE_ID: 400,
-  DESTINATIONS: ['SWL', 'PSG', 'SMN', 'MRY', 'BSX'],
+  DESTINATIONS: ['SWL', 'PSG', 'SMN', 'MRY', 'BSX', 'CPT', 'PPL', 'RDS', 'SLP', 'JLB'],
   ROUTES: {
     SWL: 'SWL - PSG',
     PSG: 'SWL - PSG',
     SMN: 'SMN - MRY',
     MRY: 'SMN - MRY',
     BSX: 'BSX',
+    CPT: 'CPT - PPL',
+    PPL: 'CPT - PPL',
+    RDS: 'RDS - SLP',
+    SLP: 'RDS - SLP',
+    JLB: 'JLB',
   },
 });
 
@@ -59,11 +65,14 @@ function syncOworNow() {
     assertRouteConfig_();
     const cookie = readSupersetCookie_();
     const supersetRows = fetchSupersetRows_(cookie);
-    const orders = normalizeOrders_(supersetRows);
+    const normalized = normalizeOrders_(supersetRows);
+    const orders = normalized.orders;
+    const conflicts = normalized.conflicts;
     const pickers = readScheduledPickers_();
     const generatedAt = new Date();
 
     writeOrderSnapshot_(orders, generatedAt);
+    writeConflictSnapshot_(conflicts, generatedAt);
     writePickerSnapshot_(pickers, generatedAt);
     writeStatus_('SUCCESS', {
       startedAt,
@@ -71,10 +80,11 @@ function syncOworNow() {
       operationalDate: todayIso_(),
       supersetRows: supersetRows.length,
       orders: orders.length,
+      zoneConflicts: conflicts.length,
       pickers: pickers.length,
       message: 'Compact snapshot ready.',
     });
-    return { ok: true, orders: orders.length, pickers: pickers.length, generatedAt: generatedAt.toISOString() };
+    return { ok: true, orders: orders.length, zoneConflicts: conflicts.length, pickers: pickers.length, generatedAt: generatedAt.toISOString() };
   } catch (error) {
     writeStatus_('ERROR', {
       startedAt,
@@ -82,6 +92,7 @@ function syncOworNow() {
       operationalDate: todayIso_(),
       supersetRows: 0,
       orders: 0,
+      zoneConflicts: 0,
       pickers: 0,
       message: safeError_(error),
     });
@@ -118,9 +129,15 @@ function fetchSupersetRows_(cookie) {
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%SMN%' THEN 'SMN'
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%MRY%' THEN 'MRY'
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%BSX%' THEN 'BSX'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%CPT%' THEN 'CPT'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%PPL%' THEN 'PPL'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%RDS%' THEN 'RDS'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%SLP%' THEN 'SLP'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%JLB%' THEN 'JLB'
     ELSE 'OTHER' END`;
   const destinationColumn = adhocColumn_(destinationSql, 'destination_code');
-  const columns = ['so_number', destinationColumn, 'picking_area_name'];
+  const zoneColumn = adhocColumn_("extract(origin_rack_name, '^CBT-([^-]+)')", 'parsed_zone');
+  const columns = ['so_number', destinationColumn, zoneColumn];
   const metrics = [
     adhocMetric_('SUM(request_quantity)', 'request_qty'),
     adhocMetric_('COUNT(DISTINCT sku_number)', 'sku_count'),
@@ -129,10 +146,11 @@ function fetchSupersetRows_(cookie) {
     { col: 'supply_order_created_at_date_adjusted', op: 'TEMPORAL_RANGE', val: 'Current day' },
     { col: 'status', op: 'IN', val: ['NEW'] },
   ];
-  const where = OWOR.DESTINATIONS.map((code) => `UPPER(destination_name_adjusted) LIKE '%${code}%'`).join(' OR ');
+  const destinationsWhere = OWOR.DESTINATIONS.map((code) => `UPPER(destination_name_adjusted) LIKE '%${code}%'`).join(' OR ');
+  const where = `so_number LIKE 'INV/SO/%' AND UPPER(COALESCE(origin_rack_name, '')) LIKE 'CBT-%' AND (${destinationsWhere})`;
   const query = {
     annotation_layers: [], applied_time_extras: {}, columns, custom_form_data: {}, custom_params: {},
-    extras: { having: '', where: `(${where})` }, filters, metrics, order_desc: true, orderby: [],
+    extras: { having: '', where }, filters, metrics, order_desc: true, orderby: [],
     post_processing: [], row_limit: 100000, series_limit: 0, time_offsets: [],
     url_params: { datasource_id: '400', datasource_type: 'table' },
   };
@@ -159,7 +177,7 @@ function fetchSupersetRows_(cookie) {
   if (code < 200 || code >= 300 || /^\s*</.test(text)) {
     throw new Error(`SUPERSET_HTTP_${code}: cookie expired or query rejected.`);
   }
-  return parseSuperset_(text, ['so_number', 'destination_code', 'picking_area_name', 'request_qty', 'sku_count']);
+  return parseSuperset_(text, ['so_number', 'destination_code', 'parsed_zone', 'request_qty', 'sku_count']);
 }
 
 function normalizeOrders_(rows) {
@@ -167,20 +185,38 @@ function normalizeOrders_(rows) {
   rows.forEach((row) => {
     const soNumber = String(row.so_number || '').trim();
     const destination = String(row.destination_code || '').trim().toUpperCase();
-    const zone = String(row.picking_area_name || 'UNMAPPED').trim() || 'UNMAPPED';
+    const zone = String(row.parsed_zone || 'UNMAPPED').trim().toUpperCase() || 'UNMAPPED';
     if (!soNumber || !OWOR.ROUTES[destination]) return;
-    if (!bySo[soNumber]) bySo[soNumber] = { soNumber, destination, route: OWOR.ROUTES[destination], qty: 0, sku: 0, zones: {} };
+    if (!bySo[soNumber]) bySo[soNumber] = { soNumber, destinations: {}, qty: 0, sku: 0, zones: {} };
     const qty = Number(row.request_qty || 0);
     const sku = Number(row.sku_count || 0);
     bySo[soNumber].qty += qty;
     bySo[soNumber].sku += sku;
+    bySo[soNumber].destinations[destination] = true;
     bySo[soNumber].zones[zone] = (bySo[soNumber].zones[zone] || 0) + qty;
   });
-  return Object.keys(bySo).map((key) => {
+  const orders = [];
+  const conflicts = [];
+  Object.keys(bySo).forEach((key) => {
     const order = bySo[key];
-    const zone = Object.keys(order.zones).sort((a, b) => order.zones[b] - order.zones[a])[0] || 'UNMAPPED';
-    return { soNumber: order.soNumber, destination: order.destination, route: order.route, zone, qty: order.qty, sku: order.sku };
-  }).sort((a, b) => a.route.localeCompare(b.route) || b.qty - a.qty);
+    const zones = Object.keys(order.zones);
+    const destinations = Object.keys(order.destinations);
+    if (zones.length !== 1 || zones[0] === 'UNMAPPED' || destinations.length !== 1) {
+      conflicts.push({
+        soNumber: order.soNumber,
+        destinations: destinations.join(', '),
+        zones: zones.join(', '),
+        qty: order.qty,
+        reason: destinations.length !== 1 ? 'DESTINATION_CONFLICT' : zones.length !== 1 ? 'ZONE_CONFLICT' : 'ZONE_UNMAPPED',
+      });
+      return;
+    }
+    const destination = destinations[0];
+    orders.push({ soNumber: order.soNumber, destination, route: OWOR.ROUTES[destination], zone: zones[0], qty: order.qty, sku: order.sku });
+  });
+  orders.sort((a, b) => a.route.localeCompare(b.route) || b.qty - a.qty);
+  conflicts.sort((a, b) => b.qty - a.qty);
+  return { orders, conflicts };
 }
 
 function readScheduledPickers_() {
@@ -219,17 +255,29 @@ function readScheduledPickers_() {
 function buildSnapshot_() {
   const ss = SpreadsheetApp.openById(OWOR.TARGET_SPREADSHEET_ID);
   const orderSheet = ss.getSheetByName(OWOR.SO_SHEET);
+  const conflictSheet = ss.getSheetByName(OWOR.CONFLICT_SHEET);
   const pickerSheet = ss.getSheetByName(OWOR.PICKER_SHEET);
   const status = readStatus_();
   if (!orderSheet || !pickerSheet || status.status !== 'SUCCESS') return { ok: false, error: 'FEED_NOT_READY', sync: status };
   const orderRows = orderSheet.getLastRow() > 1 ? orderSheet.getRange(2, 1, orderSheet.getLastRow() - 1, 7).getValues() : [];
   const pickerRows = pickerSheet.getLastRow() > 1 ? pickerSheet.getRange(2, 1, pickerSheet.getLastRow() - 1, 7).getValues() : [];
+  const conflictRows = conflictSheet && conflictSheet.getLastRow() > 1 ? conflictSheet.getRange(2, 1, conflictSheet.getLastRow() - 1, 6).getValues() : [];
   return {
     ok: true, generatedAt: status.generatedAt, operationalDate: status.operationalDate,
     source: 'Superset dataset 400 + Google Sheets', sync: status,
     orders: orderRows.filter((row) => row[0]).map((row) => ({ soNumber: String(row[0]), destination: String(row[1]), route: String(row[2]), zone: String(row[3]), qty: Number(row[4]), sku: Number(row[5]) })),
+    conflicts: conflictRows.filter((row) => row[0]).map((row) => ({ soNumber: String(row[0]), destinations: String(row[1]), zones: String(row[2]), qty: Number(row[3]), reason: String(row[4]) })),
     pickers: pickerRows.filter((row) => row[0]).map((row) => ({ staffId: String(row[0]), name: String(row[1]), zone: String(row[2]), productivity: Number(row[3]), shift: String(row[4]), contract: String(row[5]) })),
   };
+}
+
+function writeConflictSnapshot_(conflicts, generatedAt) {
+  const sheet = SpreadsheetApp.openById(OWOR.TARGET_SPREADSHEET_ID).getSheetByName(OWOR.CONFLICT_SHEET);
+  sheet.clearContents();
+  const values = [['so_number', 'destinations', 'zones', 'request_qty', 'reason', 'generated_at']]
+    .concat(conflicts.map((item) => [item.soNumber, item.destinations, item.zones, item.qty, item.reason, generatedAt]));
+  sheet.getRange(1, 1, values.length, values[0].length).setValues(values);
+  sheet.setFrozenRows(1);
 }
 
 function buildHealth_() { const status = readStatus_(); return { ok: status.status === 'SUCCESS', source: 'OWOR GAS', sync: status }; }
@@ -258,7 +306,7 @@ function writeStatus_(status, detail) {
   const values = [
     ['key', 'value'], ['status', status], ['operational_date', detail.operationalDate],
     ['started_at', detail.startedAt], ['generated_at', detail.generatedAt],
-    ['superset_rows', detail.supersetRows], ['orders', detail.orders], ['pickers', detail.pickers], ['message', detail.message],
+    ['superset_rows', detail.supersetRows], ['orders', detail.orders], ['zone_conflicts', detail.zoneConflicts || 0], ['pickers', detail.pickers], ['message', detail.message],
   ];
   sheet.getRange(1, 1, values.length, 2).setValues(values);
   sheet.setFrozenRows(1);
@@ -269,12 +317,12 @@ function readStatus_() {
   if (!sheet || sheet.getLastRow() < 2) return { status: 'NOT_READY' };
   const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getDisplayValues();
   const data = {}; rows.forEach((row) => { data[String(row[0])] = row[1]; });
-  return { status: data.status || 'UNKNOWN', operationalDate: data.operational_date || '', generatedAt: data.generated_at || '', supersetRows: Number(data.superset_rows || 0), orders: Number(data.orders || 0), pickers: Number(data.pickers || 0), message: data.message || '' };
+  return { status: data.status || 'UNKNOWN', operationalDate: data.operational_date || '', generatedAt: data.generated_at || '', supersetRows: Number(data.superset_rows || 0), orders: Number(data.orders || 0), zoneConflicts: Number(data.zone_conflicts || 0), pickers: Number(data.pickers || 0), message: data.message || '' };
 }
 
 function ensureSheets_() {
   const ss = SpreadsheetApp.openById(OWOR.TARGET_SPREADSHEET_ID);
-  [OWOR.SO_SHEET, OWOR.PICKER_SHEET, OWOR.STATUS_SHEET].forEach((name) => { if (!ss.getSheetByName(name)) ss.insertSheet(name); });
+  [OWOR.SO_SHEET, OWOR.CONFLICT_SHEET, OWOR.PICKER_SHEET, OWOR.STATUS_SHEET].forEach((name) => { if (!ss.getSheetByName(name)) ss.insertSheet(name); });
 }
 
 function assertRouteConfig_() {
@@ -312,4 +360,3 @@ function todayIso_() { return Utilities.formatDate(new Date(), OWOR.TIME_ZONE, '
 function normalizeDate_(value) { if (value instanceof Date && !isNaN(value.getTime())) return Utilities.formatDate(value, OWOR.TIME_ZONE, 'yyyy-MM-dd'); const text = String(value || '').trim(); const parsed = new Date(text); return isNaN(parsed.getTime()) ? '' : Utilities.formatDate(parsed, OWOR.TIME_ZONE, 'yyyy-MM-dd'); }
 function safeError_(error) { return String(error && error.message ? error.message : error).replace(/cookie\s*[:=].*/ig, 'cookie=[REDACTED]').slice(0, 500); }
 function json_(payload) { return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON); }
-

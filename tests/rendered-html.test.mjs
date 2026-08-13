@@ -48,6 +48,11 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /"SWL - PSG"/);
   assert.match(page, /"SMN - MRY"/);
   assert.match(page, /"BSX"/);
+  assert.match(page, /"CPT - PPL"/);
+  assert.match(page, /"RDS - SLP"/);
+  assert.match(page, /"JLB"/);
+  assert.match(page, /Assign by route/);
+  assert.match(page, /Assign by zone/);
   assert.match(page, /error_message;so_id;staff_id/);
   assert.match(page, /↓ Locked only \(\{lockedSoCount\}\)/);
   assert.match(page, /item\.source === source/);
@@ -69,4 +74,16 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   );
   assert.match(layout, /ONE WAVE ONE ROUTE · CBT/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
+});
+
+test("keeps the Superset backend atomic per SO and origin rack zone", async () => {
+  const backend = await readFile(new URL("../backend/Code.gs", import.meta.url), "utf8");
+  for (const hub of ["SWL", "PSG", "SMN", "MRY", "BSX", "CPT", "PPL", "RDS", "SLP", "JLB"]) {
+    assert.match(backend, new RegExp(`\\b${hub}\\b`));
+  }
+  assert.match(backend, /origin_rack_name/);
+  assert.match(backend, /parsed_zone/);
+  assert.match(backend, /ZONE_CONFLICT/);
+  assert.match(backend, /OWOR SO CONFLICTS/);
+  assert.doesNotMatch(backend, /Object\.keys\(order\.zones\)\.sort/);
 });

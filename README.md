@@ -4,10 +4,12 @@ V1 dashboard untuk membentuk assignment picker per route dan picking zone, lalu 
 
 ## V1 scope
 
-- Trial route: `SWL - PSG`, `SMN - MRY`, dan `BSX`
+- Route: `SWL - PSG`, `SMN - MRY`, `BSX`, `CPT - PPL`, `RDS - SLP`, dan `JLB` (10 hub)
+- Mode assignment dapat dipilih `By route` atau lintas route `By zone`
 - Menghitung kebutuhan picker per zone dengan `CEILING(request_qty / productivity_per_mp)`
 - Memilih picker aktif sesuai zone dan kapasitas
 - Membagi satu SO utuh ke satu picker dengan load balancing berbasis produktivitas
+- Membaca zone dari token kedua `origin_rack_name` (`CBT-MZA1-...` -> `MZA1`) dan mengarantina SO multi-zone sebagai `ZONE_CONFLICT`
 - Download per route atau seluruh route dengan header `error_message;so_id;staff_id`
 
 UI membaca snapshot live lewat server route `/api/live`. Demo snapshot hanya dipakai sebagai fallback yang ditandai jelas jika backend belum siap atau sync gagal. Nilai productivity per zone masih draft sampai source final dikirim.
@@ -79,7 +81,7 @@ Keep the Superset session/cookie server-side. The browser should only receive th
 Backend di `backend/Code.gs` dipasang sebagai file terpisah pada Apps Script yang terikat ke workbook route. Backend tersebut:
 
 - menjalankan query agregat Superset setiap 5 menit;
-- menulis `OWOR SO SNAPSHOT`, `OWOR PICKER SNAPSHOT`, dan `OWOR SYNC STATUS`;
+- menulis `OWOR SO SNAPSHOT`, `OWOR SO CONFLICTS`, `OWOR PICKER SNAPSHOT`, dan `OWOR SYNC STATUS`;
 - membaca picker terjadwal dari `Schedule Manpower 2025`;
 - menyajikan compact JSON melalui Web App bertoken.
 

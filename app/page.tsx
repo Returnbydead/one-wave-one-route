@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PICKER_ROSTER } from "./picker-roster";
 
-type RouteCode = "SWL - PSG" | "SMN - MRY" | "BSX";
+type RouteCode = "SWL - PSG" | "SMN - MRY" | "BSX" | "CPT - PPL" | "RDS - SLP" | "JLB";
+type AssignmentMode = "route" | "zone";
 
 type SalesOrder = {
   soNumber: string;
-  destination: "SWL" | "PSG" | "SMN" | "MRY" | "BSX";
+  destination: "SWL" | "PSG" | "SMN" | "MRY" | "BSX" | "CPT" | "PPL" | "RDS" | "SLP" | "JLB";
   route: RouteCode;
   zone: string;
   qty: number;
@@ -23,7 +24,7 @@ type Picker = {
 };
 
 type Assignment = {
-  route: RouteCode;
+  route: RouteCode | "MULTI ROUTE";
   zone: string;
   picker: Picker;
   orders: SalesOrder[];
@@ -57,6 +58,9 @@ const ROUTES: Array<{
     color: "#7c63e6",
   },
   { code: "BSX", destinations: ["BSX"], routeNo: 5, color: "#2f9e85" },
+  { code: "CPT - PPL", destinations: ["CPT", "PPL"], routeNo: 6, color: "#d4972f" },
+  { code: "RDS - SLP", destinations: ["RDS", "SLP"], routeNo: 7, color: "#2783c5" },
+  { code: "JLB", destinations: ["JLB"], routeNo: 8, color: "#cf5a87" },
 ];
 
 const ZONE_RULES: ZoneRule[] = [
@@ -108,6 +112,11 @@ const DEMO_SO_DATA: SalesOrder[] = [
   { soNumber: "INV/SO/20260812/305/6131251", destination: "BSX", route: "BSX", zone: "MZD 1", qty: 1370, sku: 72 },
   { soNumber: "INV/SO/20260812/305/6131260", destination: "BSX", route: "BSX", zone: "SPR A1-1", qty: 1327, sku: 25 },
   { soNumber: "INV/SO/20260812/305/6131278", destination: "BSX", route: "BSX", zone: "SPR A1-1", qty: 1230, sku: 21 },
+  { soNumber: "INV/SO/20260812/306/6131281", destination: "CPT", route: "CPT - PPL", zone: "MZA1", qty: 840, sku: 38 },
+  { soNumber: "INV/SO/20260812/306/6131287", destination: "PPL", route: "CPT - PPL", zone: "MZA1", qty: 760, sku: 34 },
+  { soNumber: "INV/SO/20260812/307/6131292", destination: "RDS", route: "RDS - SLP", zone: "SRA1", qty: 910, sku: 41 },
+  { soNumber: "INV/SO/20260812/307/6131298", destination: "SLP", route: "RDS - SLP", zone: "SRA1", qty: 690, sku: 29 },
+  { soNumber: "INV/SO/20260812/308/6131304", destination: "JLB", route: "JLB", zone: "MZB1", qty: 1020, sku: 47 },
 ];
 
 const number = (value: number) => value.toLocaleString("id-ID");
@@ -130,17 +139,26 @@ function extractWmsSoId(soNumber: string) {
   return soNumber.replace(/\D/g, "").slice(-7).padStart(7, "0");
 }
 
-function buildAssignments(orders: SalesOrder[], pickers: Picker[]) {
+function normalizedZone(value: string) {
+  return value.trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function assignmentHasRoute(assignment: Assignment, route: RouteCode) {
+  return assignment.orders.some((order) => order.route === route);
+}
+
+function buildAssignments(orders: SalesOrder[], pickers: Picker[], mode: AssignmentMode) {
   const result: Assignment[] = [];
   const groups = new Map<string, SalesOrder[]>();
 
   orders.forEach((order) => {
-    const key = `${order.route}::${order.zone}`;
+    const key = mode === "zone" ? normalizedZone(order.zone) : `${order.route}::${normalizedZone(order.zone)}`;
     groups.set(key, [...(groups.get(key) ?? []), order]);
   });
 
   groups.forEach((zoneOrders) => {
-    const route = zoneOrders[0].route;
+    const routes = [...new Set(zoneOrders.map((order) => order.route))];
+    const route: Assignment["route"] = routes.length === 1 ? routes[0] : "MULTI ROUTE";
     const zone = zoneOrders[0].zone;
     const rule = ZONE_RULES.find((item) => item.zone === zone);
     const totalQty = zoneOrders.reduce((sum, item) => sum + item.qty, 0);
@@ -149,7 +167,7 @@ function buildAssignments(orders: SalesOrder[], pickers: Picker[]) {
       Math.ceil(totalQty / Math.max(1, rule?.productivity ?? 2000)),
     );
     const candidates = pickers
-      .filter((picker) => picker.zone === zone)
+      .filter((picker) => normalizedZone(picker.zone) === normalizedZone(zone))
       .sort((a, b) => b.productivity - a.productivity)
       .slice(0, required);
     const fallback = pickers
@@ -242,12 +260,10 @@ function downloadCsv(
   route?: RouteCode,
   source?: Assignment["source"],
 ) {
-  const selected = assignments.filter(
-    (item) => (!route || item.route === route) && (!source || item.source === source),
-  );
+  const selected = assignments.filter((item) => (!source || item.source === source));
   const rows = ["error_message;so_id;staff_id"];
   selected.forEach((assignment) => {
-    assignment.orders.forEach((order) => {
+    assignment.orders.filter((order) => !route || order.route === route).forEach((order) => {
       rows.push(`;${extractWmsSoId(order.soNumber)};${assignment.picker.staffId}`);
     });
   });
@@ -273,6 +289,7 @@ export default function Home() {
   const [bulkPickerIds, setBulkPickerIds] = useState("");
   const [showPickerPool, setShowPickerPool] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<ManualOverrides>({});
+  const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("route");
   const [liveOrders, setLiveOrders] = useState<SalesOrder[] | null>(null);
   const [livePickers, setLivePickers] = useState<Picker[] | null>(null);
   const [sourceStatus, setSourceStatus] = useState<"loading" | "live" | "fallback">("loading");
@@ -324,10 +341,11 @@ export default function Home() {
       generated
         ? buildAssignments(
             ordersData.filter((order) => !manualOverrides[order.soNumber]),
-            AUTO_PICKERS,
+            livePickers ?? AUTO_PICKERS,
+            assignmentMode,
           )
         : [],
-    [generated, manualOverrides, ordersData],
+    [assignmentMode, generated, livePickers, manualOverrides, ordersData],
   );
 
   const assignments = useMemo(
@@ -342,7 +360,7 @@ export default function Home() {
     .filter(
       (assignment) =>
         assignment.source === "manual" &&
-        (activeRoute === "ALL" || assignment.route === activeRoute),
+        (activeRoute === "ALL" || assignmentHasRoute(assignment, activeRoute)),
     )
     .reduce((total, assignment) => total + assignment.orders.length, 0);
 
@@ -383,7 +401,7 @@ export default function Home() {
       ROUTES.map((route) => {
         const orders = ordersData.filter((item) => item.route === route.code);
         const routeAssignments = assignments.filter(
-          (item) => item.route === route.code,
+          (item) => assignmentHasRoute(item, route.code),
         );
         return {
           ...route,
@@ -432,7 +450,7 @@ export default function Home() {
       required: Math.ceil(row.qty / row.productivity),
       assigned: new Set(
         assignments
-          .filter((item) => item.route === row.route)
+          .filter((item) => assignmentHasRoute(item, row.route))
           .filter((item) =>
             item.orders.some((order) => order.zone === row.zone),
           )
@@ -442,7 +460,7 @@ export default function Home() {
   }, [assignments, ordersData]);
 
   const filteredAssignments = assignments.filter((item) => {
-    const routeMatch = activeRoute === "ALL" || item.route === activeRoute;
+    const routeMatch = activeRoute === "ALL" || assignmentHasRoute(item, activeRoute);
     const query = search.trim().toLowerCase();
     const searchMatch =
       !query ||
@@ -576,13 +594,13 @@ export default function Home() {
 
         <section className="hero-grid">
           <div className="hero-copy">
-            <div className="status-line"><span>WAVE 1</span><span>5 DESTINATION</span><span>TRIAL V1</span></div>
+            <div className="status-line"><span>WAVE 1</span><span>10 HUB</span><span>TRIAL V1</span></div>
             <h2>Turn route volume into<br /><em>ready-to-upload</em> assignments.</h2>
             <p>Demand per zone, manpower capacity, and whole-SO balancing in one operational view.</p>
           </div>
           <div className="hero-metrics">
             <article><span>Total request</span><strong>{number(totals.qty)}</strong><small>qty · {number(totals.sku)} SKU</small></article>
-            <article><span>Candidate SO</span><strong>{number(totals.so)}</strong><small>5 destination · NEW</small></article>
+            <article><span>Candidate SO</span><strong>{number(totals.so)}</strong><small>10 hub · NEW</small></article>
             <article className="accent"><span>MP required</span><strong>{number(totals.mp)}</strong><small>across {zoneStats.length} zone loads</small></article>
           </div>
         </section>
@@ -631,6 +649,10 @@ export default function Home() {
                   </button>
                 );
               })}
+            </div>
+            <div className="assignment-mode-tabs" aria-label="Assignment grouping mode">
+              <button className={assignmentMode === "route" ? "active" : ""} onClick={() => setAssignmentMode("route")}>Assign by route</button>
+              <button className={assignmentMode === "zone" ? "active" : ""} onClick={() => setAssignmentMode("zone")}>Assign by zone</button>
             </div>
           </div>
 
@@ -798,7 +820,7 @@ export default function Home() {
 
         <section className="assignment-section panel">
           <div className="assignment-head">
-            <div className="panel-head"><div><span>04</span><div><h3>Assignment preview</h3><p>Balanced by picker capacity · manual locks take priority</p></div></div></div>
+            <div className="panel-head"><div><span>04</span><div><h3>Assignment preview</h3><p>{assignmentMode === "zone" ? "Cross-route balancing by zone" : "Balanced by route and picker capacity"} · manual locks take priority</p></div></div></div>
             <div className="assignment-tools">
               <input aria-label="Cari assignment" placeholder="Search picker, zone, SO…" value={search} onChange={(event) => setSearch(event.target.value)} />
               <button
@@ -844,10 +866,11 @@ export default function Home() {
             <button className="modal-close" onClick={() => setShowRules(false)} aria-label="Tutup">×</button>
             <p className="eyebrow">V1 CALCULATION CONTRACT</p>
             <h2 id="rules-title">Assignment rules</h2>
-            <div className="rule-block"><span>1</span><div><strong>Eligibility</strong><p>SO status NEW, picker kosong, destination termasuk SWL / PSG / SMN / MRY / BSX.</p></div></div>
+            <div className="rule-block"><span>1</span><div><strong>Eligibility</strong><p>SO status NEW dan destination termasuk SWL / PSG / SMN / MRY / BSX / CPT / PPL / RDS / SLP / JLB.</p></div></div>
             <div className="rule-block"><span>2</span><div><strong>Manpower need</strong><p><code>CEILING(zone request qty / productivity per MP zone)</code></p></div></div>
             <div className="rule-block"><span>3</span><div><strong>Picker roster</strong><p>Job Title = Picker, schedule aktif pada operational date, staff ID valid, bukan OFF DAY/cuti/izin.</p></div></div>
             <div className="rule-block"><span>4</span><div><strong>WMS output</strong><p><code>error_message;so_id;staff_id</code> · satu SO hanya memiliki satu staff ID.</p></div></div>
+            <div className="rule-block"><span>5</span><div><strong>Atomic zone</strong><p>Zone berasal dari <code>origin_rack_name</code>. SO dengan lebih dari satu zone masuk <code>ZONE_CONFLICT</code> dan tidak ikut auto-assignment.</p></div></div>
             <h3>Zone productivity draft</h3>
             <div className="rule-grid">{ZONE_RULES.map((rule) => <div key={rule.zone}><span>{rule.zone}</span><strong>{number(rule.productivity)}</strong><small>qty / MP</small></div>)}</div>
             <div className="modal-note">Demo values — replace with the final productivity-per-zone source before live trial.</div>

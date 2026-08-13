@@ -381,8 +381,26 @@ export default function Home() {
       current.routes.add(order.route);
       groups.set(key, current);
     });
-    return [...groups.values()].sort((a, b) => a.zone.localeCompare(b.zone));
+    return [...groups.values()]
+      .map((current) => {
+        const productivity = ZONE_RULES.find(
+          (rule) => normalizedZone(rule.zone) === normalizedZone(current.zone),
+        )?.productivity ?? 2000;
+        return {
+          ...current,
+          mpRequired: Math.ceil(current.qty / productivity),
+        };
+      })
+      .sort((a, b) => a.zone.localeCompare(b.zone));
   }, [ordersData]);
+
+  const zoneOptionTotals = zoneOptions.reduce(
+    (totals, item) => ({
+      qty: totals.qty + item.qty,
+      mpRequired: totals.mpRequired + item.mpRequired,
+    }),
+    { qty: 0, mpRequired: 0 },
+  );
 
   const manualRouteOrders = ordersData.filter((order) =>
     assignmentMode === "zone"
@@ -698,7 +716,9 @@ export default function Home() {
                   className={selectedZone === "ALL" ? "active" : ""}
                   onClick={() => { setSelectedZone("ALL"); setSelectedOrders([]); }}
                 >
-                  <strong>Semua zone</strong><span>{ordersData.length} SO</span>
+                  <strong>Semua zone</strong>
+                  <span>{ordersData.length} SO</span>
+                  <span className="zone-card-capacity">{number(zoneOptionTotals.qty)} QTY · {zoneOptionTotals.mpRequired} MP</span>
                 </button>
                 {zoneOptions.map((item) => {
                   const value = normalizedZone(item.zone);
@@ -708,7 +728,9 @@ export default function Home() {
                       key={value}
                       onClick={() => { setSelectedZone(value); setSelectedOrders([]); }}
                     >
-                      <strong>{item.zone}</strong><span>{item.so} SO · {item.routes.size} route</span>
+                      <strong>{item.zone}</strong>
+                      <span>{item.so} SO · {item.routes.size} route</span>
+                      <span className="zone-card-capacity">{number(item.qty)} QTY · {item.mpRequired} MP</span>
                     </button>
                   );
                 })}

@@ -37,25 +37,28 @@ export function nextHelperTask(current, action) {
   const at = action.at || new Date().toISOString();
   const base = current || {
     status: "READY",
-    helperId: "",
+    stagingHelperId: "",
+    lineHelperId: "",
     staging: "",
     packingLine: "",
     history: [],
   };
 
-  if (action.type === "CLAIM") {
+  if (action.type === "CLAIM_STAGING") {
     if (!action.helperId) throw new Error("Helper Staff ID wajib diisi");
+    if (current) throw new Error("SO ini sudah masuk task helper");
     return {
       ...base,
-      status: "CLAIMED",
-      helperId: action.helperId,
+      status: "CLAIMED_STAGING",
+      stagingHelperId: action.helperId,
       updatedAt: at,
-      history: [...base.history, { type: "CLAIMED", value: action.helperId, at }],
+      history: [...base.history, { type: "CLAIMED_STAGING", value: action.helperId, at }],
     };
   }
 
   if (action.type === "SCAN_STAGING") {
-    if (!base.helperId) throw new Error("Task harus di-claim dulu");
+    if (!base.stagingHelperId) throw new Error("Task staging harus diambil dulu");
+    if (base.status !== "CLAIMED_STAGING") throw new Error("Task tidak berada di proses staging picking");
     if (!isValidStagingBarcode(action.barcode)) throw new Error("Barcode staging tidak dikenali");
     const staging = normalizeScan(action.barcode);
     return {
@@ -67,10 +70,21 @@ export function nextHelperTask(current, action) {
     };
   }
 
+  if (action.type === "CLAIM_LINE") {
+    if (!action.helperId) throw new Error("Helper Staff ID wajib diisi");
+    if (base.status !== "STAGED_PICKING") throw new Error("SO belum tersedia di staging picking");
+    return {
+      ...base,
+      status: "CLAIMED_LINE",
+      lineHelperId: action.helperId,
+      updatedAt: at,
+      history: [...base.history, { type: "CLAIMED_LINE", value: action.helperId, at }],
+    };
+  }
+
   if (action.type === "SCAN_PACKING_LINE") {
-    if (base.status !== "STAGED_PICKING" && base.status !== "STAGED_PACKER") {
-      throw new Error("Scan staging picking lebih dulu");
-    }
+    if (base.status !== "CLAIMED_LINE") throw new Error("Task line checker harus diambil dulu");
+    if (!base.lineHelperId) throw new Error("Helper line checker belum tercatat");
     if (!isValidPackingLine(action.barcode)) throw new Error("Format packing line tidak dikenali");
     const packingLine = normalizeScan(action.barcode).replaceAll("_", "-").replaceAll(" ", "-");
     return {

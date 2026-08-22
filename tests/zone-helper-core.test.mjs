@@ -32,12 +32,15 @@ test("derives head body tail from route sequence", () => {
 });
 
 test("requires claim and staging before locating an SO at packing line", () => {
-  const claimed = nextHelperTask(null, { type: "CLAIM", helperId: "DEV01", at: "2026-08-21T03:00:00.000Z" });
-  assert.throws(() => nextHelperTask(claimed, { type: "SCAN_PACKING_LINE", barcode: "LINE-01" }), /staging/i);
+  const claimed = nextHelperTask(null, { type: "CLAIM_STAGING", helperId: "DEV01", at: "2026-08-21T03:00:00.000Z" });
+  assert.throws(() => nextHelperTask(claimed, { type: "SCAN_PACKING_LINE", barcode: "LINE-01" }), /line checker/i);
   const staged = nextHelperTask(claimed, { type: "SCAN_STAGING", barcode: "STG-MEZZANINE" });
-  const done = nextHelperTask(staged, { type: "SCAN_PACKING_LINE", barcode: "LINE-01" });
+  const lineClaimed = nextHelperTask(staged, { type: "CLAIM_LINE", helperId: "DEV02" });
+  const done = nextHelperTask(lineClaimed, { type: "SCAN_PACKING_LINE", barcode: "LINE-01" });
   assert.equal(done.status, "STAGED_PACKER");
   assert.equal(done.packingLine, "LINE-01");
+  assert.equal(done.stagingHelperId, "DEV01");
+  assert.equal(done.lineHelperId, "DEV02");
 });
 
 test("sorts mixed live timestamp types without crashing", () => {

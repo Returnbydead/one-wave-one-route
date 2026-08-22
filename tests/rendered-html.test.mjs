@@ -120,8 +120,10 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /Last snapshot · sync paused/);
   assert.match(page, /payload\.stale/);
   assert.match(page, /Live picking monitor/);
-  assert.match(page, /Completed picking queue/);
-  assert.match(page, /owor-helper-task-pilot-v1/);
+  assert.match(page, /SO yang sedang gue kerjakan/);
+  assert.match(page, /Queue dari staging picking/);
+  assert.match(page, /owor-helper-task-pilot-v2/);
+  assert.doesNotMatch(page, /activity\.status === "COMPLETED"[\s\S]{0,200}helper/i);
   assert.match(page, /STG-MEZZANINE/);
   assert.match(page, /STG-SPR/);
   assert.match(page, /Barang sudah di staging packer/);

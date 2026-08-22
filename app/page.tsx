@@ -9,6 +9,14 @@ import { formatPickerCoverage, pickerMatchesAnyZone } from "./zone-eligibility.m
 type RouteCode = "SWL - PSG" | "CSA - KLD" | "BSX" | "CPT - PPL" | "RDS - SLP" | "JLB";
 type AssignmentMode = "route" | "zone";
 type WorkspaceView = "assignment" | "manpower" | "monitor" | "tasks";
+type HelperRole = "STAGING_HELPER" | "LINE_HELPER";
+type UserRole = "DEVELOPER" | HelperRole;
+
+type AuthUser = {
+  staffId: string;
+  name: string;
+  role: UserRole;
+};
 
 type SalesOrder = {
   soNumber: string;
@@ -61,11 +69,12 @@ type ZoneRule = {
   productivity: number;
 };
 
-type HelperTaskStatus = "READY" | "CLAIMED" | "STAGED_PICKING" | "STAGED_PACKER";
+type HelperTaskStatus = "READY" | "CLAIMED_STAGING" | "STAGED_PICKING" | "CLAIMED_LINE" | "STAGED_PACKER";
 
 type HelperTaskRecord = {
   status: HelperTaskStatus;
-  helperId: string;
+  stagingHelperId: string;
+  lineHelperId: string;
   staging: string;
   packingLine: string;
   updatedAt?: string;
@@ -188,10 +197,11 @@ function normalizedZone(value: string) {
 }
 
 function helperStatusLabel(status: HelperTaskStatus) {
-  if (status === "CLAIMED") return "Task diambil helper";
+  if (status === "CLAIMED_STAGING") return "Menuju staging picking";
   if (status === "STAGED_PICKING") return "Di staging picking";
+  if (status === "CLAIMED_LINE") return "Menuju checker line";
   if (status === "STAGED_PACKER") return "Barang sudah di staging packer";
-  return "Ready to claim";
+  return "Belum menjadi task";
 }
 
 function assignmentHasRoute(assignment: Assignment, route: RouteCode) {
@@ -353,7 +363,8 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [showRules, setShowRules] = useState(false);
   const [toast, setToast] = useState("");
-  const [helperId, setHelperId] = useState("DEV01");
+  const [authUser, setAuthUser] = useState<AuthUser>({ staffId: "DEV01", name: "Developer", role: "DEVELOPER" });
+  const [helperRole, setHelperRole] = useState<HelperRole>("STAGING_HELPER");
   const [helperSearch, setHelperSearch] = useState("");
   const [selectedHelperSo, setSelectedHelperSo] = useState("");
   const [helperSoScan, setHelperSoScan] = useState("");
@@ -362,7 +373,7 @@ export default function Home() {
   const [helperTasks, setHelperTasks] = useState<Record<string, HelperTaskRecord>>(() => {
     if (typeof window === "undefined") return {};
     try {
-      const stored = window.localStorage.getItem("owor-helper-task-pilot-v1");
+      const stored = window.localStorage.getItem("owor-helper-task-pilot-v2");
       return stored ? JSON.parse(stored) as Record<string, HelperTaskRecord> : {};
     } catch {
       return {};
@@ -413,8 +424,21 @@ export default function Home() {
   }, [refreshLiveData]);
 
   useEffect(() => {
-    window.localStorage.setItem("owor-helper-task-pilot-v1", JSON.stringify(helperTasks));
+    window.localStorage.setItem("owor-helper-task-pilot-v2", JSON.stringify(helperTasks));
   }, [helperTasks]);
+
+  useEffect(() => {
+    fetch("/api/auth/session", { cache: "no-store" })
+      .then(async (response) => await response.json() as { user?: AuthUser })
+      .then((payload) => {
+        if (!payload.user) return;
+        setAuthUser(payload.user);
+        if (payload.user.role === "STAGING_HELPER" || payload.user.role === "LINE_HELPER") {
+          setHelperRole(payload.user.role);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   const autoAssignments = useMemo(
     () =>
@@ -655,41 +679,38 @@ export default function Home() {
     requestQty: livePicking.reduce((sum, item) => sum + item.requestQty, 0),
   }), [livePicking]);
 
-  const helperCandidates = useMemo(() => {
-    const bySo = new Map<string, PickingActivity>();
-    livePicking
-      .filter((activity) => activity.status === "COMPLETED")
-      .forEach((activity) => bySo.set(activity.soNumber, activity));
-    const query = helperSearch.trim().toLowerCase();
-    return [...bySo.values()]
-      .filter((activity) => {
-        const task = helperTasks[activity.soNumber];
-        return !query ||
-          activity.soNumber.toLowerCase().includes(query) ||
-          extractWmsSoId(activity.soNumber).includes(query) ||
-          activity.destination.toLowerCase().includes(query) ||
-          activity.zone.toLowerCase().includes(query) ||
-          activity.route.toLowerCase().includes(query) ||
-          task?.packingLine.toLowerCase().includes(query);
-      })
-      .sort((a, b) => {
-        const aTask = helperTasks[a.soNumber];
-        const bTask = helperTasks[b.soNumber];
-        const rank = (task?: HelperTaskRecord) => task?.status === "STAGED_PACKER" ? 2 : task ? 1 : 0;
-        return rank(aTask) - rank(bTask) || compareActivityTimeDesc(a.pickingEndAt, b.pickingEndAt);
-      });
-  }, [helperSearch, helperTasks, livePicking]);
+  const currentHelperId = authUser.staffId.trim().toUpperCase();
+  const helperLookupOrder = useMemo(() => {
+    const query = helperSearch.trim().toUpperCase();
+    if (!query) return undefined;
+    const exact = ordersData.find((order) => order.soNumber.toUpperCase() === query || extractWmsSoId(order.soNumber) === query);
+    if (exact) return exact;
+    if (query.length < 4) return undefined;
+    return ordersData.find((order) => order.soNumber.toUpperCase().includes(query));
+  }, [helperSearch, ordersData]);
 
-  const selectedHelperActivity = helperCandidates.find((activity) => activity.soNumber === selectedHelperSo)
-    ?? livePicking.find((activity) => activity.soNumber === selectedHelperSo && activity.status === "COMPLETED");
+  const helperBoard = useMemo(() => Object.entries(helperTasks)
+    .map(([soNumber, task]) => ({
+      task,
+      order: ordersData.find((order) => order.soNumber === soNumber),
+    }))
+    .filter((row): row is { task: HelperTaskRecord; order: SalesOrder } => Boolean(row.order))
+    .filter(({ task }) => helperRole === "STAGING_HELPER"
+      ? task.stagingHelperId === currentHelperId
+      : task.status === "STAGED_PICKING" || task.lineHelperId === currentHelperId)
+    .sort((left, right) => compareActivityTimeDesc(left.task.updatedAt, right.task.updatedAt)),
+  [currentHelperId, helperRole, helperTasks, ordersData]);
+
+  const selectedHelperOrder = ordersData.find((order) => order.soNumber === selectedHelperSo);
+  const selectedHelperPicking = livePicking.find((activity) => activity.soNumber === selectedHelperSo);
   const selectedHelperTask = selectedHelperSo ? helperTasks[selectedHelperSo] : undefined;
   const selectedHelperStatus: HelperTaskStatus = selectedHelperTask?.status ?? "READY";
-  const helperVerificationPhase = selectedHelperStatus === "CLAIMED" ? "STAGING" : "PACKING";
-  const helperVerificationKey = selectedHelperSo ? `${selectedHelperSo}:${helperVerificationPhase}` : "";
+  const helperVerificationPhase = helperRole === "STAGING_HELPER" ? "STAGING" : "LINE";
+  const helperVerificationKey = selectedHelperSo ? `${selectedHelperSo}:${helperRole}` : "";
   const helperTaskTotals = {
-    ready: helperCandidates.filter((item) => !helperTasks[item.soNumber]).length,
-    claimed: helperCandidates.filter((item) => ["CLAIMED", "STAGED_PICKING"].includes(helperTasks[item.soNumber]?.status)).length,
-    located: helperCandidates.filter((item) => helperTasks[item.soNumber]?.status === "STAGED_PACKER").length,
+    active: helperBoard.filter(({ task }) => task.status === "CLAIMED_STAGING" || task.status === "CLAIMED_LINE").length,
+    staged: helperBoard.filter(({ task }) => task.status === "STAGED_PICKING").length,
+    located: helperBoard.filter(({ task }) => task.status === "STAGED_PACKER").length,
   };
 
   function flash(message: string) {
@@ -720,17 +741,42 @@ export default function Home() {
     setVerifiedHelperStep("");
   }
 
-  function claimHelperTask() {
-    if (!selectedHelperSo) return;
+  function startStagingTask() {
+    if (!helperLookupOrder) {
+      flash("Scan atau masukkan nomor SO yang valid");
+      return;
+    }
+    const soNumber = helperLookupOrder.soNumber;
+    if (helperTasks[soNumber]) {
+      selectHelperTask(soNumber);
+      flash("SO ini sudah masuk task helper");
+      return;
+    }
     try {
-      const next = nextHelperTask(helperTasks[selectedHelperSo] ?? null, {
-        type: "CLAIM",
-        helperId: helperId.trim(),
+      const next = nextHelperTask(null, {
+        type: "CLAIM_STAGING",
+        helperId: currentHelperId,
       }) as HelperTaskRecord;
-      setHelperTasks((current) => ({ ...current, [selectedHelperSo]: next }));
-      flash(`SO ${extractWmsSoId(selectedHelperSo)} berhasil di-claim`);
+      setHelperTasks((current) => ({ ...current, [soNumber]: next }));
+      selectHelperTask(soNumber);
+      setHelperSearch("");
+      flash(`SO ${extractWmsSoId(soNumber)} masuk task staging`);
     } catch (error) {
       flash(error instanceof Error ? error.message : "Task gagal di-claim");
+    }
+  }
+
+  function claimLineTask() {
+    if (!selectedHelperSo || !selectedHelperTask) return;
+    try {
+      const next = nextHelperTask(selectedHelperTask, {
+        type: "CLAIM_LINE",
+        helperId: currentHelperId,
+      }) as HelperTaskRecord;
+      setHelperTasks((current) => ({ ...current, [selectedHelperSo]: next }));
+      flash(`SO ${extractWmsSoId(selectedHelperSo)} diambil untuk checker line`);
+    } catch (error) {
+      flash(error instanceof Error ? error.message : "Task line gagal diambil");
     }
   }
 
@@ -745,7 +791,7 @@ export default function Home() {
     }
     setVerifiedHelperStep(helperVerificationKey);
     setHelperSoScan("");
-    flash(`SO terverifikasi untuk ${helperVerificationPhase === "STAGING" ? "staging picking" : "packing line"}`);
+    flash(`SO terverifikasi untuk ${helperVerificationPhase === "STAGING" ? "staging picking" : "checker line"}`);
   }
 
   function submitHelperLocation() {
@@ -755,7 +801,7 @@ export default function Home() {
       return;
     }
     try {
-      const action = selectedHelperStatus === "CLAIMED"
+      const action = helperRole === "STAGING_HELPER"
         ? { type: "SCAN_STAGING", barcode: helperLocationScan }
         : { type: "SCAN_PACKING_LINE", barcode: helperLocationScan };
       const next = nextHelperTask(selectedHelperTask, action) as HelperTaskRecord;
@@ -1221,44 +1267,60 @@ export default function Home() {
         <section className="helper-workspace" id="helper-task">
           <div className="helper-hero">
             <div>
-              <p className="eyebrow">MOBILE OPERATIONS · HELPER</p>
-              <h2>Move completed SO<br /><em>to the right packing line.</em></h2>
-              <p>Ambil task sendiri, verifikasi barcode SO, scan staging picking, lalu catat posisi packing line.</p>
+              <p className="eyebrow">CBT WMS · MOBILE OPERATIONS</p>
+              <h2>Helper movement control</h2>
+              <p>Dua proses terpisah: barang masuk staging picking, lalu dipindahkan ke checker line.</p>
             </div>
-            <label className="helper-identity">
-              <span>Helper Staff ID</span>
-              <input aria-label="Helper Staff ID" value={helperId} onChange={(event) => setHelperId(event.target.value.toUpperCase())} placeholder="Contoh DEV01" />
-              <small>Pilot lokal di perangkat ini · autentikasi backend menyusul</small>
-            </label>
+            <div className="helper-session-card">
+              <span>LOGGED IN</span>
+              <strong>{authUser.name}</strong>
+              <small>{authUser.staffId} · {authUser.role.replaceAll("_", " ")}</small>
+              <form action="/api/auth/logout" method="post"><button>Keluar</button></form>
+            </div>
+          </div>
+
+          <div className="helper-role-switch" aria-label="Pilih proses helper">
+            <button className={helperRole === "STAGING_HELPER" ? "active" : ""} disabled={authUser.role !== "DEVELOPER" && authUser.role !== "STAGING_HELPER"} onClick={() => { setHelperRole("STAGING_HELPER"); setSelectedHelperSo(""); }}><b>01</b><span>Staging helper<small>SO → staging picking</small></span></button>
+            <button className={helperRole === "LINE_HELPER" ? "active" : ""} disabled={authUser.role !== "DEVELOPER" && authUser.role !== "LINE_HELPER"} onClick={() => { setHelperRole("LINE_HELPER"); setSelectedHelperSo(""); }}><b>02</b><span>Line checker helper<small>Staging → checker line</small></span></button>
           </div>
 
           <div className="helper-kpis" aria-label="Ringkasan helper task">
-            <article><span>Ready to claim</span><strong>{number(helperTaskTotals.ready)}</strong><small>picking completed</small></article>
-            <article><span>In handling</span><strong>{number(helperTaskTotals.claimed)}</strong><small>claimed / staging</small></article>
-            <article><span>Located</span><strong>{number(helperTaskTotals.located)}</strong><small>packing line known</small></article>
+            <article><span>Sedang dibawa</span><strong>{number(helperTaskTotals.active)}</strong><small>task aktif</small></article>
+            <article><span>Di staging</span><strong>{number(helperTaskTotals.staged)}</strong><small>siap line helper</small></article>
+            <article><span>Line diketahui</span><strong>{number(helperTaskTotals.located)}</strong><small>staging packer</small></article>
           </div>
+
+          {helperRole === "STAGING_HELPER" && (
+            <section className="helper-lookup panel">
+              <div><span>SCAN / INPUT SO</span><h3>Pilih SO yang akan dikerjakan</h3><p>Daftar completed picking tidak ditampilkan. Helper memulai task dari SO yang dipilih sendiri.</p></div>
+              <div className="helper-lookup-control">
+                <input aria-label="Scan atau cari SO untuk helper staging" value={helperSearch} onChange={(event) => setHelperSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") startStagingTask(); }} placeholder="Scan barcode atau masukkan 7 digit SO" />
+                <button onClick={startStagingTask} disabled={!helperLookupOrder}>Mulai task</button>
+              </div>
+              {helperSearch && (
+                <div className={`helper-lookup-result ${helperLookupOrder ? "found" : "missing"}`}>
+                  {helperLookupOrder ? <><b>SO {extractWmsSoId(helperLookupOrder.soNumber)} ditemukan</b><span>{helperLookupOrder.destination} · {helperLookupOrder.zone} · {number(helperLookupOrder.qty)} qty · {helperLookupOrder.sku} SKU</span></> : <><b>SO belum ditemukan</b><span>Periksa nomor atau tunggu snapshot Superset berikutnya.</span></>}
+                </div>
+              )}
+            </section>
+          )}
 
           <div className="helper-layout">
             <section className="helper-queue panel">
               <div className="helper-panel-head">
-                <div><span>01</span><div><h3>Completed picking queue</h3><p>Satu task mewakili satu SO yang sudah completed di Superset.</p></div></div>
-                <input aria-label="Cari helper task" value={helperSearch} onChange={(event) => setHelperSearch(event.target.value)} placeholder="Cari SO, zone, route, line..." />
+                <div><span>ACTIVE</span><div><h3>{helperRole === "STAGING_HELPER" ? "SO yang sedang gue kerjakan" : "Queue dari staging picking"}</h3><p>{helperRole === "STAGING_HELPER" ? "Hanya task yang dipilih akun ini." : "Hanya SO yang sudah ditempatkan staging helper."}</p></div></div>
               </div>
-              {!livePicking.length ? (
-                <div className="empty-state"><strong>Snapshot picking belum tersedia</strong><span>Queue akan muncul dari SO berstatus COMPLETED setelah backend tersinkron.</span></div>
-              ) : !helperCandidates.length ? (
-                <div className="empty-state"><strong>Tidak ada task yang cocok</strong><span>Kosongkan pencarian atau tunggu picking selesai.</span></div>
+              {!helperBoard.length ? (
+                <div className="empty-state"><strong>Belum ada task aktif</strong><span>{helperRole === "STAGING_HELPER" ? "Scan SO di atas untuk memulai." : "Task muncul setelah staging helper scan lokasi staging."}</span></div>
               ) : (
                 <div className="helper-task-list">
-                  {helperCandidates.slice(0, 100).map((activity) => {
-                    const task = helperTasks[activity.soNumber];
-                    const status = task?.status ?? "READY";
+                  {helperBoard.map(({ order, task }) => {
                     return (
-                      <button key={activity.soNumber} className={selectedHelperSo === activity.soNumber ? "active" : ""} onClick={() => selectHelperTask(activity.soNumber)}>
-                        <span className="helper-task-route"><b>{activity.destination}</b><small>{activity.route}</small></span>
-                        <span><strong>{extractWmsSoId(activity.soNumber)}</strong><small>{activity.zone} · {number(activity.requestQty)} qty</small></span>
-                        <span className="helper-position"><b>{getLoadPosition(activity.route, activity.destination)}</b><small>load position</small></span>
-                        <span className={`helper-status ${status.toLowerCase()}`}><b>{helperStatusLabel(status)}</b><small>{task?.packingLine || task?.staging || task?.helperId || "belum diambil"}</small></span>
+                      <button key={order.soNumber} className={selectedHelperSo === order.soNumber ? "active" : ""} onClick={() => selectHelperTask(order.soNumber)}>
+                        <span className="helper-task-route"><b>{order.destination}</b><small>{order.route}</small></span>
+                        <span><strong>{extractWmsSoId(order.soNumber)}</strong><small>{order.zone} · {number(order.qty)} qty · {order.sku} SKU</small></span>
+                        <span className="helper-position"><b>{getLoadPosition(order.route, order.destination)}</b><small>load position</small></span>
+                        <span className={`helper-status ${task.status.toLowerCase()}`}><b>{helperStatusLabel(task.status)}</b><small>{task.packingLine || task.staging || task.lineHelperId || task.stagingHelperId}</small></span>
                       </button>
                     );
                   })}
@@ -1267,67 +1329,72 @@ export default function Home() {
             </section>
 
             <aside className="helper-scanner panel">
-              {!selectedHelperActivity ? (
-                <div className="helper-scan-empty"><span>▣</span><strong>Pilih SO dari queue</strong><p>Detail task dan scanner akan aktif di sini.</p></div>
+              {!selectedHelperOrder ? (
+                <div className="helper-scan-empty"><span>▦</span><strong>Pilih card SO</strong><p>Detail isi SO dan scanner proses tampil di sini.</p></div>
               ) : (
                 <>
                   <div className="helper-active-task">
-                    <div><span>ACTIVE SO</span><strong>{extractWmsSoId(selectedHelperActivity.soNumber)}</strong><small>{selectedHelperActivity.soNumber}</small></div>
-                    <b>{getLoadPosition(selectedHelperActivity.route, selectedHelperActivity.destination)}</b>
+                    <div><span>ACTIVE SO</span><strong>{extractWmsSoId(selectedHelperOrder.soNumber)}</strong><small>{selectedHelperOrder.soNumber}</small></div>
+                    <b>{getLoadPosition(selectedHelperOrder.route, selectedHelperOrder.destination)}</b>
                   </div>
                   <dl className="helper-task-meta">
-                    <div><dt>Destination</dt><dd>{selectedHelperActivity.destination}</dd></div>
-                    <div><dt>Route</dt><dd>{selectedHelperActivity.route}</dd></div>
-                    <div><dt>Zone</dt><dd>{selectedHelperActivity.zone}</dd></div>
+                    <div><dt>Destination</dt><dd>{selectedHelperOrder.destination}</dd></div>
+                    <div><dt>Route</dt><dd>{selectedHelperOrder.route}</dd></div>
+                    <div><dt>Zone</dt><dd>{selectedHelperOrder.zone}</dd></div>
                     <div><dt>Status</dt><dd>{helperStatusLabel(selectedHelperStatus)}</dd></div>
                   </dl>
 
-                  {selectedHelperStatus === "READY" ? (
+                  <div className="helper-item-summary">
+                    <div><span>REQUEST QTY</span><strong>{number(selectedHelperOrder.qty)}</strong></div>
+                    <div><span>UNIQUE SKU</span><strong>{number(selectedHelperOrder.sku)}</strong></div>
+                    <div><span>PICKED QTY</span><strong>{number(selectedHelperPicking?.pickedQty ?? 0)}</strong></div>
+                    <p>Detail V1 memakai ringkasan SO live. Baris SKU akan dimuat on-demand setelah endpoint detail Superset diaktifkan.</p>
+                  </div>
+
+                  {helperRole === "LINE_HELPER" && selectedHelperStatus === "STAGED_PICKING" ? (
                     <div className="helper-claim-card">
                       <span>STEP 1</span>
-                      <h3>Claim task ini</h3>
-                      <p>Task akan ditandai sedang ditangani oleh <strong>{helperId || "Helper Staff ID"}</strong>.</p>
-                      <button className="primary-button" onClick={claimHelperTask}>Ambil task SO ini</button>
+                      <h3>Ambil dari staging</h3>
+                      <p>SO berada di <strong>{selectedHelperTask?.staging}</strong>. Task akan ditandai untuk {authUser.name}.</p>
+                      <button className="primary-button" onClick={claimLineTask}>Ambil task ke checker line</button>
                     </div>
-                  ) : (
+                  ) : selectedHelperStatus === "CLAIMED_STAGING" || selectedHelperStatus === "CLAIMED_LINE" ? (
                     <div className="helper-scan-flow">
                       <div className="helper-step-line">
                         <span className="done">1</span><i />
-                        <span className={selectedHelperStatus !== "CLAIMED" ? "done" : "active"}>2</span><i />
-                        <span className={selectedHelperStatus === "STAGED_PACKER" ? "done" : selectedHelperStatus === "STAGED_PICKING" ? "active" : ""}>3</span>
+                        <span className="active">2</span><i />
+                        <span>3</span>
                       </div>
                       <div className="helper-instruction">
-                        <span>{helperVerificationPhase === "STAGING" ? "STEP 2 · STAGING PICKING" : "STEP 3 · PACKING LINE"}</span>
-                        <h3>{helperVerificationPhase === "STAGING" ? "Scan SO, lalu barcode staging" : selectedHelperStatus === "STAGED_PACKER" ? "Pindahkan atau konfirmasi packing line" : "Scan SO, lalu packing line"}</h3>
-                        <p>{helperVerificationPhase === "STAGING" ? "Gunakan staging sesuai area asal barang." : "Re-scan line baru akan memperbarui posisi aktif dan tetap menyimpan history."}</p>
+                        <span>{helperVerificationPhase === "STAGING" ? "STAGING PICKING" : "CHECKER LINE"}</span>
+                        <h3>{helperVerificationPhase === "STAGING" ? "Verifikasi SO dan scan staging" : "Verifikasi SO dan scan line"}</h3>
+                        <p>{helperVerificationPhase === "STAGING" ? "Pilih staging Mezzanine atau SPR sesuai area barang." : "Scan barcode line checker tujuan."}</p>
                       </div>
 
                       <label className="helper-scan-field">
                         <span>1 · Scan barcode SO</span>
-                        <div><input autoComplete="off" aria-label="Scan barcode SO helper task" value={helperSoScan} onChange={(event) => setHelperSoScan(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") verifyHelperSo(); }} placeholder={`Scan ${extractWmsSoId(selectedHelperActivity.soNumber)}`} /><button onClick={verifyHelperSo}>Verify</button></div>
+                        <div><input autoComplete="off" aria-label="Scan barcode SO helper task" value={helperSoScan} onChange={(event) => setHelperSoScan(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") verifyHelperSo(); }} placeholder={`Scan ${extractWmsSoId(selectedHelperOrder.soNumber)}`} /><button onClick={verifyHelperSo}>Verify</button></div>
                         <small className={verifiedHelperStep === helperVerificationKey ? "verified" : ""}>{verifiedHelperStep === helperVerificationKey ? "✓ SO cocok dan siap scan lokasi" : "Menerima nomor SO penuh atau 7 digit SO ID"}</small>
                       </label>
 
                       <label className="helper-scan-field">
-                        <span>2 · {helperVerificationPhase === "STAGING" ? "Scan staging picking" : "Scan packing line"}</span>
-                        <div><input autoComplete="off" aria-label="Scan lokasi helper task" value={helperLocationScan} onChange={(event) => setHelperLocationScan(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") submitHelperLocation(); }} placeholder={helperVerificationPhase === "STAGING" ? "STG-MEZZANINE / STG-SPR" : "Contoh LINE-01"} /><button onClick={submitHelperLocation}>Save</button></div>
+                        <span>2 · {helperVerificationPhase === "STAGING" ? "Scan staging picking" : "Scan checker line"}</span>
+                        <div><input autoComplete="off" aria-label="Scan lokasi helper task" value={helperLocationScan} onChange={(event) => setHelperLocationScan(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") submitHelperLocation(); }} placeholder={helperVerificationPhase === "STAGING" ? "STG-MEZZANINE / STG-SPR" : "Contoh LINE-01"} /><button onClick={submitHelperLocation}>Simpan</button></div>
                         {helperVerificationPhase === "STAGING" && <div className="staging-shortcuts">{STAGING_BARCODES.map((barcode) => <button key={barcode} onClick={() => setHelperLocationScan(barcode)}>{barcode}</button>)}</div>}
                       </label>
-
-                      {(selectedHelperTask?.staging || selectedHelperTask?.packingLine) && (
-                        <div className="helper-current-location">
-                          <span>Current location</span>
-                          <strong>{selectedHelperTask.packingLine || selectedHelperTask.staging}</strong>
-                          <small>{selectedHelperTask.updatedAt ? formatSyncTime(selectedHelperTask.updatedAt) : "baru diperbarui"}</small>
-                        </div>
-                      )}
+                    </div>
+                  ) : (
+                    <div className="helper-current-location">
+                      <span>POSISI TERKINI</span>
+                      <strong>{selectedHelperTask?.packingLine || selectedHelperTask?.staging || "Belum tercatat"}</strong>
+                      <small>{selectedHelperTask?.updatedAt ? formatSyncTime(selectedHelperTask.updatedAt) : "baru diperbarui"}</small>
                     </div>
                   )}
                 </>
               )}
             </aside>
           </div>
-          <div className="pilot-note"><b>Local pilot:</b> claim dan hasil scan saat ini tersimpan di browser perangkat ini. Sebelum dipakai lintas HP/SEUIC, endpoint task Supabase perlu dihubungkan agar state sinkron real-time.</div>
+          <div className="pilot-note"><b>Device pilot:</b> login sudah server-side. State task masih tersimpan di perangkat ini sampai database task Supabase dihubungkan untuk sinkron lintas HP/SEUIC.</div>
         </section>
         )}
 

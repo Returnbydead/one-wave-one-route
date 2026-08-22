@@ -15,6 +15,7 @@ const OWOR = Object.freeze({
   PICKER_SHEET: 'OWOR PICKER SNAPSHOT',
   PICKING_SHEET: 'OWOR PICKING MONITOR',
   STATUS_SHEET: 'OWOR SYNC STATUS',
+  USER_SHEET: 'OWOR USER ACCOUNTS',
   TIME_ZONE: 'Asia/Jakarta',
   SUPERSET_URL: 'https://dash.astronauts.id/api/v1/chart/data',
   DATASOURCE_ID: 400,
@@ -250,6 +251,11 @@ function doGet(event) {
 
   const resource = String((event && event.parameter && event.parameter.resource) || 'snapshot');
   if (resource === 'health') return json_(buildHealth_());
+  if (resource === 'users') return json_({ ok: true, users: listUserAccounts_() });
+  if (resource === 'auth_user') {
+    const user = findAuthUser_(String(event.parameter.staff_id || ''));
+    return user ? json_({ ok: true, user }) : json_({ ok: false, error: 'USER_NOT_FOUND' });
+  }
   if (resource !== 'snapshot') return json_({ ok: false, error: 'INVALID_RESOURCE' });
   return json_(buildSnapshot_());
 }
@@ -259,8 +265,12 @@ function doPost(event) {
   try { body = JSON.parse((event && event.postData && event.postData.contents) || '{}'); } catch (_) {}
   const token = PropertiesService.getScriptProperties().getProperty('OWOR_API_TOKEN') || '';
   if (!token || String(body.token || '') !== token) return json_({ ok: false, error: 'UNAUTHORIZED' });
-  if (body.action !== 'sync') return json_({ ok: false, error: 'INVALID_ACTION' });
-  try { return json_(syncOworNow()); } catch (error) { return json_({ ok: false, error: safeError_(error) }); }
+  try {
+    if (body.action === 'sync') return json_(syncOworNow());
+    if (body.action === 'upsert_user') return json_(upsertUserAccount_(body.user || {}, body.updatedBy));
+    if (body.action === 'set_user_active') return json_(setUserAccountActive_(body.staffId, body.active, body.updatedBy));
+    return json_({ ok: false, error: 'INVALID_ACTION' });
+  } catch (error) { return json_({ ok: false, error: safeError_(error) }); }
 }
 
 function fetchSupersetRows_(cookie) {
@@ -487,7 +497,66 @@ function snapshotGeneratedAt_(ss, sheetName, column) { const sheet = ss.getSheet
 
 function ensureSheets_() {
   const ss = SpreadsheetApp.openById(OWOR.TARGET_SPREADSHEET_ID);
-  [OWOR.SO_SHEET, OWOR.CONFLICT_SHEET, OWOR.PICKER_SHEET, OWOR.PICKING_SHEET, OWOR.STATUS_SHEET].forEach((name) => { if (!ss.getSheetByName(name)) ss.insertSheet(name); });
+  [OWOR.SO_SHEET, OWOR.CONFLICT_SHEET, OWOR.PICKER_SHEET, OWOR.PICKING_SHEET, OWOR.STATUS_SHEET, OWOR.USER_SHEET].forEach((name) => { if (!ss.getSheetByName(name)) ss.insertSheet(name); });
+  ensureUserSheet_();
+}
+
+function ensureUserSheet_() {
+  const ss = SpreadsheetApp.openById(OWOR.TARGET_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(OWOR.USER_SHEET) || ss.insertSheet(OWOR.USER_SHEET);
+  const headers = ['staff_id', 'name', 'role', 'salt', 'password_hash', 'iterations', 'active', 'updated_at', 'updated_by'];
+  if (sheet.getLastRow() === 0 || String(sheet.getRange(1, 1).getValue()) !== 'staff_id') {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function userRows_() {
+  const sheet = ensureUserSheet_();
+  return sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 9).getValues() : [];
+}
+
+function listUserAccounts_() {
+  return userRows_().filter((row) => row[0]).map((row) => ({
+    staffId: String(row[0]), name: String(row[1]), role: String(row[2]), active: row[6] === true || String(row[6]).toUpperCase() === 'TRUE',
+    updatedAt: row[7] instanceof Date ? row[7].toISOString() : String(row[7] || ''), updatedBy: String(row[8] || ''),
+  }));
+}
+
+function findAuthUser_(staffId) {
+  const normalized = String(staffId || '').trim().toUpperCase();
+  const row = userRows_().find((item) => String(item[0]).trim().toUpperCase() === normalized);
+  if (!row || !(row[6] === true || String(row[6]).toUpperCase() === 'TRUE')) return null;
+  return { staffId: String(row[0]), name: String(row[1]), role: String(row[2]), salt: String(row[3]), hash: String(row[4]), iterations: Number(row[5] || 210000) };
+}
+
+function upsertUserAccount_(user, updatedBy) {
+  const staffId = String(user.staffId || '').trim().toUpperCase();
+  const name = String(user.name || '').trim();
+  const role = String(user.role || '').trim().toUpperCase();
+  if (!staffId || !name || !['DEVELOPER', 'STAGING_HELPER', 'LINE_HELPER'].includes(role)) throw new Error('INVALID_USER_DATA');
+  if (!user.salt || !user.hash || Number(user.iterations) < 100000) throw new Error('INVALID_PASSWORD_HASH');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = ensureUserSheet_();
+    const values = [staffId, name, role, String(user.salt), String(user.hash), Number(user.iterations), user.active !== false, new Date(), String(updatedBy || '')];
+    const rows = userRows_();
+    const index = rows.findIndex((row) => String(row[0]).trim().toUpperCase() === staffId);
+    sheet.getRange(index >= 0 ? index + 2 : sheet.getLastRow() + 1, 1, 1, values.length).setValues([values]);
+    return { ok: true, user: { staffId, name, role, active: user.active !== false } };
+  } finally { lock.releaseLock(); }
+}
+
+function setUserAccountActive_(staffId, active, updatedBy) {
+  const normalized = String(staffId || '').trim().toUpperCase();
+  const sheet = ensureUserSheet_();
+  const rows = userRows_();
+  const index = rows.findIndex((row) => String(row[0]).trim().toUpperCase() === normalized);
+  if (index < 0) throw new Error('USER_NOT_FOUND');
+  sheet.getRange(index + 2, 7, 1, 3).setValues([[Boolean(active), new Date(), String(updatedBy || '')]]);
+  return { ok: true, staffId: normalized, active: Boolean(active) };
 }
 
 function assertRouteConfig_() {

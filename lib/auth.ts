@@ -49,13 +49,30 @@ function users(): StoredUser[] {
   }
 }
 
+async function backendUser(staffId: string): Promise<StoredUser | null> {
+  const endpoint = process.env.OWOR_GAS_ENDPOINT?.trim() ?? "";
+  const token = process.env.OWOR_GAS_TOKEN?.trim() ?? "";
+  if (!endpoint || !token) return null;
+  try {
+    const url = new URL(endpoint);
+    url.searchParams.set("resource", "auth_user");
+    url.searchParams.set("staff_id", staffId);
+    url.searchParams.set("token", token);
+    const response = await fetch(url, { cache: "no-store", redirect: "follow", signal: AbortSignal.timeout(12_000) });
+    const payload = await response.json() as { ok?: boolean; user?: StoredUser };
+    return response.ok && payload.ok === true && payload.user ? payload.user : null;
+  } catch {
+    return null;
+  }
+}
+
 export function isAuthConfigured() {
-  return Boolean(process.env.OWOR_SESSION_SECRET && users().length);
+  return Boolean(process.env.OWOR_SESSION_SECRET && (users().length || (process.env.OWOR_GAS_ENDPOINT && process.env.OWOR_GAS_TOKEN)));
 }
 
 export async function authenticate(staffId: string, password: string): Promise<AuthUser | null> {
   const normalized = staffId.trim().toUpperCase();
-  const user = users().find((candidate) => candidate.staffId.trim().toUpperCase() === normalized);
+  const user = users().find((candidate) => candidate.staffId.trim().toUpperCase() === normalized) ?? await backendUser(normalized);
   if (!user || !password) return null;
 
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
@@ -68,6 +85,15 @@ export async function authenticate(staffId: string, password: string): Promise<A
 
   if (!safeEqual(new Uint8Array(bits), base64UrlToBytes(user.hash))) return null;
   return { staffId: user.staffId, name: user.name, role: user.role };
+}
+
+export async function hashPassword(password: string) {
+  if (password.length < 8) throw new Error("Password minimal 8 karakter");
+  const salt = crypto.getRandomValues(new Uint8Array(18));
+  const iterations = 210_000;
+  const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, key, 256);
+  return { salt: bytesToBase64Url(salt), hash: bytesToBase64Url(new Uint8Array(bits)), iterations };
 }
 
 async function hmac(value: string) {

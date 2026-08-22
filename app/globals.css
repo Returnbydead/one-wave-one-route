@@ -3353,3 +3353,99 @@ code {
   .helper-item-summary { margin: 12px; }
 }
 
+.access-loading {
+  align-items: center;
+  background: #0d201b;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+  min-height: 100vh;
+}
+.access-loading .brand-mark { height: 54px; margin: 0 0 8px; width: 54px; }
+.access-loading strong { font-size: 18px; }
+.access-loading span { color: #91aaa4; font: 11px var(--mono); }
+
+.sidebar-user {
+  border-top: 1px solid rgba(255, 255, 255, .12);
+  color: #fff;
+  display: grid;
+  gap: 4px;
+  margin-top: auto;
+  overflow: hidden;
+  padding: 16px 8px 0;
+}
+.sidebar-user strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-user span { color: #8fa59f; font: 8px var(--mono); overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.sidebar-user form { margin-top: 8px; }
+.sidebar-user button { background: transparent; border: 1px solid #405b54; border-radius: 4px; color: #c9d8d3; cursor: pointer; font: 700 9px var(--mono); padding: 7px 10px; width: 100%; }
+
+.developer-workspace { margin: 28px clamp(22px, 4vw, 58px); }
+.developer-titlebar { align-items: end; display: flex; justify-content: space-between; margin-bottom: 22px; }
+.developer-titlebar h2 { font-size: clamp(28px, 4vw, 46px); letter-spacing: -.055em; margin: 4px 0 6px; }
+.developer-titlebar > div > p:last-child { color: var(--muted); margin: 0; }
+.developer-grid { display: grid; gap: 18px; }
+.developer-panel { border-radius: 9px; overflow: hidden; }
+.developer-panel-head { align-items: center; border-bottom: 1px solid var(--line); display: grid; gap: 14px; grid-template-columns: 35px 1fr auto; padding: 19px 22px; }
+.developer-panel-head > span { color: var(--orange); font: 800 10px var(--mono); }
+.developer-panel-head h3 { font-size: 18px; margin: 0 0 3px; }
+.developer-panel-head p { color: var(--muted); font: 9px var(--mono); margin: 0; }
+.developer-panel-head i { border-radius: 999px; font: normal 800 8px var(--mono); padding: 7px 10px; }
+.developer-panel-head i.ok { background: #e3f5ef; color: #137258; }
+.developer-panel-head i.warn { background: #fff0e8; color: #a94b24; }
+.backend-health-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+.backend-health-grid article { border-right: 1px solid var(--line); display: grid; gap: 7px; min-height: 126px; padding: 23px; }
+.backend-health-grid article:last-child { border-right: 0; }
+.backend-health-grid span,
+.staff-account-form label > span { color: #71807c; font: 700 8px var(--mono); letter-spacing: .1em; }
+.backend-health-grid strong { font: 800 18px var(--mono); }
+.backend-health-grid small { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.backend-actions { align-items: center; background: #f4f7f5; border-top: 1px solid var(--line); display: flex; gap: 18px; padding: 15px 22px; }
+.backend-actions p { color: var(--muted); font-size: 10px; margin: 0; }
+.developer-warning { background: #fff2e9; border-top: 1px solid #f2cfbc; color: #854222; display: grid; font-size: 11px; gap: 3px; padding: 14px 22px; }
+.developer-warning code { background: rgba(255, 255, 255, .7); border-radius: 3px; padding: 2px 4px; }
+
+.staff-account-form { align-items: end; display: grid; gap: 12px; grid-template-columns: .8fr 1.2fr 1fr 1fr auto; padding: 20px 22px; }
+.staff-account-form label { display: grid; gap: 7px; }
+.staff-account-form input,
+.staff-account-form select { background: #fff; border: 1px solid #cdd8d4; border-radius: 5px; min-height: 43px; outline: none; padding: 0 11px; }
+.staff-account-form input:focus,
+.staff-account-form select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(47, 158, 133, .1); }
+.staff-account-form button { min-height: 43px; white-space: nowrap; }
+.role-explainer { background: #f4f7f5; border-bottom: 1px solid var(--line); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, 1fr); }
+.role-explainer span { color: var(--muted); display: grid; font-size: 10px; gap: 3px; padding: 12px 22px; }
+.role-explainer b { color: var(--ink); font: 800 9px var(--mono); }
+.staff-account-list article { align-items: center; border-bottom: 1px solid var(--line); display: grid; gap: 14px; grid-template-columns: 38px 1fr auto 84px; padding: 13px 22px; }
+.staff-account-list article:last-child { border-bottom: 0; }
+.staff-account-list article[data-active="false"] { opacity: .55; }
+.staff-avatar { align-items: center; background: var(--navy); border-radius: 5px; color: #fff; display: flex; font: 800 10px var(--mono); height: 36px; justify-content: center; width: 36px; }
+.staff-account-list article > span { display: grid; gap: 3px; }
+.staff-account-list strong { font-size: 12px; }
+.staff-account-list small { color: var(--muted); font: 9px var(--mono); }
+.staff-account-list em { background: #e3f5ef; border-radius: 999px; color: #137258; font: normal 800 8px var(--mono); padding: 6px 9px; }
+.staff-account-list article[data-active="false"] em { background: #edf0ef; color: #64736f; }
+.staff-account-list button { background: #fff; border: 1px solid #ccd7d3; border-radius: 4px; cursor: pointer; font: 700 9px var(--mono); min-height: 33px; }
+.staff-account-list button:disabled { cursor: not-allowed; opacity: .4; }
+
+@media (max-width: 900px) {
+  .developer-titlebar { align-items: flex-start; flex-direction: column; gap: 16px; }
+  .backend-health-grid { grid-template-columns: repeat(2, 1fr); }
+  .backend-health-grid article:nth-child(2) { border-right: 0; }
+  .staff-account-form { grid-template-columns: repeat(2, 1fr); }
+  .staff-account-form button { grid-column: 1 / -1; }
+}
+
+@media (max-width: 560px) {
+  .developer-workspace { margin: 14px 10px; }
+  .developer-panel-head { grid-template-columns: 28px 1fr; padding: 16px; }
+  .developer-panel-head i { grid-column: 2; justify-self: start; }
+  .backend-health-grid { grid-template-columns: 1fr; }
+  .backend-health-grid article { border-bottom: 1px solid var(--line); border-right: 0; min-height: 0; }
+  .backend-actions { align-items: stretch; flex-direction: column; }
+  .staff-account-form { grid-template-columns: 1fr; padding: 16px; }
+  .role-explainer { grid-template-columns: 1fr; }
+  .staff-account-list article { grid-template-columns: 38px 1fr auto; padding: 12px 14px; }
+  .staff-account-list article > button { grid-column: 2 / -1; }
+}
+

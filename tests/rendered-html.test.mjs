@@ -24,17 +24,16 @@ async function render() {
   );
 }
 
-test("server-renders the ONE WAVE ONE ROUTE dashboard", async () => {
+test("server-renders the protected ONE WAVE ONE ROUTE access shell", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
   assert.match(html, /<title>ONE WAVE ONE ROUTE · CBT<\/title>/i);
-  assert.match(html, /ONE WAVE/);
-  assert.match(html, /ONE ROUTE/);
-  assert.match(html, /Connecting live data/);
-  assert.match(html, /Generate assignment/);
+  assert.match(html, /Memuat akses workspace/);
+  assert.match(html, /Role dan session sedang diverifikasi/);
+  assert.doesNotMatch(html, /Generate assignment/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
 
@@ -65,17 +64,16 @@ test("exports CSV rows only for manually locked SO", async () => {
 });
 
 test("renders assignment, manpower, picking, and helper task as separate menu views", async () => {
-  const response = await render();
-  const html = await response.text();
+  const html = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 
   assert.match(html, /aria-label="Buka menu assignment"/);
   assert.match(html, /aria-label="Buka menu manpower"/);
   assert.match(html, /aria-label="Buka menu picking monitor"/);
   assert.match(html, /aria-label="Buka menu helper task"/);
-  assert.match(html, /data-workspace-view="assignment"/);
-  assert.match(html, />Assignment preview</);
-  assert.doesNotMatch(html, />Manpower by zone</);
-  assert.doesNotMatch(html, />Live picking monitor</);
+  assert.match(html, /aria-label="Buka menu developer"/);
+  assert.match(html, /authUser\.role === "DEVELOPER"/);
+  assert.match(html, /setActiveView\("tasks"\)/);
+  assert.match(html, /Developer control center/);
   assert.doesNotMatch(html, />Completed picking queue</);
 });
 
@@ -127,6 +125,9 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /STG-MEZZANINE/);
   assert.match(page, /STG-SPR/);
   assert.match(page, /Barang sudah di staging packer/);
+  assert.match(page, /Staff accounts & roles/);
+  assert.match(page, /Akun helper hanya mendapat menu Helper Task/);
+  assert.match(page, /\/api\/developer\/users/);
   assert.match(page, /Zone match \(\{eligiblePickers\.length\}\)/);
   assert.match(page, /Semua picker \(\{searchedPickers\.length\}\)/);
   assert.match(page, /picker\.activities\.map/);
@@ -160,6 +161,10 @@ test("keeps the Superset backend atomic per SO and origin rack zone", async () =
   assert.match(backend, /picking_start_at/);
   assert.match(backend, /picking_end_at/);
   assert.match(backend, /normalizePicking_/);
+  assert.match(backend, /OWOR USER ACCOUNTS/);
+  assert.match(backend, /upsert_user/);
+  assert.match(backend, /set_user_active/);
+  assert.match(backend, /auth_user/);
   assert.doesNotMatch(backend, /Object\.keys\(order\.zones\)\.sort/);
 });
 

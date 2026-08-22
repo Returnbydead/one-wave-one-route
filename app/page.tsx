@@ -8,7 +8,7 @@ import { formatPickerCoverage, pickerMatchesAnyZone } from "./zone-eligibility.m
 
 type RouteCode = "SWL - PSG" | "CSA - KLD" | "BSX" | "CPT - PPL" | "RDS - SLP" | "JLB";
 type AssignmentMode = "route" | "zone";
-type WorkspaceView = "assignment" | "manpower" | "monitor" | "tasks";
+type WorkspaceView = "assignment" | "manpower" | "monitor" | "tasks" | "developer";
 type HelperRole = "STAGING_HELPER" | "LINE_HELPER";
 type UserRole = "DEVELOPER" | HelperRole;
 
@@ -16,6 +16,24 @@ type AuthUser = {
   staffId: string;
   name: string;
   role: UserRole;
+};
+
+type StaffAccount = AuthUser & {
+  active: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
+};
+
+type DeveloperStatus = {
+  configured: boolean;
+  accountStore: boolean;
+  accountError?: string;
+  health?: {
+    ok?: boolean;
+    degraded?: boolean;
+    error?: string;
+    sync?: { status?: string; generatedAt?: string; message?: string; orders?: number; pickers?: number; picking?: number };
+  } | null;
 };
 
 type SalesOrder = {
@@ -364,12 +382,17 @@ export default function Home() {
   const [showRules, setShowRules] = useState(false);
   const [toast, setToast] = useState("");
   const [authUser, setAuthUser] = useState<AuthUser>({ staffId: "DEV01", name: "Developer", role: "DEVELOPER" });
+  const [authReady, setAuthReady] = useState(false);
   const [helperRole, setHelperRole] = useState<HelperRole>("STAGING_HELPER");
   const [helperSearch, setHelperSearch] = useState("");
   const [selectedHelperSo, setSelectedHelperSo] = useState("");
   const [helperSoScan, setHelperSoScan] = useState("");
   const [helperLocationScan, setHelperLocationScan] = useState("");
   const [verifiedHelperStep, setVerifiedHelperStep] = useState("");
+  const [developerStatus, setDeveloperStatus] = useState<DeveloperStatus | null>(null);
+  const [staffAccounts, setStaffAccounts] = useState<StaffAccount[]>([]);
+  const [developerLoading, setDeveloperLoading] = useState(false);
+  const [staffForm, setStaffForm] = useState({ staffId: "", name: "", role: "STAGING_HELPER" as UserRole, password: "" });
   const [helperTasks, setHelperTasks] = useState<Record<string, HelperTaskRecord>>(() => {
     if (typeof window === "undefined") return {};
     try {
@@ -435,9 +458,24 @@ export default function Home() {
         setAuthUser(payload.user);
         if (payload.user.role === "STAGING_HELPER" || payload.user.role === "LINE_HELPER") {
           setHelperRole(payload.user.role);
+          setActiveView("tasks");
         }
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => setAuthReady(true));
+  }, []);
+
+  const refreshDeveloper = useCallback(async () => {
+    setDeveloperLoading(true);
+    const [statusResponse, usersResponse] = await Promise.all([
+      fetch("/api/developer/status", { cache: "no-store" }),
+      fetch("/api/developer/users", { cache: "no-store" }),
+    ]);
+    const statusPayload = await statusResponse.json() as DeveloperStatus & { ok?: boolean };
+    const usersPayload = await usersResponse.json() as { ok?: boolean; users?: StaffAccount[]; error?: string };
+    setDeveloperStatus(statusResponse.ok ? statusPayload : { configured: false, accountStore: false, accountError: String((statusPayload as { error?: string }).error || "STATUS_UNAVAILABLE") });
+    setStaffAccounts(usersResponse.ok && Array.isArray(usersPayload.users) ? usersPayload.users : []);
+    setDeveloperLoading(false);
   }, []);
 
   const autoAssignments = useMemo(
@@ -886,17 +924,74 @@ export default function Home() {
     flash("Manual assignment dilepas");
   }
 
+  async function createStaffAccount() {
+    if (!staffForm.staffId.trim() || !staffForm.name.trim() || staffForm.password.length < 8) {
+      flash("Lengkapi Staff ID, nama, role, dan password minimal 8 karakter");
+      return;
+    }
+    setDeveloperLoading(true);
+    const response = await fetch("/api/developer/users", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(staffForm),
+    });
+    const payload = await response.json() as { ok?: boolean; error?: string };
+    setDeveloperLoading(false);
+    if (!response.ok || payload.ok !== true) {
+      flash(payload.error || "Akun gagal dibuat");
+      return;
+    }
+    setStaffForm({ staffId: "", name: "", role: "STAGING_HELPER", password: "" });
+    flash("Akun staff berhasil disimpan");
+    await refreshDeveloper();
+  }
+
+  async function setStaffAccountActive(account: StaffAccount) {
+    setDeveloperLoading(true);
+    const response = await fetch("/api/developer/users", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ staffId: account.staffId, active: !account.active }),
+    });
+    const payload = await response.json() as { ok?: boolean; error?: string };
+    setDeveloperLoading(false);
+    if (!response.ok || payload.ok !== true) {
+      flash(payload.error || "Status akun gagal diubah");
+      return;
+    }
+    flash(`Akun ${account.staffId} ${account.active ? "dinonaktifkan" : "diaktifkan"}`);
+    await refreshDeveloper();
+  }
+
+  async function runBackendSync() {
+    setDeveloperLoading(true);
+    const response = await fetch("/api/developer/status", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "sync" }),
+    });
+    const payload = await response.json() as { ok?: boolean; error?: string };
+    setDeveloperLoading(false);
+    flash(response.ok && payload.ok ? "Backend sync berhasil dijalankan" : payload.error || "Backend sync gagal");
+    await refreshDeveloper();
+  }
+
+  if (!authReady) {
+    return <main className="access-loading"><div className="brand-mark">1W</div><strong>Memuat akses workspace…</strong><span>Role dan session sedang diverifikasi.</span></main>;
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-brand"><div className="brand-mark">1W</div><span>ONE WAVE</span></div>
         <nav aria-label="Navigasi utama">
-          <button className={`nav-menu-item ${activeView === "assignment" ? "active" : ""}`} aria-label="Buka menu assignment" aria-current={activeView === "assignment" ? "page" : undefined} onClick={() => setActiveView("assignment")}><span>⌁</span><b>Assignment</b></button>
-          <button className={`nav-menu-item ${activeView === "manpower" ? "active" : ""}`} aria-label="Buka menu manpower" aria-current={activeView === "manpower" ? "page" : undefined} onClick={() => setActiveView("manpower")}><span>♙</span><b>Manpower</b></button>
-          <button className={`nav-menu-item ${activeView === "monitor" ? "active" : ""}`} aria-label="Buka menu picking monitor" aria-current={activeView === "monitor" ? "page" : undefined} onClick={() => setActiveView("monitor")}><span>▷</span><b>Picking monitor</b></button>
-          <button className={`nav-menu-item ${activeView === "tasks" ? "active" : ""}`} aria-label="Buka menu helper task" aria-current={activeView === "tasks" ? "page" : undefined} onClick={() => setActiveView("tasks")}><span>▣</span><b>Helper task</b></button>
+          {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "assignment" ? "active" : ""}`} aria-label="Buka menu assignment" aria-current={activeView === "assignment" ? "page" : undefined} onClick={() => setActiveView("assignment")}><span>⌁</span><b>Assignment</b></button>}
+          {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "manpower" ? "active" : ""}`} aria-label="Buka menu manpower" aria-current={activeView === "manpower" ? "page" : undefined} onClick={() => setActiveView("manpower")}><span>♙</span><b>Manpower</b></button>}
+          {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "monitor" ? "active" : ""}`} aria-label="Buka menu picking monitor" aria-current={activeView === "monitor" ? "page" : undefined} onClick={() => setActiveView("monitor")}><span>▷</span><b>Picking monitor</b></button>}
+          {authReady && <button className={`nav-menu-item ${activeView === "tasks" ? "active" : ""}`} aria-label="Buka menu helper task" aria-current={activeView === "tasks" ? "page" : undefined} onClick={() => setActiveView("tasks")}><span>▣</span><b>Helper task</b></button>}
+          {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "developer" ? "active" : ""}`} aria-label="Buka menu developer" aria-current={activeView === "developer" ? "page" : undefined} onClick={() => { setActiveView("developer"); void refreshDeveloper(); }}><span>⚙</span><b>Developer</b></button>}
         </nav>
-        <button className="nav-icon bottom" aria-label="Pengaturan" onClick={() => setShowRules(true)}>⚙</button>
+        <div className="sidebar-user"><strong>{authUser.name}</strong><span>{authUser.staffId} · {authUser.role.replaceAll("_", " ")}</span><form action="/api/auth/logout" method="post"><button>Keluar</button></form></div>
       </aside>
 
       <section className="workspace">
@@ -920,6 +1015,42 @@ export default function Home() {
         </header>
 
         <div className="workspace-view" data-workspace-view={activeView}>
+        {activeView === "developer" && authUser.role === "DEVELOPER" && (
+        <section className="developer-workspace">
+          <div className="developer-titlebar">
+            <div><p className="eyebrow">SYSTEM ADMINISTRATION</p><h2>Developer control center</h2><p>Konfigurasi koneksi backend dan akses pengguna OWOR dari satu menu terproteksi.</p></div>
+            <button className="soft-button" disabled={developerLoading} onClick={() => void refreshDeveloper()}>↻ Refresh status</button>
+          </div>
+
+          <div className="developer-grid">
+            <section className="developer-panel panel">
+              <div className="developer-panel-head"><span>01</span><div><h3>Backend setup</h3><p>Superset → GAS → Google Sheet → OWOR</p></div><i className={developerStatus?.configured ? "ok" : "warn"}>{developerStatus?.configured ? "CONFIGURED" : "NOT READY"}</i></div>
+              <div className="backend-health-grid">
+                <article><span>SERVER ENDPOINT</span><strong>{developerStatus?.configured ? "Connected" : "Missing"}</strong><small>URL disimpan sebagai encrypted Vercel secret</small></article>
+                <article><span>GAS HEALTH</span><strong>{developerStatus?.health?.ok ? "Healthy" : developerStatus?.health?.sync?.status || "Checking"}</strong><small>{developerStatus?.health?.sync?.message || developerStatus?.health?.error || "Menunggu status backend"}</small></article>
+                <article><span>LAST SNAPSHOT</span><strong>{developerStatus?.health?.sync?.generatedAt ? formatSyncTime(developerStatus.health.sync.generatedAt) : "–"}</strong><small>{number(developerStatus?.health?.sync?.orders || 0)} SO · {number(developerStatus?.health?.sync?.pickers || 0)} picker</small></article>
+                <article><span>ACCOUNT STORE</span><strong>{developerStatus?.accountStore ? "Ready" : "Upgrade needed"}</strong><small>{developerStatus?.accountStore ? "OWOR USER ACCOUNTS aktif" : "Pasang backend Code.gs terbaru"}</small></article>
+              </div>
+              <div className="backend-actions"><button className="primary-button" disabled={developerLoading || !developerStatus?.configured} onClick={() => void runBackendSync()}>Run sync now</button><p>Endpoint dan API token tidak pernah ditampilkan kembali di browser. Perubahan secret dilakukan dari Vercel Environment Variables.</p></div>
+              {!developerStatus?.accountStore && <div className="developer-warning"><b>Setup backend akun belum selesai</b><span>Update deployment Apps Script memakai <code>backend/Code.gs</code> terbaru, jalankan menu <strong>ONE WAVE ONE ROUTE → Setup backend</strong>, lalu deploy versi web app baru.</span></div>}
+            </section>
+
+            <section className="developer-panel panel">
+              <div className="developer-panel-head"><span>02</span><div><h3>Staff accounts & roles</h3><p>Akun helper hanya mendapat menu Helper Task.</p></div><i className={developerStatus?.accountStore ? "ok" : "warn"}>{staffAccounts.length} USERS</i></div>
+              <div className="staff-account-form">
+                <label><span>Staff ID / username</span><input value={staffForm.staffId} onChange={(event) => setStaffForm((current) => ({ ...current, staffId: event.target.value.toUpperCase() }))} placeholder="Contoh: 52016" /></label>
+                <label><span>Nama staff</span><input value={staffForm.name} onChange={(event) => setStaffForm((current) => ({ ...current, name: event.target.value }))} placeholder="Nama lengkap" /></label>
+                <label><span>Role akses</span><select value={staffForm.role} onChange={(event) => setStaffForm((current) => ({ ...current, role: event.target.value as UserRole }))}><option value="STAGING_HELPER">Staging Helper</option><option value="LINE_HELPER">Line Checker Helper</option><option value="DEVELOPER">Developer</option></select></label>
+                <label><span>Password awal</span><input type="password" autoComplete="new-password" value={staffForm.password} onChange={(event) => setStaffForm((current) => ({ ...current, password: event.target.value }))} placeholder="Minimal 8 karakter" /></label>
+                <button className="primary-button" disabled={developerLoading || !developerStatus?.accountStore} onClick={() => void createStaffAccount()}>Create / reset account</button>
+              </div>
+              <div className="role-explainer"><span><b>STAGING HELPER</b> Scan SO dan staging picking</span><span><b>LINE HELPER</b> Staging ke checker line</span><span><b>DEVELOPER</b> Semua menu + settings</span></div>
+              {!staffAccounts.length ? <div className="empty-state"><strong>Belum ada akun staff di backend</strong><span>Akun developer environment tetap aktif sebagai bootstrap.</span></div> : <div className="staff-account-list">{staffAccounts.map((account) => <article key={account.staffId} data-active={account.active}><div className="staff-avatar">{account.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</div><span><strong>{account.name}</strong><small>{account.staffId} · {account.role.replaceAll("_", " ")}</small></span><em>{account.active ? "ACTIVE" : "DISABLED"}</em><button disabled={developerLoading || account.staffId === authUser.staffId} onClick={() => void setStaffAccountActive(account)}>{account.active ? "Disable" : "Enable"}</button></article>)}</div>}
+            </section>
+          </div>
+        </section>
+        )}
+
         {activeView === "assignment" && <>
         <section className="hero-grid">
           <div className="hero-copy">

@@ -13,11 +13,11 @@ if (!["DEVELOPER", "STAGING_HELPER", "LINE_HELPER"].includes(role)) {
 const iterations = 210_000;
 const salt = randomBytes(18);
 const hash = pbkdf2Sync(password, salt, iterations, 32, "sha256");
-console.log(JSON.stringify({
+console.log(JSON.stringify([{
   staffId: staffId.toUpperCase(),
   name,
   role,
   salt: salt.toString("base64url"),
   hash: hash.toString("base64url"),
   iterations,
-}, null, 2));
+}], null, 2));

@@ -13,6 +13,18 @@ export function normalizeScan(value = "") {
   return String(value).trim().toUpperCase();
 }
 
+function activityTimeValue(value) {
+  if (value === null || value === undefined || value === "") return 0;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return numeric;
+  const parsed = Date.parse(String(value));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function compareActivityTimeDesc(left, right) {
+  return activityTimeValue(right) - activityTimeValue(left);
+}
+
 export function isValidStagingBarcode(value) {
   return STAGING_BARCODES.includes(normalizeScan(value));
 }

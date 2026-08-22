@@ -6,6 +6,7 @@ import {
   pickerMatchesZone,
 } from "../app/zone-eligibility.mjs";
 import {
+  compareActivityTimeDesc,
   getLoadPosition,
   nextHelperTask,
 } from "../app/helper-task-core.mjs";
@@ -37,4 +38,14 @@ test("requires claim and staging before locating an SO at packing line", () => {
   const done = nextHelperTask(staged, { type: "SCAN_PACKING_LINE", barcode: "LINE-01" });
   assert.equal(done.status, "STAGED_PACKER");
   assert.equal(done.packingLine, "LINE-01");
+});
+
+test("sorts mixed live timestamp types without crashing", () => {
+  const rows = [
+    { id: "old", at: "2026-08-21T02:00:00.000Z" },
+    { id: "new", at: Date.parse("2026-08-21T03:00:00.000Z") },
+    { id: "empty", at: null },
+  ];
+  rows.sort((a, b) => compareActivityTimeDesc(a.at, b.at));
+  assert.deepEqual(rows.map((row) => row.id), ["new", "old", "empty"]);
 });

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildLockedCsv } from "./assignment-csv";
-import { getLoadPosition, nextHelperTask, STAGING_BARCODES } from "./helper-task-core.mjs";
+import { compareActivityTimeDesc, getLoadPosition, nextHelperTask, STAGING_BARCODES } from "./helper-task-core.mjs";
 import { PICKER_ROSTER } from "./picker-roster";
 import { formatPickerCoverage, pickerMatchesAnyZone } from "./zone-eligibility.mjs";
 
@@ -638,7 +638,7 @@ export default function Home() {
         ...group,
         activities: group.activities
           .filter((activity) => monitorStatus === "ALL" || activity.status === monitorStatus)
-          .sort((a, b) => b.pickingStartAt.localeCompare(a.pickingStartAt)),
+          .sort((a, b) => compareActivityTimeDesc(a.pickingStartAt, b.pickingStartAt)),
         completionPct: group.requestQty > 0 ? Math.min(100, Math.round((group.pickedQty / group.requestQty) * 100)) : 0,
       }))
       .filter((group) => group.activities.length > 0)
@@ -676,7 +676,7 @@ export default function Home() {
         const aTask = helperTasks[a.soNumber];
         const bTask = helperTasks[b.soNumber];
         const rank = (task?: HelperTaskRecord) => task?.status === "STAGED_PACKER" ? 2 : task ? 1 : 0;
-        return rank(aTask) - rank(bTask) || b.pickingEndAt.localeCompare(a.pickingEndAt);
+        return rank(aTask) - rank(bTask) || compareActivityTimeDesc(a.pickingEndAt, b.pickingEndAt);
       });
   }, [helperSearch, helperTasks, livePicking]);
 

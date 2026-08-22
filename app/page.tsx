@@ -1,10 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { buildLockedCsv } from "./assignment-csv";
+import { getLoadPosition, nextHelperTask, STAGING_BARCODES } from "./helper-task-core.mjs";
 import { PICKER_ROSTER } from "./picker-roster";
+import { formatPickerCoverage, pickerMatchesAnyZone } from "./zone-eligibility.mjs";
 
 type RouteCode = "SWL - PSG" | "CSA - KLD" | "BSX" | "CPT - PPL" | "RDS - SLP" | "JLB";
 type AssignmentMode = "route" | "zone";
+type WorkspaceView = "assignment" | "manpower" | "monitor" | "tasks";
 
 type SalesOrder = {
   soNumber: string;
@@ -55,6 +59,17 @@ type PickingActivity = {
 type ZoneRule = {
   zone: string;
   productivity: number;
+};
+
+type HelperTaskStatus = "READY" | "CLAIMED" | "STAGED_PICKING" | "STAGED_PACKER";
+
+type HelperTaskRecord = {
+  status: HelperTaskStatus;
+  helperId: string;
+  staging: string;
+  packingLine: string;
+  updatedAt?: string;
+  history: Array<{ type: string; value: string; at: string }>;
 };
 
 const ROUTES: Array<{
@@ -170,6 +185,13 @@ function extractWmsSoId(soNumber: string) {
 
 function normalizedZone(value: string) {
   return value.trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function helperStatusLabel(status: HelperTaskStatus) {
+  if (status === "CLAIMED") return "Task diambil helper";
+  if (status === "STAGED_PICKING") return "Di staging picking";
+  if (status === "STAGED_PACKER") return "Barang sudah di staging packer";
+  return "Ready to claim";
 }
 
 function assignmentHasRoute(assignment: Assignment, route: RouteCode) {
@@ -290,33 +312,23 @@ function buildManualAssignments(
   });
 }
 
-function downloadCsv(
-  assignments: Assignment[],
-  route?: RouteCode,
-  source?: Assignment["source"],
-) {
-  const selected = assignments.filter((item) => (!source || item.source === source));
-  const rows = ["error_message;so_id;staff_id"];
-  selected.forEach((assignment) => {
-
-    assignment.orders.filter((order) => !route || order.route === route).forEach((order) => {
-      rows.push(`;${extractWmsSoId(order.soNumber)};${assignment.picker.staffId}`);
-    });
-  });
-
-  const blob = new Blob(["\ufeff" + rows.join("\n")], {
+function downloadLockedCsv(assignments: Assignment[], route?: RouteCode) {
+  const blob = new Blob([buildLockedCsv(assignments, route)], {
     type: "text/csv;charset=utf-8",
   });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  const kind = source === "manual" ? "-locked" : "";
-  anchor.download = `one-wave-${(route ?? "all-route").toLowerCase().replaceAll(" ", "-")}${kind}-2026-08-12.csv`;
+  const operationalDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+  }).format(new Date());
+  anchor.download = `one-wave-${(route ?? "all-route").toLowerCase().replaceAll(" ", "-")}-locked-${operationalDate}.csv`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
 
 export default function Home() {
+  const [activeView, setActiveView] = useState<WorkspaceView>("assignment");
   const [activeRoute, setActiveRoute] = useState<RouteCode | "ALL">("ALL");
   const [manualRoute, setManualRoute] = useState<RouteCode>("SWL - PSG");
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
@@ -324,6 +336,7 @@ export default function Home() {
   const [pickerSearch, setPickerSearch] = useState("");
   const [bulkPickerIds, setBulkPickerIds] = useState("");
   const [showPickerPool, setShowPickerPool] = useState(false);
+  const [showAllPickers, setShowAllPickers] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<ManualOverrides>({});
   const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("route");
   const [selectedZone, setSelectedZone] = useState("ALL");
@@ -340,6 +353,21 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [showRules, setShowRules] = useState(false);
   const [toast, setToast] = useState("");
+  const [helperId, setHelperId] = useState("DEV01");
+  const [helperSearch, setHelperSearch] = useState("");
+  const [selectedHelperSo, setSelectedHelperSo] = useState("");
+  const [helperSoScan, setHelperSoScan] = useState("");
+  const [helperLocationScan, setHelperLocationScan] = useState("");
+  const [verifiedHelperStep, setVerifiedHelperStep] = useState("");
+  const [helperTasks, setHelperTasks] = useState<Record<string, HelperTaskRecord>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const stored = window.localStorage.getItem("owor-helper-task-pilot-v1");
+      return stored ? JSON.parse(stored) as Record<string, HelperTaskRecord> : {};
+    } catch {
+      return {};
+    }
+  });
 
   const ordersData = liveOrders ?? DEMO_SO_DATA;
   const pickerRoster = livePickers ?? PICKER_ROSTER;
@@ -383,6 +411,10 @@ export default function Home() {
     const timer = window.setTimeout(() => void refreshLiveData(), 0);
     return () => window.clearTimeout(timer);
   }, [refreshLiveData]);
+
+  useEffect(() => {
+    window.localStorage.setItem("owor-helper-task-pilot-v1", JSON.stringify(helperTasks));
+  }, [helperTasks]);
 
   const autoAssignments = useMemo(
     () =>
@@ -449,11 +481,14 @@ export default function Home() {
       : order.route === manualRoute,
   );
 
-  const manualRouteZones = new Set(
-    manualRouteOrders.map((order) => order.zone),
+  const targetPickerZones = new Set(
+    (selectedOrders.length
+      ? manualRouteOrders.filter((order) => selectedOrders.includes(order.soNumber))
+      : manualRouteOrders
+    ).map((order) => order.zone),
   );
 
-  const filteredPickers = pickerRoster.filter((picker) => {
+  const searchedPickers = pickerRoster.filter((picker) => {
     const query = pickerSearch.trim().toLowerCase();
     return (
       !query ||
@@ -461,9 +496,15 @@ export default function Home() {
       picker.name.toLowerCase().includes(query) ||
       picker.zone.toLowerCase().includes(query)
     );
-  }).sort((a, b) => {
-    const aRelevant = manualRouteZones.has(a.zone) ? 0 : 1;
-    const bRelevant = manualRouteZones.has(b.zone) ? 0 : 1;
+  });
+
+  const eligiblePickers = searchedPickers.filter((picker) =>
+    pickerMatchesAnyZone(picker.zone, targetPickerZones),
+  );
+
+  const filteredPickers = (showAllPickers ? searchedPickers : eligiblePickers).sort((a, b) => {
+    const aRelevant = pickerMatchesAnyZone(a.zone, targetPickerZones) ? 0 : 1;
+    const bRelevant = pickerMatchesAnyZone(b.zone, targetPickerZones) ? 0 : 1;
     return aRelevant - bRelevant || a.zone.localeCompare(b.zone) || a.name.localeCompare(b.name);
   });
 
@@ -614,6 +655,43 @@ export default function Home() {
     requestQty: livePicking.reduce((sum, item) => sum + item.requestQty, 0),
   }), [livePicking]);
 
+  const helperCandidates = useMemo(() => {
+    const bySo = new Map<string, PickingActivity>();
+    livePicking
+      .filter((activity) => activity.status === "COMPLETED")
+      .forEach((activity) => bySo.set(activity.soNumber, activity));
+    const query = helperSearch.trim().toLowerCase();
+    return [...bySo.values()]
+      .filter((activity) => {
+        const task = helperTasks[activity.soNumber];
+        return !query ||
+          activity.soNumber.toLowerCase().includes(query) ||
+          extractWmsSoId(activity.soNumber).includes(query) ||
+          activity.destination.toLowerCase().includes(query) ||
+          activity.zone.toLowerCase().includes(query) ||
+          activity.route.toLowerCase().includes(query) ||
+          task?.packingLine.toLowerCase().includes(query);
+      })
+      .sort((a, b) => {
+        const aTask = helperTasks[a.soNumber];
+        const bTask = helperTasks[b.soNumber];
+        const rank = (task?: HelperTaskRecord) => task?.status === "STAGED_PACKER" ? 2 : task ? 1 : 0;
+        return rank(aTask) - rank(bTask) || b.pickingEndAt.localeCompare(a.pickingEndAt);
+      });
+  }, [helperSearch, helperTasks, livePicking]);
+
+  const selectedHelperActivity = helperCandidates.find((activity) => activity.soNumber === selectedHelperSo)
+    ?? livePicking.find((activity) => activity.soNumber === selectedHelperSo && activity.status === "COMPLETED");
+  const selectedHelperTask = selectedHelperSo ? helperTasks[selectedHelperSo] : undefined;
+  const selectedHelperStatus: HelperTaskStatus = selectedHelperTask?.status ?? "READY";
+  const helperVerificationPhase = selectedHelperStatus === "CLAIMED" ? "STAGING" : "PACKING";
+  const helperVerificationKey = selectedHelperSo ? `${selectedHelperSo}:${helperVerificationPhase}` : "";
+  const helperTaskTotals = {
+    ready: helperCandidates.filter((item) => !helperTasks[item.soNumber]).length,
+    claimed: helperCandidates.filter((item) => ["CLAIMED", "STAGED_PICKING"].includes(helperTasks[item.soNumber]?.status)).length,
+    located: helperCandidates.filter((item) => helperTasks[item.soNumber]?.status === "STAGED_PACKER").length,
+  };
+
   function flash(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 2500);
@@ -625,12 +703,69 @@ export default function Home() {
     setAssignmentMode("route");
     setSelectedZone("ALL");
     setSelectedOrders([]);
+    setShowAllPickers(false);
   }
 
   function selectAssignmentMode(mode: AssignmentMode) {
     setAssignmentMode(mode);
     setSelectedOrders([]);
+    setShowAllPickers(false);
     if (mode === "zone") setActiveRoute("ALL");
+  }
+
+  function selectHelperTask(soNumber: string) {
+    setSelectedHelperSo(soNumber);
+    setHelperSoScan("");
+    setHelperLocationScan("");
+    setVerifiedHelperStep("");
+  }
+
+  function claimHelperTask() {
+    if (!selectedHelperSo) return;
+    try {
+      const next = nextHelperTask(helperTasks[selectedHelperSo] ?? null, {
+        type: "CLAIM",
+        helperId: helperId.trim(),
+      }) as HelperTaskRecord;
+      setHelperTasks((current) => ({ ...current, [selectedHelperSo]: next }));
+      flash(`SO ${extractWmsSoId(selectedHelperSo)} berhasil di-claim`);
+    } catch (error) {
+      flash(error instanceof Error ? error.message : "Task gagal di-claim");
+    }
+  }
+
+  function verifyHelperSo() {
+    if (!selectedHelperSo) return;
+    const scanned = helperSoScan.trim().toUpperCase();
+    const valid = scanned === selectedHelperSo.toUpperCase() || scanned === extractWmsSoId(selectedHelperSo);
+    if (!valid) {
+      setVerifiedHelperStep("");
+      flash("Barcode SO tidak cocok dengan task aktif");
+      return;
+    }
+    setVerifiedHelperStep(helperVerificationKey);
+    setHelperSoScan("");
+    flash(`SO terverifikasi untuk ${helperVerificationPhase === "STAGING" ? "staging picking" : "packing line"}`);
+  }
+
+  function submitHelperLocation() {
+    if (!selectedHelperSo || !selectedHelperTask) return;
+    if (verifiedHelperStep !== helperVerificationKey) {
+      flash("Scan barcode SO aktif lebih dulu");
+      return;
+    }
+    try {
+      const action = selectedHelperStatus === "CLAIMED"
+        ? { type: "SCAN_STAGING", barcode: helperLocationScan }
+        : { type: "SCAN_PACKING_LINE", barcode: helperLocationScan };
+      const next = nextHelperTask(selectedHelperTask, action) as HelperTaskRecord;
+      setHelperTasks((current) => ({ ...current, [selectedHelperSo]: next }));
+      setHelperLocationScan("");
+      setVerifiedHelperStep("");
+      flash(next.status === "STAGED_PACKER" ? `Barang tercatat di ${next.packingLine}` : `Barang tercatat di ${next.staging}`);
+    } catch (error) {
+      flash(error instanceof Error ? error.message : "Scan gagal diproses");
+    }
   }
 
   function toggleOrder(soNumber: string) {
@@ -708,12 +843,12 @@ export default function Home() {
   return (
     <main className="app-shell">
       <aside className="sidebar">
-        <div className="brand-mark">1W</div>
+        <div className="sidebar-brand"><div className="brand-mark">1W</div><span>ONE WAVE</span></div>
         <nav aria-label="Navigasi utama">
-          <button className="nav-icon active" aria-label="Assignment board">⌁</button>
-          <button className="nav-icon" aria-label="Data SO">▤</button>
-          <button className="nav-icon" aria-label="Manpower">♙</button>
-          <button className="nav-icon" aria-label="Monitoring picking" onClick={() => document.getElementById("picking-monitor")?.scrollIntoView({ behavior: "smooth" })}>▷</button>
+          <button className={`nav-menu-item ${activeView === "assignment" ? "active" : ""}`} aria-label="Buka menu assignment" aria-current={activeView === "assignment" ? "page" : undefined} onClick={() => setActiveView("assignment")}><span>⌁</span><b>Assignment</b></button>
+          <button className={`nav-menu-item ${activeView === "manpower" ? "active" : ""}`} aria-label="Buka menu manpower" aria-current={activeView === "manpower" ? "page" : undefined} onClick={() => setActiveView("manpower")}><span>♙</span><b>Manpower</b></button>
+          <button className={`nav-menu-item ${activeView === "monitor" ? "active" : ""}`} aria-label="Buka menu picking monitor" aria-current={activeView === "monitor" ? "page" : undefined} onClick={() => setActiveView("monitor")}><span>▷</span><b>Picking monitor</b></button>
+          <button className={`nav-menu-item ${activeView === "tasks" ? "active" : ""}`} aria-label="Buka menu helper task" aria-current={activeView === "tasks" ? "page" : undefined} onClick={() => setActiveView("tasks")}><span>▣</span><b>Helper task</b></button>
         </nav>
         <button className="nav-icon bottom" aria-label="Pengaturan" onClick={() => setShowRules(true)}>⚙</button>
       </aside>
@@ -733,10 +868,13 @@ export default function Home() {
               </div>
             </div>
             <button className="soft-button" onClick={() => { setSourceStatus("loading"); void refreshLiveData(); flash("Memeriksa snapshot live terbaru"); }}>↻ Refresh</button>
-            <button className="primary-button" onClick={() => { setGenerated(true); flash(Object.keys(manualOverrides).length ? "Auto-assignment diperbarui, manual lock tetap aman" : "Assignment berhasil dihitung ulang"); }}>Generate assignment</button>
+            {activeView === "assignment" && <button className="primary-button" onClick={() => { setGenerated(true); flash(Object.keys(manualOverrides).length ? "Auto-assignment diperbarui, manual lock tetap aman" : "Assignment berhasil dihitung ulang"); }}>Generate assignment</button>}
+            {activeView === "tasks" && <span className="pilot-badge">LOCAL PILOT</span>}
           </div>
         </header>
 
+        <div className="workspace-view" data-workspace-view={activeView}>
+        {activeView === "assignment" && <>
         <section className="hero-grid">
           <div className="hero-copy">
             <div className="status-line"><span>WAVE 1</span><span>10 HUB</span><span>TRIAL V1</span></div>
@@ -811,7 +949,7 @@ export default function Home() {
               <div className="zone-selector-list">
                 <button
                   className={selectedZone === "ALL" ? "active" : ""}
-                  onClick={() => { setSelectedZone("ALL"); setSelectedOrders([]); }}
+                  onClick={() => { setSelectedZone("ALL"); setSelectedOrders([]); setShowAllPickers(false); }}
                 >
                   <strong>Semua zone</strong>
                   <span>{ordersData.length} SO</span>
@@ -823,7 +961,7 @@ export default function Home() {
                     <button
                       className={selectedZone === value ? "active" : ""}
                       key={value}
-                      onClick={() => { setSelectedZone(value); setSelectedOrders([]); }}
+                      onClick={() => { setSelectedZone(value); setSelectedOrders([]); setShowAllPickers(false); }}
                     >
                       <strong>{item.zone}</strong>
                       <span>{item.so} SO · {item.routes.size} route</span>
@@ -860,8 +998,19 @@ export default function Home() {
           {showPickerPool && (
             <div className="picker-drawer">
               <div className="picker-drawer-head">
-                <div><p className="eyebrow">PICKER ROSTER</p><h4>Select manpower manually</h4><span>{pickerRoster.length} picker · {sourceStatus === "live" || sourceStatus === "stale" ? "schedule snapshot hari ini" : "fallback snapshot"}</span></div>
+                <div><p className="eyebrow">PICKER ROSTER</p><h4>Select manpower manually</h4><span>{eligiblePickers.length} zone match dari {pickerRoster.length} picker · {sourceStatus === "live" || sourceStatus === "stale" ? "schedule snapshot hari ini" : "fallback snapshot"}</span></div>
                 <button onClick={() => setShowPickerPool(false)} aria-label="Tutup picker pool">×</button>
+              </div>
+
+              <div className="picker-zone-filter" aria-label="Filter picker berdasarkan zona">
+                <div>
+                  <strong>Target zone</strong>
+                  <span>{[...targetPickerZones].join(", ") || "Belum ada SO"}</span>
+                </div>
+                <div className="picker-zone-toggle">
+                  <button className={!showAllPickers ? "active" : ""} onClick={() => setShowAllPickers(false)}>Zone match ({eligiblePickers.length})</button>
+                  <button className={showAllPickers ? "active" : ""} onClick={() => setShowAllPickers(true)}>Semua picker ({searchedPickers.length})</button>
+                </div>
               </div>
 
               <div className="picker-entry-tools">
@@ -890,13 +1039,20 @@ export default function Home() {
                 <span>Roster match</span><span>Home zone</span><span>Target prod</span><span>Select</span>
               </div>
               <div className="picker-list">
+                {!filteredPickers.length && (
+                  <div className="picker-empty">
+                    <strong>Tidak ada picker yang cocok dengan zone SO ini</strong>
+                    <span>Cek nilai kolom H Schedule Manpower atau tampilkan seluruh roster secara manual.</span>
+                    {!showAllPickers && <button onClick={() => setShowAllPickers(true)}>Tampilkan semua picker</button>}
+                  </div>
+                )}
                 {filteredPickers.map((picker) => {
                   const selected = selectedPickerIds.includes(picker.staffId);
-                  const relevant = manualRouteZones.has(picker.zone);
+                  const relevant = pickerMatchesAnyZone(picker.zone, targetPickerZones);
                   return (
                     <button className={selected ? "selected" : ""} key={picker.staffId} onClick={() => togglePicker(picker.staffId)}>
                       <span className="picker-list-person"><i>{picker.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</i><span><strong>{picker.name}</strong><small>{picker.staffId}</small></span></span>
-                      <span><strong>{picker.zone}</strong>{relevant && <small>Route zone</small>}</span>
+                      <span><strong>{picker.zone}</strong><small>{relevant ? `Match · ${formatPickerCoverage(picker.zone)}` : formatPickerCoverage(picker.zone)}</small></span>
                       <span><strong>{picker.productivity ? number(picker.productivity) : "—"}</strong><small>qty / shift</small></span>
                       <span className="picker-select-mark">{selected ? "✓" : "+"}</span>
                     </button>
@@ -967,6 +1123,8 @@ export default function Home() {
           </div>
         </section>
 
+        </>}
+        {activeView === "manpower" && (
         <section className="operations-grid">
           <div className="zone-panel panel">
             <div className="panel-head"><div><span>03</span><div><h3>Manpower by zone</h3><p>Required MP = request qty ÷ zone productivity</p></div></div><span className="pill">{zoneStats.length} LOADS</span></div>
@@ -997,7 +1155,9 @@ export default function Home() {
             <button onClick={() => setShowRules(true)}>Inspect source mapping</button>
           </aside>
         </section>
+        )}
 
+        {activeView === "monitor" && (
         <section className="monitor-section panel" id="picking-monitor">
           <div className="monitor-head">
             <div className="panel-head"><div><span>04</span><div><h3>Live picking monitor</h3><p>Aktivitas aktual WMS untuk SO One Wave One Route · picking refresh sekitar 30 menit</p></div></div></div>
@@ -1055,7 +1215,123 @@ export default function Home() {
             </div>
           )}
         </section>
+        )}
 
+        {activeView === "tasks" && (
+        <section className="helper-workspace" id="helper-task">
+          <div className="helper-hero">
+            <div>
+              <p className="eyebrow">MOBILE OPERATIONS · HELPER</p>
+              <h2>Move completed SO<br /><em>to the right packing line.</em></h2>
+              <p>Ambil task sendiri, verifikasi barcode SO, scan staging picking, lalu catat posisi packing line.</p>
+            </div>
+            <label className="helper-identity">
+              <span>Helper Staff ID</span>
+              <input aria-label="Helper Staff ID" value={helperId} onChange={(event) => setHelperId(event.target.value.toUpperCase())} placeholder="Contoh DEV01" />
+              <small>Pilot lokal di perangkat ini · autentikasi backend menyusul</small>
+            </label>
+          </div>
+
+          <div className="helper-kpis" aria-label="Ringkasan helper task">
+            <article><span>Ready to claim</span><strong>{number(helperTaskTotals.ready)}</strong><small>picking completed</small></article>
+            <article><span>In handling</span><strong>{number(helperTaskTotals.claimed)}</strong><small>claimed / staging</small></article>
+            <article><span>Located</span><strong>{number(helperTaskTotals.located)}</strong><small>packing line known</small></article>
+          </div>
+
+          <div className="helper-layout">
+            <section className="helper-queue panel">
+              <div className="helper-panel-head">
+                <div><span>01</span><div><h3>Completed picking queue</h3><p>Satu task mewakili satu SO yang sudah completed di Superset.</p></div></div>
+                <input aria-label="Cari helper task" value={helperSearch} onChange={(event) => setHelperSearch(event.target.value)} placeholder="Cari SO, zone, route, line..." />
+              </div>
+              {!livePicking.length ? (
+                <div className="empty-state"><strong>Snapshot picking belum tersedia</strong><span>Queue akan muncul dari SO berstatus COMPLETED setelah backend tersinkron.</span></div>
+              ) : !helperCandidates.length ? (
+                <div className="empty-state"><strong>Tidak ada task yang cocok</strong><span>Kosongkan pencarian atau tunggu picking selesai.</span></div>
+              ) : (
+                <div className="helper-task-list">
+                  {helperCandidates.slice(0, 100).map((activity) => {
+                    const task = helperTasks[activity.soNumber];
+                    const status = task?.status ?? "READY";
+                    return (
+                      <button key={activity.soNumber} className={selectedHelperSo === activity.soNumber ? "active" : ""} onClick={() => selectHelperTask(activity.soNumber)}>
+                        <span className="helper-task-route"><b>{activity.destination}</b><small>{activity.route}</small></span>
+                        <span><strong>{extractWmsSoId(activity.soNumber)}</strong><small>{activity.zone} · {number(activity.requestQty)} qty</small></span>
+                        <span className="helper-position"><b>{getLoadPosition(activity.route, activity.destination)}</b><small>load position</small></span>
+                        <span className={`helper-status ${status.toLowerCase()}`}><b>{helperStatusLabel(status)}</b><small>{task?.packingLine || task?.staging || task?.helperId || "belum diambil"}</small></span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            <aside className="helper-scanner panel">
+              {!selectedHelperActivity ? (
+                <div className="helper-scan-empty"><span>▣</span><strong>Pilih SO dari queue</strong><p>Detail task dan scanner akan aktif di sini.</p></div>
+              ) : (
+                <>
+                  <div className="helper-active-task">
+                    <div><span>ACTIVE SO</span><strong>{extractWmsSoId(selectedHelperActivity.soNumber)}</strong><small>{selectedHelperActivity.soNumber}</small></div>
+                    <b>{getLoadPosition(selectedHelperActivity.route, selectedHelperActivity.destination)}</b>
+                  </div>
+                  <dl className="helper-task-meta">
+                    <div><dt>Destination</dt><dd>{selectedHelperActivity.destination}</dd></div>
+                    <div><dt>Route</dt><dd>{selectedHelperActivity.route}</dd></div>
+                    <div><dt>Zone</dt><dd>{selectedHelperActivity.zone}</dd></div>
+                    <div><dt>Status</dt><dd>{helperStatusLabel(selectedHelperStatus)}</dd></div>
+                  </dl>
+
+                  {selectedHelperStatus === "READY" ? (
+                    <div className="helper-claim-card">
+                      <span>STEP 1</span>
+                      <h3>Claim task ini</h3>
+                      <p>Task akan ditandai sedang ditangani oleh <strong>{helperId || "Helper Staff ID"}</strong>.</p>
+                      <button className="primary-button" onClick={claimHelperTask}>Ambil task SO ini</button>
+                    </div>
+                  ) : (
+                    <div className="helper-scan-flow">
+                      <div className="helper-step-line">
+                        <span className="done">1</span><i />
+                        <span className={selectedHelperStatus !== "CLAIMED" ? "done" : "active"}>2</span><i />
+                        <span className={selectedHelperStatus === "STAGED_PACKER" ? "done" : selectedHelperStatus === "STAGED_PICKING" ? "active" : ""}>3</span>
+                      </div>
+                      <div className="helper-instruction">
+                        <span>{helperVerificationPhase === "STAGING" ? "STEP 2 · STAGING PICKING" : "STEP 3 · PACKING LINE"}</span>
+                        <h3>{helperVerificationPhase === "STAGING" ? "Scan SO, lalu barcode staging" : selectedHelperStatus === "STAGED_PACKER" ? "Pindahkan atau konfirmasi packing line" : "Scan SO, lalu packing line"}</h3>
+                        <p>{helperVerificationPhase === "STAGING" ? "Gunakan staging sesuai area asal barang." : "Re-scan line baru akan memperbarui posisi aktif dan tetap menyimpan history."}</p>
+                      </div>
+
+                      <label className="helper-scan-field">
+                        <span>1 · Scan barcode SO</span>
+                        <div><input autoComplete="off" aria-label="Scan barcode SO helper task" value={helperSoScan} onChange={(event) => setHelperSoScan(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") verifyHelperSo(); }} placeholder={`Scan ${extractWmsSoId(selectedHelperActivity.soNumber)}`} /><button onClick={verifyHelperSo}>Verify</button></div>
+                        <small className={verifiedHelperStep === helperVerificationKey ? "verified" : ""}>{verifiedHelperStep === helperVerificationKey ? "✓ SO cocok dan siap scan lokasi" : "Menerima nomor SO penuh atau 7 digit SO ID"}</small>
+                      </label>
+
+                      <label className="helper-scan-field">
+                        <span>2 · {helperVerificationPhase === "STAGING" ? "Scan staging picking" : "Scan packing line"}</span>
+                        <div><input autoComplete="off" aria-label="Scan lokasi helper task" value={helperLocationScan} onChange={(event) => setHelperLocationScan(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") submitHelperLocation(); }} placeholder={helperVerificationPhase === "STAGING" ? "STG-MEZZANINE / STG-SPR" : "Contoh LINE-01"} /><button onClick={submitHelperLocation}>Save</button></div>
+                        {helperVerificationPhase === "STAGING" && <div className="staging-shortcuts">{STAGING_BARCODES.map((barcode) => <button key={barcode} onClick={() => setHelperLocationScan(barcode)}>{barcode}</button>)}</div>}
+                      </label>
+
+                      {(selectedHelperTask?.staging || selectedHelperTask?.packingLine) && (
+                        <div className="helper-current-location">
+                          <span>Current location</span>
+                          <strong>{selectedHelperTask.packingLine || selectedHelperTask.staging}</strong>
+                          <small>{selectedHelperTask.updatedAt ? formatSyncTime(selectedHelperTask.updatedAt) : "baru diperbarui"}</small>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </aside>
+          </div>
+          <div className="pilot-note"><b>Local pilot:</b> claim dan hasil scan saat ini tersimpan di browser perangkat ini. Sebelum dipakai lintas HP/SEUIC, endpoint task Supabase perlu dihubungkan agar state sinkron real-time.</div>
+        </section>
+        )}
+
+        {activeView === "assignment" && (
         <section className="assignment-section panel">
           <div className="assignment-head">
             <div className="panel-head"><div><span>05</span><div><h3>Assignment preview</h3><p>{assignmentMode === "zone" ? "Cross-route balancing by zone" : "Balanced by route and picker capacity"} · manual locks take priority</p></div></div></div>
@@ -1064,11 +1340,10 @@ export default function Home() {
               <button
                 className="soft-button locked-download"
                 disabled={!lockedSoCount}
-                onClick={() => downloadCsv(assignments, activeRoute === "ALL" ? undefined : activeRoute, "manual")}
+                onClick={() => downloadLockedCsv(assignments, activeRoute === "ALL" ? undefined : activeRoute)}
               >
-                ↓ Locked only ({lockedSoCount})
+                ↓ Download manual locked CSV ({lockedSoCount})
               </button>
-              <button className="soft-button" onClick={() => downloadCsv(assignments, activeRoute === "ALL" ? undefined : activeRoute)}>↓ Download CSV</button>
             </div>
           </div>
           {!assignments.length ? (
@@ -1093,9 +1368,11 @@ export default function Home() {
           )}
           <div className="assignment-footer">
             <div><span className="safe-dot" /> All rows have valid <code>so_id</code> + <code>staff_id</code> · {Object.keys(manualOverrides).length} manual locks</div>
-            <div className="footer-actions"><button onClick={() => { setGenerated(false); setManualOverrides({}); setSelectedOrders([]); flash("Semua assignment direset"); }}>Reset all</button><button onClick={() => downloadCsv(assignments)}>Download all routes <span>↓</span></button></div>
+            <div className="footer-actions"><button onClick={() => { setGenerated(false); setManualOverrides({}); setSelectedOrders([]); flash("Semua assignment direset"); }}>Reset all</button></div>
           </div>
         </section>
+        )}
+        </div>
       </section>
 
       {showRules && (

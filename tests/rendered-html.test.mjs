@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import vm from "node:vm";
 
 async function render() {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -37,12 +38,54 @@ test("server-renders the ONE WAVE ONE ROUTE dashboard", async () => {
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
 
+test("exports CSV rows only for manually locked SO", async () => {
+  const { buildLockedCsv } = await import(new URL("../app/assignment-csv.ts", import.meta.url));
+  const csv = buildLockedCsv(
+    [
+      {
+        source: "auto",
+        picker: { staffId: "11111" },
+        orders: [{ soNumber: "INV/SO/20260821/301/7000001", route: "SWL - PSG" }],
+      },
+      {
+        source: "manual",
+        picker: { staffId: "52016" },
+        orders: [{ soNumber: "INV/SO/20260821/301/7000002", route: "SWL - PSG" }],
+      },
+      {
+        source: "manual",
+        picker: { staffId: "49605" },
+        orders: [{ soNumber: "INV/SO/20260821/305/7000003", route: "BSX" }],
+      },
+    ],
+    "SWL - PSG",
+  );
+
+  assert.equal(csv, "\ufefferror_message;so_id;staff_id\n;7000002;52016");
+});
+
+test("renders assignment, manpower, picking, and helper task as separate menu views", async () => {
+  const response = await render();
+  const html = await response.text();
+
+  assert.match(html, /aria-label="Buka menu assignment"/);
+  assert.match(html, /aria-label="Buka menu manpower"/);
+  assert.match(html, /aria-label="Buka menu picking monitor"/);
+  assert.match(html, /aria-label="Buka menu helper task"/);
+  assert.match(html, /data-workspace-view="assignment"/);
+  assert.match(html, />Assignment preview</);
+  assert.doesNotMatch(html, />Manpower by zone</);
+  assert.doesNotMatch(html, />Live picking monitor</);
+  assert.doesNotMatch(html, />Completed picking queue</);
+});
+
 test("keeps the V1 assignment and CSV contracts explicit", async () => {
-  const [page, layout, packageJson, roster] = await Promise.all([
+  const [page, layout, packageJson, roster, csv] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../app/picker-roster.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/assignment-csv.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /"SWL - PSG"/);
@@ -62,10 +105,11 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /mpRequired: Math\.ceil\(current\.qty \/ productivity\)/);
   assert.match(page, /\{number\(item\.qty\)\} QTY/);
   assert.match(page, /\{item\.mpRequired\} MP/);
-  assert.match(page, /error_message;so_id;staff_id/);
-  assert.match(page, /↓ Locked only \(\{lockedSoCount\}\)/);
-  assert.match(page, /item\.source === source/);
-  assert.match(page, /source === "manual" \? "-locked"/);
+  assert.match(csv, /error_message;so_id;staff_id/);
+  assert.match(page, /Download manual locked CSV \(\{lockedSoCount\}\)/);
+  assert.match(page, /downloadLockedCsv\(assignments/);
+  assert.doesNotMatch(page, /downloadCsv\(/);
+  assert.doesNotMatch(page, /Download all routes/);
   assert.match(page, /Manual SO assignment/);
   assert.match(page, /manualOverrides\[order\.soNumber\]/);
   assert.match(page, /Manual lock selalu menang atas auto-assignment/);
@@ -76,6 +120,13 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /Last snapshot · sync paused/);
   assert.match(page, /payload\.stale/);
   assert.match(page, /Live picking monitor/);
+  assert.match(page, /Completed picking queue/);
+  assert.match(page, /owor-helper-task-pilot-v1/);
+  assert.match(page, /STG-MEZZANINE/);
+  assert.match(page, /STG-SPR/);
+  assert.match(page, /Barang sudah di staging packer/);
+  assert.match(page, /Zone match \(\{eligiblePickers\.length\}\)/);
+  assert.match(page, /Semua picker \(\{searchedPickers\.length\}\)/);
   assert.match(page, /picker\.activities\.map/);
   assert.match(page, /activity\.pickedQty/);
   assert.match(page, /activity\.remainingQty/);
@@ -108,6 +159,31 @@ test("keeps the Superset backend atomic per SO and origin rack zone", async () =
   assert.match(backend, /picking_end_at/);
   assert.match(backend, /normalizePicking_/);
   assert.doesNotMatch(backend, /Object\.keys\(order\.zones\)\.sort/);
+});
+
+test("excludes cancelled SO from the assignment snapshot query", async () => {
+  const backend = await readFile(new URL("../backend/Code.gs", import.meta.url), "utf8");
+  let capturedRequest;
+  const context = {
+    UrlFetchApp: {
+      fetch(url, options) {
+        capturedRequest = { url, options };
+        return {
+          getResponseCode: () => 200,
+          getContentText: () => JSON.stringify({ result: [{ data: [] }] }),
+        };
+      },
+    },
+  };
+
+  vm.runInNewContext(`${backend}\n;globalThis.fetchAssignmentRows = fetchSupersetRows_;`, context);
+  context.fetchAssignmentRows("session=test");
+
+  const payload = JSON.parse(capturedRequest.options.payload);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(payload.queries[0].filters)),
+    [{ col: "status", op: "NOT IN", val: ["CANCELLED"] }],
+  );
 });
 
 test("keeps scheduled sync within the UrlFetch daily budget", async () => {

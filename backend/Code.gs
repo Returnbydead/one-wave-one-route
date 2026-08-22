@@ -283,7 +283,7 @@ function fetchSupersetRows_(cookie) {
     adhocMetric_('SUM(request_quantity)', 'request_qty'),
     adhocMetric_('COUNT(DISTINCT sku_number)', 'sku_count'),
   ];
-  const filters = [];
+  const filters = [{ col: 'status', op: 'NOT IN', val: ['CANCELLED'] }];
   const destinationsWhere = OWOR.DESTINATIONS.map((code) => `UPPER(destination_name_adjusted) LIKE '%${code}%'`).join(' OR ');
   const where = `so_number LIKE 'INV/SO/%' AND UPPER(COALESCE(origin_rack_name, '')) LIKE 'CBT-%' AND (${destinationsWhere})`;
   const query = {

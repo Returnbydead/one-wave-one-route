@@ -96,8 +96,27 @@ try {
   }
   const ok = result?.url === `${baseUrl}/` && result?.text?.includes("ONE WAVE") && result?.text?.includes("Assignment");
   const loginError = result?.text?.includes("Staff ID atau password salah") || false;
-  console.log(JSON.stringify({ ok, url: result?.url, loginError, hasAssignment: result?.text?.includes("Assignment") || false, hasSupabaseLive: result?.text?.includes("Live Supabase snapshot") || false }));
-  if (!ok) process.exitCode = 1;
+  let developerReady = false;
+  let developerError = false;
+  if (ok) {
+    await send("Runtime.evaluate", {
+      expression: `document.querySelector('[aria-label="Buka menu developer"]')?.click(); 'CLICKED'`,
+      returnByValue: true,
+    });
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      await delay(250);
+      const evaluated = await send("Runtime.evaluate", {
+        expression: "document.body.innerText.slice(0, 16000)",
+        returnByValue: true,
+      });
+      const text = String(evaluated.result?.value || "");
+      developerError = text.includes("Failed to send a request to the Edge Function");
+      developerReady = text.includes("Developer control center") && text.includes("CONFIGURED") && text.includes("Connected") && !developerError;
+      if (developerReady || developerError) break;
+    }
+  }
+  console.log(JSON.stringify({ ok, url: result?.url, loginError, hasAssignment: result?.text?.includes("Assignment") || false, hasSupabaseLive: result?.text?.includes("Live Supabase snapshot") || false, developerReady, developerError }));
+  if (!ok || !developerReady) process.exitCode = 1;
 } finally {
   try { socket?.close(); } catch {
     // The target may already be closed after a failed navigation.

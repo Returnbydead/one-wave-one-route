@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase-browser";
 
 type RouteCode = "SWL - PSG" | "CSA - KLD" | "BSX" | "CPT - PPL" | "RDS - SLP" | "JLB";
 type AssignmentMode = "route" | "zone";
-type WorkspaceView = "assignment" | "manpower" | "monitor" | "so-master" | "tasks" | "developer";
+type WorkspaceView = "assignment" | "monitor" | "so-master" | "tasks" | "developer";
 type HelperRole = "STAGING_HELPER" | "LINE_HELPER";
 type UserRole = "DEVELOPER" | HelperRole;
 
@@ -991,7 +991,6 @@ export default function Home() {
         <div className="sidebar-brand"><div className="brand-mark">1W</div><span>ONE WAVE</span></div>
         <nav aria-label="Navigasi utama">
           {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "assignment" ? "active" : ""}`} aria-label="Buka menu assignment" aria-current={activeView === "assignment" ? "page" : undefined} onClick={() => setActiveView("assignment")}><span>⌁</span><b>Assignment</b></button>}
-          {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "manpower" ? "active" : ""}`} aria-label="Buka menu manpower" aria-current={activeView === "manpower" ? "page" : undefined} onClick={() => setActiveView("manpower")}><span>♙</span><b>Manpower</b></button>}
           {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "monitor" ? "active" : ""}`} aria-label="Buka menu picking monitor" aria-current={activeView === "monitor" ? "page" : undefined} onClick={() => setActiveView("monitor")}><span>▷</span><b>Picking monitor</b></button>}
           {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "so-master" ? "active" : ""}`} aria-label="Buka menu SO Master" aria-current={activeView === "so-master" ? "page" : undefined} onClick={() => setActiveView("so-master")}><span>≡</span><b>SO Master</b></button>}
           {authReady && <button className={`nav-menu-item ${activeView === "tasks" ? "active" : ""}`} aria-label="Buka menu helper task" aria-current={activeView === "tasks" ? "page" : undefined} onClick={() => setActiveView("tasks")}><span>▣</span><b>Helper task</b></button>}
@@ -1309,39 +1308,6 @@ export default function Home() {
         </section>
 
         </>}
-        {activeView === "manpower" && (
-        <section className="operations-grid">
-          <div className="zone-panel panel">
-            <div className="panel-head"><div><span>03</span><div><h3>Manpower by zone</h3><p>Required MP = request qty ÷ zone productivity</p></div></div><span className="pill">{zoneStats.length} LOADS</span></div>
-            <div className="zone-table">
-              <div className="table-row table-labels"><span>Route / zone</span><span>Demand</span><span>Prod / MP</span><span>Need</span><span>Coverage</span></div>
-              {zoneStats
-                .filter((row) => activeRoute === "ALL" || row.route === activeRoute)
-                .map((row) => {
-                  const percentage = Math.min(100, Math.round((row.assigned / row.required) * 100));
-                  return (
-                    <div className="table-row" key={`${row.route}-${row.zone}`}>
-                      <span><strong>{row.zone}</strong><small>{row.route}</small></span>
-                      <span><strong>{number(row.qty)}</strong><small>{row.so} SO</small></span>
-                      <span><strong>{number(row.productivity)}</strong><small>qty / shift</small></span>
-                      <span className="need"><b>{row.required}</b><small>MP</small></span>
-                      <span className="coverage"><i><em style={{ width: `${percentage}%` }} /></i><small>{row.assigned}/{row.required} assigned</small></span>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-
-          <aside className="readiness-panel panel">
-            <div className="readiness-orbit"><strong>{totals.mp}</strong><span>MP READY</span></div>
-            <h3>Capacity is covered</h3>
-            <p>All zone demand has a scheduled picker with a valid staff ID.</p>
-            <dl><div><dt>Schedule source</dt><dd>12-Aug-2026</dd></div><div><dt>Shift priority</dt><dd>05:00–14:00</dd></div><div><dt>SO split policy</dt><dd>Whole SO</dd></div></dl>
-            <button onClick={() => setShowRules(true)}>Inspect source mapping</button>
-          </aside>
-        </section>
-        )}
-
         {activeView === "monitor" && (
         <section className="monitor-section panel" id="picking-monitor">
           <div className="monitor-head">

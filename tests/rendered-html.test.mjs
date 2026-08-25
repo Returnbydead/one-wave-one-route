@@ -38,11 +38,11 @@ test("exports CSV rows only for manually locked SO", async () => {
   assert.equal(csv, "\ufefferror_message;so_id;staff_id\n;7000002;52016");
 });
 
-test("renders assignment, manpower, picking, SO master, and helper task as separate menu views", async () => {
+test("renders assignment, picking, SO master, and helper task as separate menu views", async () => {
   const html = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 
   assert.match(html, /aria-label="Buka menu assignment"/);
-  assert.match(html, /aria-label="Buka menu manpower"/);
+  assert.doesNotMatch(html, /aria-label="Buka menu manpower"/);
   assert.match(html, /aria-label="Buka menu picking monitor"/);
   assert.match(html, /aria-label="Buka menu SO Master"/);
   assert.match(html, /aria-label="Buka menu helper task"/);

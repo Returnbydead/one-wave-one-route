@@ -1,19 +1,21 @@
-# OWOR backend account setup
+# OWOR account setup
 
-The web app keeps backend credentials in encrypted Vercel environment variables. Staff accounts are stored in the owned Google Sheet tab `OWOR USER ACCOUNTS`; passwords are PBKDF2 hashes and are never stored as plain text.
+OWOR memakai Supabase Auth. Staff login dengan Staff ID, sedangkan email sintetis internal (`<staff-id>@owor.local`) tidak ditampilkan ke user.
 
-## Install the account module
+## Membuat akun
 
-1. Open the Apps Script project currently deployed as `OWOR_GAS_ENDPOINT`.
-2. Replace `Code.gs` with the current repository file [`backend/Code.gs`](../backend/Code.gs).
-3. Run `setupOworBackend` once and approve the existing spreadsheet/trigger permissions.
-4. Open **Deploy → Manage deployments → Edit**, choose **New version**, then deploy.
-5. In OWOR, sign in as Developer, open **Developer**, then click **Refresh status**.
+1. Login sebagai role `DEVELOPER`.
+2. Buka menu **Developer**.
+3. Isi Staff ID, nama, role, dan password awal minimal 8 karakter.
+4. Klik **Create account**.
+5. Berikan password awal melalui kanal internal dan minta user menggantinya sesuai kebijakan tim.
 
-The status `ACCOUNT STORE: Ready` confirms that staff account create/reset/enable/disable is available.
+Password tidak disimpan di repository, browser bundle, atau tabel profile. Supabase Auth menyimpan credential; tabel `owor_user_profiles` hanya menyimpan Staff ID, nama, role, dan status aktif.
 
-## Role behavior
+## Role
 
-- `DEVELOPER`: Assignment, Manpower, Picking Monitor, Helper Task, and Developer menus.
-- `STAGING_HELPER`: Helper Task only; SO to staging picking.
-- `LINE_HELPER`: Helper Task only; staging picking to checker line.
+- `DEVELOPER`: Assignment, Manpower, Picking Monitor, Helper Task, dan Developer.
+- `STAGING_HELPER`: Helper Task untuk SO ke staging picking.
+- `LINE_HELPER`: Helper Task untuk staging picking ke checker line.
+
+Enable/disable akun dilakukan dari menu Developer dan tetap diaudit melalui profile update timestamp.

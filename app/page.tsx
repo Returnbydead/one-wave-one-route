@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { buildLockedCsv } from "./assignment-csv";
-import { compareActivityTimeDesc, getLoadPosition, nextHelperTask, STAGING_BARCODES } from "./helper-task-core.mjs";
-import { PICKER_ROSTER } from "./picker-roster";
+import { compareActivityTimeDesc, getLoadPosition, STAGING_BARCODES } from "./helper-task-core.mjs";
 import { formatPickerCoverage, pickerMatchesAnyZone } from "./zone-eligibility.mjs";
+import { supabase } from "@/lib/supabase-browser";
 
 type RouteCode = "SWL - PSG" | "CSA - KLD" | "BSX" | "CPT - PPL" | "RDS - SLP" | "JLB";
 type AssignmentMode = "route" | "zone";
@@ -24,16 +25,16 @@ type StaffAccount = AuthUser & {
   updatedBy?: string;
 };
 
+const EMPTY_ORDERS: SalesOrder[] = [];
+const EMPTY_PICKERS: Picker[] = [];
+
 type DeveloperStatus = {
   configured: boolean;
   accountStore: boolean;
   accountError?: string;
-  health?: {
-    ok?: boolean;
-    degraded?: boolean;
-    error?: string;
-    sync?: { status?: string; generatedAt?: string; message?: string; orders?: number; pickers?: number; picking?: number };
-  } | null;
+  helperTaskCount?: number;
+  snapshotHeads?: Array<{ source: string; operational_date: string; generated_at: string; row_count: number; checksum: string }>;
+  latestRuns?: Array<{ source: string; status: string; started_at: string; written_rows: number; error_code?: string | null }>;
 };
 
 type SalesOrder = {
@@ -99,6 +100,17 @@ type HelperTaskRecord = {
   history: Array<{ type: string; value: string; at: string }>;
 };
 
+type HelperTaskRow = {
+  so_number: string;
+  status: Exclude<HelperTaskStatus, "READY">;
+  staging_helper_id: string;
+  line_helper_id: string;
+  staging: string;
+  packing_line: string;
+  updated_at?: string;
+  history: Array<{ type: string; value: string; at: string }>;
+};
+
 const ROUTES: Array<{
   code: RouteCode;
   destinations: string[];
@@ -130,53 +142,6 @@ const ZONE_RULES: ZoneRule[] = [
   { zone: "MZD 1", productivity: 2300 },
   { zone: "SPR A1-1", productivity: 3200 },
   { zone: "SPR C1-1", productivity: 3000 },
-];
-
-const AUTO_PICKERS: Picker[] = [
-  { staffId: "52016", name: "Muhammad Faris Gumay", zone: "MZE", productivity: 2400, shift: "05:00–14:00" },
-  { staffId: "49605", name: "Faizal Arifin", zone: "MZF", productivity: 2400, shift: "05:00–14:00" },
-  { staffId: "48113", name: "Jonathan Syah", zone: "MZC 2", productivity: 2800, shift: "05:00–14:00" },
-  { staffId: "52018", name: "Irpan Muryadi", zone: "MZC 2", productivity: 2800, shift: "13:00–22:00" },
-  { staffId: "43194", name: "Ahmad Dhoefan", zone: "MZD 1", productivity: 2300, shift: "05:00–14:00" },
-  { staffId: "48408", name: "Abdul Aziz Yulianto", zone: "SPR C1-1", productivity: 3000, shift: "05:00–14:00" },
-  { staffId: "48387", name: "Fahrul Nugroho", zone: "SPR C1-1", productivity: 3000, shift: "05:00–14:00" },
-  { staffId: "51027", name: "Rizky Ramadhan", zone: "SPR A1-1", productivity: 3200, shift: "05:00–14:00" },
-  { staffId: "51188", name: "Asep Firmansyah", zone: "MZE", productivity: 1800, shift: "05:00–14:00" },
-  { staffId: "51402", name: "Dimas Saputra", zone: "MZF", productivity: 1800, shift: "05:00–14:00" },
-  { staffId: "51546", name: "Rangga Pratama", zone: "MZD 1", productivity: 2300, shift: "05:00–14:00" },
-  { staffId: "51721", name: "Bagus Setiawan", zone: "SPR A1-1", productivity: 3200, shift: "05:00–14:00" },
-];
-
-const DEMO_SO_DATA: SalesOrder[] = [
-  { soNumber: "INV/SO/20260812/301/6131021", destination: "SWL", route: "SWL - PSG", zone: "MZE", qty: 680, sku: 42 },
-  { soNumber: "INV/SO/20260812/301/6131027", destination: "SWL", route: "SWL - PSG", zone: "MZE", qty: 540, sku: 31 },
-  { soNumber: "INV/SO/20260812/301/6131035", destination: "PSG", route: "SWL - PSG", zone: "MZF", qty: 790, sku: 55 },
-  { soNumber: "INV/SO/20260812/301/6131041", destination: "PSG", route: "SWL - PSG", zone: "MZF", qty: 610, sku: 38 },
-  { soNumber: "INV/SO/20260812/301/6131054", destination: "SWL", route: "SWL - PSG", zone: "MZC 2", qty: 920, sku: 64 },
-  { soNumber: "INV/SO/20260812/301/6131068", destination: "PSG", route: "SWL - PSG", zone: "MZC 2", qty: 730, sku: 48 },
-  { soNumber: "INV/SO/20260812/301/6131072", destination: "SWL", route: "SWL - PSG", zone: "SPR A1-1", qty: 870, sku: 19 },
-  { soNumber: "INV/SO/20260812/301/6131089", destination: "PSG", route: "SWL - PSG", zone: "SPR A1-1", qty: 882, sku: 23 },
-  { soNumber: "INV/SO/20260812/302/6131110", destination: "CSA", route: "CSA - KLD", zone: "MZE", qty: 980, sku: 73 },
-  { soNumber: "INV/SO/20260812/302/6131123", destination: "KLD", route: "CSA - KLD", zone: "MZE", qty: 820, sku: 54 },
-  { soNumber: "INV/SO/20260812/302/6131139", destination: "CSA", route: "CSA - KLD", zone: "MZF", qty: 1130, sku: 61 },
-  { soNumber: "INV/SO/20260812/302/6131144", destination: "KLD", route: "CSA - KLD", zone: "MZF", qty: 970, sku: 46 },
-  { soNumber: "INV/SO/20260812/302/6131158", destination: "CSA", route: "CSA - KLD", zone: "MZC 2", qty: 1280, sku: 82 },
-  { soNumber: "INV/SO/20260812/302/6131166", destination: "KLD", route: "CSA - KLD", zone: "MZC 2", qty: 1050, sku: 70 },
-  { soNumber: "INV/SO/20260812/302/6131175", destination: "CSA", route: "CSA - KLD", zone: "SPR C1-1", qty: 1320, sku: 35 },
-  { soNumber: "INV/SO/20260812/302/6131181", destination: "KLD", route: "CSA - KLD", zone: "SPR C1-1", qty: 1292, sku: 29 },
-  { soNumber: "INV/SO/20260812/305/6131205", destination: "BSX", route: "BSX", zone: "MZE", qty: 1240, sku: 68 },
-  { soNumber: "INV/SO/20260812/305/6131217", destination: "BSX", route: "BSX", zone: "MZE", qty: 1160, sku: 62 },
-  { soNumber: "INV/SO/20260812/305/6131224", destination: "BSX", route: "BSX", zone: "MZF", qty: 1420, sku: 81 },
-  { soNumber: "INV/SO/20260812/305/6131233", destination: "BSX", route: "BSX", zone: "MZF", qty: 1280, sku: 59 },
-  { soNumber: "INV/SO/20260812/305/6131246", destination: "BSX", route: "BSX", zone: "MZD 1", qty: 1580, sku: 77 },
-  { soNumber: "INV/SO/20260812/305/6131251", destination: "BSX", route: "BSX", zone: "MZD 1", qty: 1370, sku: 72 },
-  { soNumber: "INV/SO/20260812/305/6131260", destination: "BSX", route: "BSX", zone: "SPR A1-1", qty: 1327, sku: 25 },
-  { soNumber: "INV/SO/20260812/305/6131278", destination: "BSX", route: "BSX", zone: "SPR A1-1", qty: 1230, sku: 21 },
-  { soNumber: "INV/SO/20260812/306/6131281", destination: "CPT", route: "CPT - PPL", zone: "MZA1", qty: 840, sku: 38 },
-  { soNumber: "INV/SO/20260812/306/6131287", destination: "PPL", route: "CPT - PPL", zone: "MZA1", qty: 760, sku: 34 },
-  { soNumber: "INV/SO/20260812/307/6131292", destination: "RDS", route: "RDS - SLP", zone: "SRA1", qty: 910, sku: 41 },
-  { soNumber: "INV/SO/20260812/307/6131298", destination: "SLP", route: "RDS - SLP", zone: "SRA1", qty: 690, sku: 29 },
-  { soNumber: "INV/SO/20260812/308/6131304", destination: "JLB", route: "JLB", zone: "MZB1", qty: 1020, sku: 47 },
 ];
 
 const number = (value: number) => value.toLocaleString("id-ID");
@@ -220,6 +185,18 @@ function helperStatusLabel(status: HelperTaskStatus) {
   if (status === "CLAIMED_LINE") return "Menuju checker line";
   if (status === "STAGED_PACKER") return "Barang sudah di staging packer";
   return "Belum menjadi task";
+}
+
+function helperTaskFromRow(row: HelperTaskRow): HelperTaskRecord {
+  return {
+    status: row.status,
+    stagingHelperId: row.staging_helper_id,
+    lineHelperId: row.line_helper_id,
+    staging: row.staging,
+    packingLine: row.packing_line,
+    updatedAt: row.updated_at,
+    history: Array.isArray(row.history) ? row.history : [],
+  };
 }
 
 function assignmentHasRoute(assignment: Assignment, route: RouteCode) {
@@ -356,6 +333,7 @@ function downloadLockedCsv(assignments: Assignment[], route?: RouteCode) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [activeView, setActiveView] = useState<WorkspaceView>("assignment");
   const [activeRoute, setActiveRoute] = useState<RouteCode | "ALL">("ALL");
   const [manualRoute, setManualRoute] = useState<RouteCode>("SWL - PSG");
@@ -393,23 +371,16 @@ export default function Home() {
   const [staffAccounts, setStaffAccounts] = useState<StaffAccount[]>([]);
   const [developerLoading, setDeveloperLoading] = useState(false);
   const [staffForm, setStaffForm] = useState({ staffId: "", name: "", role: "STAGING_HELPER" as UserRole, password: "" });
-  const [helperTasks, setHelperTasks] = useState<Record<string, HelperTaskRecord>>(() => {
-    if (typeof window === "undefined") return {};
-    try {
-      const stored = window.localStorage.getItem("owor-helper-task-pilot-v2");
-      return stored ? JSON.parse(stored) as Record<string, HelperTaskRecord> : {};
-    } catch {
-      return {};
-    }
-  });
+  const [helperTasks, setHelperTasks] = useState<Record<string, HelperTaskRecord>>({});
 
-  const ordersData = liveOrders ?? DEMO_SO_DATA;
-  const pickerRoster = livePickers ?? PICKER_ROSTER;
+  const ordersData = liveOrders ?? EMPTY_ORDERS;
+  const pickerRoster = livePickers ?? EMPTY_PICKERS;
 
   const refreshLiveData = useCallback(async () => {
     try {
-      const response = await fetch(`/api/live?t=${Date.now()}`, { cache: "no-store" });
-      const payload = (await response.json()) as {
+      const { data, error } = await supabase.rpc("owor_get_live_snapshot");
+      if (error) throw error;
+      const payload = data as {
         ok?: boolean;
         error?: string;
         orders?: SalesOrder[];
@@ -419,8 +390,8 @@ export default function Home() {
         stale?: boolean;
         sync?: { status?: string; message?: string };
       };
-      if (!response.ok || payload.ok !== true || !Array.isArray(payload.orders) || !Array.isArray(payload.pickers)) {
-        throw new Error(payload.error || `HTTP ${response.status}`);
+      if (payload.ok !== true || !Array.isArray(payload.orders) || !Array.isArray(payload.pickers)) {
+        throw new Error(payload.error || "SNAPSHOT_NOT_READY");
       }
       const orders = payload.orders.filter((order: SalesOrder) =>
         ROUTES.some((route) => route.code === order.route),
@@ -429,8 +400,10 @@ export default function Home() {
       setLivePickers(payload.pickers as Picker[]);
       setLivePicking(Array.isArray(payload.picking) ? payload.picking as PickingActivity[] : []);
       setLastSyncedAt(String(payload.generatedAt || ""));
-      setSourceMessage(String(payload.sync?.message || ""));
-      setSourceStatus(payload.stale ? "stale" : "live");
+      setSourceMessage(payload.pickers.length
+        ? String(payload.sync?.message || "")
+        : "Roster picker terjadwal belum tersinkron; assignment ditahan.");
+      setSourceStatus(payload.stale || payload.pickers.length === 0 ? "stale" : "live");
       setManualOverrides((current) => {
         const valid = new Set(orders.map((order) => order.soNumber));
         return Object.fromEntries(Object.entries(current).filter(([soNumber]) => valid.has(soNumber)));
@@ -446,35 +419,59 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [refreshLiveData]);
 
-  useEffect(() => {
-    window.localStorage.setItem("owor-helper-task-pilot-v2", JSON.stringify(helperTasks));
-  }, [helperTasks]);
+  const refreshHelperTasks = useCallback(async () => {
+    const { data, error } = await supabase.from("owor_helper_tasks").select("*").order("updated_at", { ascending: false });
+    if (error) throw error;
+    setHelperTasks(Object.fromEntries((data as HelperTaskRow[]).map((row) => [row.so_number, helperTaskFromRow(row)])));
+  }, []);
 
   useEffect(() => {
-    fetch("/api/auth/session", { cache: "no-store" })
-      .then(async (response) => await response.json() as { user?: AuthUser })
-      .then((payload) => {
-        if (!payload.user) return;
-        setAuthUser(payload.user);
-        if (payload.user.role === "STAGING_HELPER" || payload.user.role === "LINE_HELPER") {
-          setHelperRole(payload.user.role);
+    let active = true;
+    void (async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!active) return;
+      if (!authData.user) {
+        router.replace("/login/");
+        return;
+      }
+      const { data: profile, error } = await supabase.rpc("owor_current_profile");
+      if (!active) return;
+      if (error || !profile) {
+        await supabase.auth.signOut();
+        router.replace("/login/");
+        return;
+      }
+      const row = profile as { staff_id: string; name: string; role: UserRole };
+      const user = { staffId: row.staff_id, name: row.name, role: row.role };
+      setAuthUser(user);
+      if (user.role === "STAGING_HELPER" || user.role === "LINE_HELPER") {
+          setHelperRole(user.role);
           setActiveView("tasks");
-        }
-      })
-      .catch(() => undefined)
-      .finally(() => setAuthReady(true));
-  }, []);
+      }
+      await Promise.all([refreshLiveData(), refreshHelperTasks()]);
+      if (active) setAuthReady(true);
+    })();
+    const channel = supabase.channel("owor-helper-tasks-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "owor_helper_tasks" }, () => void refreshHelperTasks())
+      .subscribe();
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [refreshHelperTasks, refreshLiveData, router]);
 
   const refreshDeveloper = useCallback(async () => {
     setDeveloperLoading(true);
-    const [statusResponse, usersResponse] = await Promise.all([
-      fetch("/api/developer/status", { cache: "no-store" }),
-      fetch("/api/developer/users", { cache: "no-store" }),
-    ]);
-    const statusPayload = await statusResponse.json() as DeveloperStatus & { ok?: boolean };
-    const usersPayload = await usersResponse.json() as { ok?: boolean; users?: StaffAccount[]; error?: string };
-    setDeveloperStatus(statusResponse.ok ? statusPayload : { configured: false, accountStore: false, accountError: String((statusPayload as { error?: string }).error || "STATUS_UNAVAILABLE") });
-    setStaffAccounts(usersResponse.ok && Array.isArray(usersPayload.users) ? usersPayload.users : []);
+    const { data, error } = await supabase.functions.invoke("owor-admin", { method: "GET" });
+    const payload = data as { ok?: boolean; configured?: boolean; accountStore?: boolean; helperTaskCount?: number; snapshotHeads?: DeveloperStatus["snapshotHeads"]; latestRuns?: DeveloperStatus["latestRuns"]; users?: Array<{ staff_id: string; name: string; role: UserRole; active: boolean; updated_at?: string }> } | null;
+    setDeveloperStatus(!error && payload?.ok ? {
+      configured: true,
+      accountStore: true,
+      helperTaskCount: payload.helperTaskCount ?? 0,
+      snapshotHeads: payload.snapshotHeads ?? [],
+      latestRuns: payload.latestRuns ?? [],
+    } : { configured: false, accountStore: false, accountError: error?.message || "STATUS_UNAVAILABLE" });
+    setStaffAccounts(Array.isArray(payload?.users) ? payload.users.map((row) => ({ staffId: row.staff_id, name: row.name, role: row.role, active: row.active, updatedAt: row.updated_at })) : []);
     setDeveloperLoading(false);
   }, []);
 
@@ -483,7 +480,7 @@ export default function Home() {
       generated
         ? buildAssignments(
             ordersData.filter((order) => !manualOverrides[order.soNumber]),
-            livePickers ?? AUTO_PICKERS,
+            livePickers ?? EMPTY_PICKERS,
             assignmentMode,
           )
         : [],
@@ -779,7 +776,20 @@ export default function Home() {
     setVerifiedHelperStep("");
   }
 
-  function startStagingTask() {
+  async function applyHelperAction(soNumber: string, action: string, barcode = "") {
+    const { data, error } = await supabase.rpc("owor_apply_helper_action", {
+      p_so_number: soNumber,
+      p_action: action,
+      p_barcode: barcode,
+    });
+    if (error) throw error;
+    const row = data as HelperTaskRow;
+    const next = helperTaskFromRow(row);
+    setHelperTasks((current) => ({ ...current, [soNumber]: next }));
+    return next;
+  }
+
+  async function startStagingTask() {
     if (!helperLookupOrder) {
       flash("Scan atau masukkan nomor SO yang valid");
       return;
@@ -791,11 +801,7 @@ export default function Home() {
       return;
     }
     try {
-      const next = nextHelperTask(null, {
-        type: "CLAIM_STAGING",
-        helperId: currentHelperId,
-      }) as HelperTaskRecord;
-      setHelperTasks((current) => ({ ...current, [soNumber]: next }));
+      await applyHelperAction(soNumber, "CLAIM_STAGING");
       selectHelperTask(soNumber);
       setHelperSearch("");
       flash(`SO ${extractWmsSoId(soNumber)} masuk task staging`);
@@ -804,14 +810,10 @@ export default function Home() {
     }
   }
 
-  function claimLineTask() {
+  async function claimLineTask() {
     if (!selectedHelperSo || !selectedHelperTask) return;
     try {
-      const next = nextHelperTask(selectedHelperTask, {
-        type: "CLAIM_LINE",
-        helperId: currentHelperId,
-      }) as HelperTaskRecord;
-      setHelperTasks((current) => ({ ...current, [selectedHelperSo]: next }));
+      await applyHelperAction(selectedHelperSo, "CLAIM_LINE");
       flash(`SO ${extractWmsSoId(selectedHelperSo)} diambil untuk checker line`);
     } catch (error) {
       flash(error instanceof Error ? error.message : "Task line gagal diambil");
@@ -832,18 +834,15 @@ export default function Home() {
     flash(`SO terverifikasi untuk ${helperVerificationPhase === "STAGING" ? "staging picking" : "checker line"}`);
   }
 
-  function submitHelperLocation() {
+  async function submitHelperLocation() {
     if (!selectedHelperSo || !selectedHelperTask) return;
     if (verifiedHelperStep !== helperVerificationKey) {
       flash("Scan barcode SO aktif lebih dulu");
       return;
     }
     try {
-      const action = helperRole === "STAGING_HELPER"
-        ? { type: "SCAN_STAGING", barcode: helperLocationScan }
-        : { type: "SCAN_PACKING_LINE", barcode: helperLocationScan };
-      const next = nextHelperTask(selectedHelperTask, action) as HelperTaskRecord;
-      setHelperTasks((current) => ({ ...current, [selectedHelperSo]: next }));
+      const action = helperRole === "STAGING_HELPER" ? "SCAN_STAGING" : "SCAN_PACKING_LINE";
+      const next = await applyHelperAction(selectedHelperSo, action, helperLocationScan);
       setHelperLocationScan("");
       setVerifiedHelperStep("");
       flash(next.status === "STAGED_PACKER" ? `Barang tercatat di ${next.packingLine}` : `Barang tercatat di ${next.staging}`);
@@ -930,15 +929,11 @@ export default function Home() {
       return;
     }
     setDeveloperLoading(true);
-    const response = await fetch("/api/developer/users", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(staffForm),
-    });
-    const payload = await response.json() as { ok?: boolean; error?: string };
+    const { data, error } = await supabase.functions.invoke("owor-admin", { method: "POST", body: staffForm });
+    const payload = data as { ok?: boolean; error?: string } | null;
     setDeveloperLoading(false);
-    if (!response.ok || payload.ok !== true) {
-      flash(payload.error || "Akun gagal dibuat");
+    if (error || payload?.ok !== true) {
+      flash(payload?.error || error?.message || "Akun gagal dibuat");
       return;
     }
     setStaffForm({ staffId: "", name: "", role: "STAGING_HELPER", password: "" });
@@ -948,15 +943,14 @@ export default function Home() {
 
   async function setStaffAccountActive(account: StaffAccount) {
     setDeveloperLoading(true);
-    const response = await fetch("/api/developer/users", {
+    const { data, error } = await supabase.functions.invoke("owor-admin", {
       method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ staffId: account.staffId, active: !account.active }),
+      body: { staffId: account.staffId, active: !account.active },
     });
-    const payload = await response.json() as { ok?: boolean; error?: string };
+    const payload = data as { ok?: boolean; error?: string } | null;
     setDeveloperLoading(false);
-    if (!response.ok || payload.ok !== true) {
-      flash(payload.error || "Status akun gagal diubah");
+    if (error || payload?.ok !== true) {
+      flash(payload?.error || error?.message || "Status akun gagal diubah");
       return;
     }
     flash(`Akun ${account.staffId} ${account.active ? "dinonaktifkan" : "diaktifkan"}`);
@@ -965,15 +959,16 @@ export default function Home() {
 
   async function runBackendSync() {
     setDeveloperLoading(true);
-    const response = await fetch("/api/developer/status", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "sync" }),
-    });
-    const payload = await response.json() as { ok?: boolean; error?: string };
+    const { data, error } = await supabase.functions.invoke("owor-admin", { method: "POST", body: { action: "sync" } });
+    const payload = data as { ok?: boolean; error?: string } | null;
     setDeveloperLoading(false);
-    flash(response.ok && payload.ok ? "Backend sync berhasil dijalankan" : payload.error || "Backend sync gagal");
+    flash(!error && payload?.ok ? "Backend sync berhasil dijalankan" : payload?.error || error?.message || "Backend sync gagal");
     await refreshDeveloper();
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    router.replace("/login/");
   }
 
   if (!authReady) {
@@ -991,7 +986,7 @@ export default function Home() {
           {authReady && <button className={`nav-menu-item ${activeView === "tasks" ? "active" : ""}`} aria-label="Buka menu helper task" aria-current={activeView === "tasks" ? "page" : undefined} onClick={() => setActiveView("tasks")}><span>▣</span><b>Helper task</b></button>}
           {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "developer" ? "active" : ""}`} aria-label="Buka menu developer" aria-current={activeView === "developer" ? "page" : undefined} onClick={() => { setActiveView("developer"); void refreshDeveloper(); }}><span>⚙</span><b>Developer</b></button>}
         </nav>
-        <div className="sidebar-user"><strong>{authUser.name}</strong><span>{authUser.staffId} · {authUser.role.replaceAll("_", " ")}</span><form action="/api/auth/logout" method="post"><button>Keluar</button></form></div>
+        <div className="sidebar-user"><strong>{authUser.name}</strong><span>{authUser.staffId} · {authUser.role.replaceAll("_", " ")}</span><button onClick={() => void logout()}>Keluar</button></div>
       </aside>
 
       <section className="workspace">
@@ -1004,13 +999,13 @@ export default function Home() {
             <div className="source-state" data-status={sourceStatus}>
               <i />
               <div>
-                <strong>{sourceStatus === "live" ? "Live Superset + GSheet" : sourceStatus === "stale" ? "Last snapshot · sync paused" : sourceStatus === "loading" ? "Connecting live data" : "Demo fallback"}</strong>
-                <span title={sourceMessage}>{sourceStatus === "live" || sourceStatus === "stale" ? formatSyncTime(lastSyncedAt) : sourceStatus === "loading" ? "checking compact snapshot..." : "backend belum siap"}</span>
+                <strong>{sourceStatus === "live" ? "Live Supabase snapshot" : sourceStatus === "stale" ? "Last valid snapshot" : sourceStatus === "loading" ? "Connecting live data" : "Backend unavailable"}</strong>
+                <span title={sourceMessage}>{sourceStatus === "live" || sourceStatus === "stale" ? `${formatSyncTime(lastSyncedAt)}${sourceMessage ? ` · ${sourceMessage}` : ""}` : sourceStatus === "loading" ? "checking compact snapshot..." : "operational action ditahan"}</span>
               </div>
             </div>
             <button className="soft-button" onClick={() => { setSourceStatus("loading"); void refreshLiveData(); flash("Memeriksa snapshot live terbaru"); }}>↻ Refresh</button>
             {activeView === "assignment" && <button className="primary-button" onClick={() => { setGenerated(true); flash(Object.keys(manualOverrides).length ? "Auto-assignment diperbarui, manual lock tetap aman" : "Assignment berhasil dihitung ulang"); }}>Generate assignment</button>}
-            {activeView === "tasks" && <span className="pilot-badge">LOCAL PILOT</span>}
+            {activeView === "tasks" && <span className="pilot-badge">SUPABASE LIVE</span>}
           </div>
         </header>
 
@@ -1024,15 +1019,15 @@ export default function Home() {
 
           <div className="developer-grid">
             <section className="developer-panel panel">
-              <div className="developer-panel-head"><span>01</span><div><h3>Backend setup</h3><p>Superset → GAS → Google Sheet → OWOR</p></div><i className={developerStatus?.configured ? "ok" : "warn"}>{developerStatus?.configured ? "CONFIGURED" : "NOT READY"}</i></div>
+              <div className="developer-panel-head"><span>01</span><div><h3>Backend setup</h3><p>Superset → Edge Function → Supabase → static OWOR</p></div><i className={developerStatus?.configured ? "ok" : "warn"}>{developerStatus?.configured ? "CONFIGURED" : "NOT READY"}</i></div>
               <div className="backend-health-grid">
-                <article><span>SERVER ENDPOINT</span><strong>{developerStatus?.configured ? "Connected" : "Missing"}</strong><small>URL disimpan sebagai encrypted Vercel secret</small></article>
-                <article><span>GAS HEALTH</span><strong>{developerStatus?.health?.ok ? "Healthy" : developerStatus?.health?.sync?.status || "Checking"}</strong><small>{developerStatus?.health?.sync?.message || developerStatus?.health?.error || "Menunggu status backend"}</small></article>
-                <article><span>LAST SNAPSHOT</span><strong>{developerStatus?.health?.sync?.generatedAt ? formatSyncTime(developerStatus.health.sync.generatedAt) : "–"}</strong><small>{number(developerStatus?.health?.sync?.orders || 0)} SO · {number(developerStatus?.health?.sync?.pickers || 0)} picker</small></article>
-                <article><span>ACCOUNT STORE</span><strong>{developerStatus?.accountStore ? "Ready" : "Upgrade needed"}</strong><small>{developerStatus?.accountStore ? "OWOR USER ACCOUNTS aktif" : "Pasang backend Code.gs terbaru"}</small></article>
+                <article><span>SUPABASE API</span><strong>{developerStatus?.configured ? "Connected" : "Missing"}</strong><small>Browser hanya memakai publishable key + RLS</small></article>
+                <article><span>SYNC HEALTH</span><strong>{developerStatus?.latestRuns?.[0]?.status === "success" ? "Healthy" : developerStatus?.latestRuns?.[0]?.status || "Checking"}</strong><small>{developerStatus?.latestRuns?.[0] ? `${developerStatus.latestRuns[0].source} · ${number(developerStatus.latestRuns[0].written_rows)} rows` : developerStatus?.accountError || "Menunggu status backend"}</small></article>
+                <article><span>LAST SNAPSHOT</span><strong>{developerStatus?.snapshotHeads?.find((head) => head.source === "orders")?.generated_at ? formatSyncTime(developerStatus.snapshotHeads.find((head) => head.source === "orders")!.generated_at) : "–"}</strong><small>{number(developerStatus?.snapshotHeads?.find((head) => head.source === "orders")?.row_count || 0)} SO · {number(developerStatus?.snapshotHeads?.find((head) => head.source === "pickers")?.row_count || 0)} picker</small></article>
+                <article><span>AUTH & TASK STORE</span><strong>{developerStatus?.accountStore ? "Ready" : "Not ready"}</strong><small>{developerStatus?.accountStore ? `Supabase Auth + RLS · ${number(developerStatus.helperTaskCount || 0)} helper task` : "Jalankan migration package Supabase"}</small></article>
               </div>
-              <div className="backend-actions"><button className="primary-button" disabled={developerLoading || !developerStatus?.configured} onClick={() => void runBackendSync()}>Run sync now</button><p>Endpoint dan API token tidak pernah ditampilkan kembali di browser. Perubahan secret dilakukan dari Vercel Environment Variables.</p></div>
-              {!developerStatus?.accountStore && <div className="developer-warning"><b>Setup backend akun belum selesai</b><span>Update deployment Apps Script memakai <code>backend/Code.gs</code> terbaru, jalankan menu <strong>ONE WAVE ONE ROUTE → Setup backend</strong>, lalu deploy versi web app baru.</span></div>}
+              <div className="backend-actions"><button className="primary-button" disabled={developerLoading || !developerStatus?.configured} onClick={() => void runBackendSync()}>Run sync now</button><p>Cookie Superset dan sync secret hanya berada di Supabase Secrets. Browser tidak pernah menerima nilainya.</p></div>
+              {!developerStatus?.accountStore && <div className="developer-warning"><b>Setup backend akun belum selesai</b><span>Jalankan migration package Supabase, deploy Edge Function OWOR, lalu buat akun developer bootstrap.</span></div>}
             </section>
 
             <section className="developer-panel panel">
@@ -1406,7 +1401,7 @@ export default function Home() {
               <span>LOGGED IN</span>
               <strong>{authUser.name}</strong>
               <small>{authUser.staffId} · {authUser.role.replaceAll("_", " ")}</small>
-              <form action="/api/auth/logout" method="post"><button>Keluar</button></form>
+              <button onClick={() => void logout()}>Keluar</button>
             </div>
           </div>
 
@@ -1586,7 +1581,7 @@ export default function Home() {
             <div className="rule-block"><span>5</span><div><strong>Atomic zone</strong><p>Zone berasal dari <code>origin_rack_name</code>. SO dengan lebih dari satu zone masuk <code>ZONE_CONFLICT</code> dan tidak ikut auto-assignment.</p></div></div>
             <h3>Zone productivity draft</h3>
             <div className="rule-grid">{ZONE_RULES.map((rule) => <div key={rule.zone}><span>{rule.zone}</span><strong>{number(rule.productivity)}</strong><small>qty / MP</small></div>)}</div>
-            <div className="modal-note">Demo values — replace with the final productivity-per-zone source before live trial.</div>
+            <div className="modal-note">Nilai V1 saat ini — verifikasi bersama operation sebelum bulk export final.</div>
           </section>
         </div>
       )}

@@ -11,8 +11,8 @@
   --navy: #162623;
   --green: #2f9e85;
   --purple: #7c63e6;
-  --mono: var(--font-geist-mono), "IBM Plex Mono", monospace;
-  --sans: var(--font-geist-sans), Inter, Arial, sans-serif;
+  --mono: "Cascadia Mono", "IBM Plex Mono", Consolas, monospace;
+  --sans: Inter, "Segoe UI", Arial, sans-serif;
 }
 
 * {

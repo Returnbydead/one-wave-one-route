@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { oworEmail, supabase } from "@/lib/supabase-browser";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,15 +15,13 @@ export default function LoginPage() {
     event.preventDefault();
     setLoading(true);
     setError("");
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ staffId, password }),
+    const { error: loginError } = await supabase.auth.signInWithPassword({
+      email: oworEmail(staffId),
+      password,
     });
-    const payload = await response.json().catch(() => ({})) as { error?: string };
     setLoading(false);
-    if (!response.ok) {
-      setError(payload.error || "Login gagal");
+    if (loginError) {
+      setError("Staff ID atau password salah");
       return;
     }
     const next = new URLSearchParams(window.location.search).get("next");
@@ -50,7 +49,7 @@ export default function LoginPage() {
           {error && <div className="wms-login-error" role="alert">{error}</div>}
           <button disabled={loading || !staffId || !password}>{loading ? "Memverifikasi…" : "Masuk ke workspace"}</button>
         </form>
-        <footer><b>OWOR WMS</b><span>Session aman selama 12 jam</span></footer>
+        <footer><b>OWOR WMS</b><span>Session aman melalui Supabase Auth</span></footer>
       </section>
     </main>
   );

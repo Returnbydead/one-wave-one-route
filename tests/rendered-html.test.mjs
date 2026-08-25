@@ -3,33 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
 
-async function render() {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
-
-  return worker.fetch(
-    new Request("http://localhost/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
-  );
-}
-
-test("server-renders the protected ONE WAVE ONE ROUTE access shell", async () => {
-  const response = await render();
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
-
-  const html = await response.text();
+test("statically exports the protected ONE WAVE ONE ROUTE access shell", async () => {
+  const html = await readFile(new URL("../out/index.html", import.meta.url), "utf8");
   assert.match(html, /<title>ONE WAVE ONE ROUTE · CBT<\/title>/i);
   assert.match(html, /Memuat akses workspace/);
   assert.match(html, /Role dan session sedang diverifikasi/);
@@ -77,12 +52,12 @@ test("renders assignment, manpower, picking, and helper task as separate menu vi
   assert.doesNotMatch(html, />Completed picking queue</);
 });
 
-test("keeps the V1 assignment and CSV contracts explicit", async () => {
-  const [page, layout, packageJson, roster, csv] = await Promise.all([
+test("keeps the V1 assignment, Supabase, and CSV contracts explicit", async () => {
+  const [page, layout, nextConfig, packageJson, csv] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../next.config.ts", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
-    readFile(new URL("../app/picker-roster.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/assignment-csv.ts", import.meta.url), "utf8"),
   ]);
 
@@ -113,35 +88,38 @@ test("keeps the V1 assignment and CSV contracts explicit", async () => {
   assert.match(page, /Manual lock selalu menang atas auto-assignment/);
   assert.match(page, /Assign \{selectedOrders\.length \|\| "selected"\} SO to/);
   assert.match(page, /Paste multiple Staff ID/);
-  assert.match(page, /\/api\/live/);
-  assert.match(page, /Live Superset \+ GSheet/);
-  assert.match(page, /Last snapshot · sync paused/);
+  assert.match(page, /supabase\.rpc\("owor_get_live_snapshot"\)/);
+  assert.match(page, /Live Supabase snapshot/);
+  assert.match(page, /Last valid snapshot/);
   assert.match(page, /payload\.stale/);
   assert.match(page, /Live picking monitor/);
   assert.match(page, /SO yang sedang gue kerjakan/);
   assert.match(page, /Queue dari staging picking/);
-  assert.match(page, /owor-helper-task-pilot-v2/);
+  assert.match(page, /owor_helper_tasks/);
+  assert.match(page, /owor_apply_helper_action/);
+  assert.doesNotMatch(page, /localStorage/);
   assert.doesNotMatch(page, /activity\.status === "COMPLETED"[\s\S]{0,200}helper/i);
   assert.match(page, /STG-MEZZANINE/);
   assert.match(page, /STG-SPR/);
   assert.match(page, /Barang sudah di staging packer/);
   assert.match(page, /Staff accounts & roles/);
   assert.match(page, /Akun helper hanya mendapat menu Helper Task/);
-  assert.match(page, /\/api\/developer\/users/);
+  assert.match(page, /supabase\.functions\.invoke\("owor-admin"/);
+  assert.doesNotMatch(page, /\/api\/developer\/users/);
   assert.match(page, /Zone match \(\{eligiblePickers\.length\}\)/);
   assert.match(page, /Semua picker \(\{searchedPickers\.length\}\)/);
   assert.match(page, /picker\.activities\.map/);
   assert.match(page, /activity\.pickedQty/);
   assert.match(page, /activity\.remainingQty/);
   assert.match(page, /selectedPickerIds/);
-  assert.equal((roster.match(/"staffId":/g) ?? []).length, 228);
-  assert.match(roster, /Muhammad Faris Gumay/);
-  assert.match(roster, /Jonathan Syah Romadhanu/);
+  assert.match(page, /livePickers \?\? EMPTY_PICKERS/);
   assert.match(
     page,
     /Math\.ceil\(totalQty \/ Math\.max\(1, rule\?\.productivity \?\? 2000\)\)/,
   );
   assert.match(layout, /ONE WAVE ONE ROUTE · CBT/);
+  assert.match(nextConfig, /output:\s*"export"/);
+  assert.match(packageJson, /@supabase\/supabase-js/);
   assert.doesNotMatch(page + layout, /Ã|Â|â[\u0080-\u00BF]|à¸|�/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });

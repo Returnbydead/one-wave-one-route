@@ -110,6 +110,8 @@ test("keeps the V1 assignment, Supabase, and CSV contracts explicit", async () =
   assert.match(page, /payload\.stale/);
   assert.match(page, /Live picking monitor/);
   assert.match(page, /SO yang sedang gue kerjakan/);
+  assert.match(page, /role="listbox"/);
+  assert.match(page, /helperSuggestionOrders/);
   assert.match(page, /Queue dari staging picking/);
   assert.match(page, /owor_helper_tasks/);
   assert.match(page, /owor_apply_helper_action/);

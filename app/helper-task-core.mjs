@@ -25,6 +25,48 @@ export function compareActivityTimeDesc(left, right) {
   return activityTimeValue(right) - activityTimeValue(left);
 }
 
+function shortSoNumber(value) {
+  return String(value ?? "").replace(/\D/g, "").slice(-7).padStart(7, "0");
+}
+
+function helperCandidateRank(order, query) {
+  if (!query) return 10;
+  const soNumber = normalizeScan(order.soNumber);
+  const shortNumber = shortSoNumber(order.soNumber);
+  if (soNumber === query || shortNumber === query) return 0;
+  if (shortNumber.startsWith(query)) return 1;
+  if (soNumber.includes(query)) return 2;
+  if (normalizeScan(order.destination).includes(query)) return 3;
+  if (normalizeScan(order.route).includes(query)) return 4;
+  if (normalizeScan(order.zone).includes(query)) return 5;
+  return 99;
+}
+
+export function filterHelperCandidates(orders = [], activities = [], value = "", limit = 20) {
+  const query = normalizeScan(value);
+  const completed = new Set(
+    activities
+      .filter((activity) => normalizeScan(activity.status) === "COMPLETED")
+      .map((activity) => String(activity.soNumber ?? "")),
+  );
+
+  return orders
+    .filter((order) => !completed.has(String(order.soNumber ?? "")))
+    .map((order) => ({ order, rank: helperCandidateRank(order, query) }))
+    .filter((item) => item.rank < 99)
+    .sort((left, right) => left.rank - right.rank
+      || Number(right.order.qty ?? 0) - Number(left.order.qty ?? 0)
+      || String(left.order.soNumber).localeCompare(String(right.order.soNumber)))
+    .slice(0, Math.max(1, Number(limit) || 20))
+    .map((item) => item.order);
+}
+
+export function findExactHelperOrder(orders = [], value = "") {
+  const query = normalizeScan(value);
+  if (!query) return undefined;
+  return orders.find((order) => normalizeScan(order.soNumber) === query || shortSoNumber(order.soNumber) === query);
+}
+
 export function isValidStagingBarcode(value) {
   return STAGING_BARCODES.includes(normalizeScan(value));
 }

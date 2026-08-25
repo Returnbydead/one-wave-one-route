@@ -7,6 +7,8 @@ import {
 } from "../app/zone-eligibility.mjs";
 import {
   compareActivityTimeDesc,
+  filterHelperCandidates,
+  findExactHelperOrder,
   getLoadPosition,
   nextHelperTask,
 } from "../app/helper-task-core.mjs";
@@ -51,4 +53,24 @@ test("sorts mixed live timestamp types without crashing", () => {
   ];
   rows.sort((a, b) => compareActivityTimeDesc(a.at, b.at));
   assert.deepEqual(rows.map((row) => row.id), ["new", "old", "empty"]);
+});
+
+test("suggests active IWIR SO while excluding completed picking", () => {
+  const orders = [
+    { soNumber: "INV/SO/20260825/301/7000001", destination: "SWL", route: "SWL - PSG", zone: "MZE1", qty: 120 },
+    { soNumber: "INV/SO/20260825/302/7000002", destination: "PSG", route: "SWL - PSG", zone: "MZF1", qty: 80 },
+    { soNumber: "INV/SO/20260825/305/7000003", destination: "BSX", route: "BSX", zone: "SRC1", qty: 60 },
+  ];
+  const picking = [{ soNumber: orders[2].soNumber, status: "COMPLETED" }];
+
+  assert.deepEqual(
+    filterHelperCandidates(orders, picking, "", 20).map((order) => order.soNumber),
+    [orders[0].soNumber, orders[1].soNumber],
+  );
+  assert.deepEqual(
+    filterHelperCandidates(orders, picking, "PSG", 20).map((order) => order.soNumber),
+    [orders[1].soNumber, orders[0].soNumber],
+  );
+  assert.equal(findExactHelperOrder(orders, "7000002")?.soNumber, orders[1].soNumber);
+  assert.equal(findExactHelperOrder(orders, "7000"), undefined);
 });

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { buildLockedCsv } from "./assignment-csv";
-import { compareActivityTimeDesc, getLoadPosition, STAGING_BARCODES } from "./helper-task-core.mjs";
+import { compareActivityTimeDesc, filterHelperCandidates, findExactHelperOrder, getLoadPosition, STAGING_BARCODES } from "./helper-task-core.mjs";
 import { formatPickerCoverage, pickerMatchesAnyZone } from "./zone-eligibility.mjs";
 import { SoMasterView } from "./so-master-view";
 import { supabase } from "@/lib/supabase-browser";
@@ -364,6 +364,7 @@ export default function Home() {
   const [authReady, setAuthReady] = useState(false);
   const [helperRole, setHelperRole] = useState<HelperRole>("STAGING_HELPER");
   const [helperSearch, setHelperSearch] = useState("");
+  const [helperSuggestionsOpen, setHelperSuggestionsOpen] = useState(false);
   const [selectedHelperSo, setSelectedHelperSo] = useState("");
   const [helperSoScan, setHelperSoScan] = useState("");
   const [helperLocationScan, setHelperLocationScan] = useState("");
@@ -716,14 +717,17 @@ export default function Home() {
   }), [livePicking]);
 
   const currentHelperId = authUser.staffId.trim().toUpperCase();
+  const activeHelperCandidates = useMemo(
+    () => filterHelperCandidates(ordersData, livePicking, "", Math.max(20, ordersData.length)) as SalesOrder[],
+    [livePicking, ordersData],
+  );
+  const helperSuggestionOrders = useMemo(
+    () => filterHelperCandidates(activeHelperCandidates, [], helperSearch, 20) as SalesOrder[],
+    [activeHelperCandidates, helperSearch],
+  );
   const helperLookupOrder = useMemo(() => {
-    const query = helperSearch.trim().toUpperCase();
-    if (!query) return undefined;
-    const exact = ordersData.find((order) => order.soNumber.toUpperCase() === query || extractWmsSoId(order.soNumber) === query);
-    if (exact) return exact;
-    if (query.length < 4) return undefined;
-    return ordersData.find((order) => order.soNumber.toUpperCase().includes(query));
-  }, [helperSearch, ordersData]);
+    return findExactHelperOrder(activeHelperCandidates, helperSearch) as SalesOrder | undefined;
+  }, [activeHelperCandidates, helperSearch]);
 
   const helperBoard = useMemo(() => Object.entries(helperTasks)
     .map(([soNumber, task]) => ({
@@ -752,6 +756,11 @@ export default function Home() {
   function flash(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 2500);
+  }
+
+  function chooseHelperSuggestion(order: SalesOrder) {
+    setHelperSearch(extractWmsSoId(order.soNumber));
+    setHelperSuggestionsOpen(false);
   }
 
   function openManualRoute(route: RouteCode) {
@@ -1424,12 +1433,45 @@ export default function Home() {
             <section className="helper-lookup panel">
               <div><span>SCAN / INPUT SO</span><h3>Pilih SO yang akan dikerjakan</h3><p>Daftar completed picking tidak ditampilkan. Helper memulai task dari SO yang dipilih sendiri.</p></div>
               <div className="helper-lookup-control">
-                <input aria-label="Scan atau cari SO untuk helper staging" value={helperSearch} onChange={(event) => setHelperSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") startStagingTask(); }} placeholder="Scan barcode atau masukkan 7 digit SO" />
+                <input
+                  aria-label="Scan atau cari SO untuk helper staging"
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-controls="helper-iwir-suggestions"
+                  aria-expanded={helperSuggestionsOpen && helperSuggestionOrders.length > 0}
+                  value={helperSearch}
+                  onFocus={() => setHelperSuggestionsOpen(true)}
+                  onBlur={() => setHelperSuggestionsOpen(false)}
+                  onChange={(event) => { setHelperSearch(event.target.value); setHelperSuggestionsOpen(true); }}
+                  onKeyDown={(event) => { if (event.key === "Enter") void startStagingTask(); }}
+                  placeholder="Scan barcode atau cari SO IWIR"
+                />
                 <button onClick={startStagingTask} disabled={!helperLookupOrder}>Mulai task</button>
+                {helperSuggestionsOpen && helperSuggestionOrders.length > 0 && (
+                  <div id="helper-iwir-suggestions" className="helper-suggestion-list" role="listbox" aria-label="Daftar SO IWIR aktif">
+                    <div className="helper-suggestion-head"><b>{helperSuggestionOrders.length} SO IWIR</b><span>{helperSearch ? "sesuai pencarian" : `dari ${activeHelperCandidates.length} aktif`} · completed disembunyikan</span></div>
+                    {helperSuggestionOrders.map((order) => (
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={helperLookupOrder?.soNumber === order.soNumber}
+                        key={order.soNumber}
+                        onMouseDown={(event) => { event.preventDefault(); chooseHelperSuggestion(order); }}
+                      >
+                        <span><strong>{extractWmsSoId(order.soNumber)}</strong><small>{order.destination} · {order.route}</small></span>
+                        <span><b>{order.zone}</b><small>{number(order.qty)} qty · {order.sku} SKU</small></span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               {helperSearch && (
                 <div className={`helper-lookup-result ${helperLookupOrder ? "found" : "missing"}`}>
-                  {helperLookupOrder ? <><b>SO {extractWmsSoId(helperLookupOrder.soNumber)} ditemukan</b><span>{helperLookupOrder.destination} · {helperLookupOrder.zone} · {number(helperLookupOrder.qty)} qty · {helperLookupOrder.sku} SKU</span></> : <><b>SO belum ditemukan</b><span>Periksa nomor atau tunggu snapshot Superset berikutnya.</span></>}
+                  {helperLookupOrder
+                    ? <><b>SO {extractWmsSoId(helperLookupOrder.soNumber)} dipilih</b><span>{helperLookupOrder.destination} · {helperLookupOrder.zone} · {number(helperLookupOrder.qty)} qty · {helperLookupOrder.sku} SKU</span></>
+                    : helperSuggestionOrders.length
+                      ? <><b>{helperSuggestionOrders.length} kandidat IWIR ditemukan</b><span>Pilih salah satu SO dari dropdown untuk mengaktifkan tombol Mulai Task.</span></>
+                      : <><b>SO belum ditemukan</b><span>SO completed tidak ditampilkan. Periksa nomor atau tunggu snapshot berikutnya.</span></>}
                 </div>
               )}
             </section>

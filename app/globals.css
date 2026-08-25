@@ -3428,12 +3428,69 @@ code {
 .staff-account-list button { background: #fff; border: 1px solid #ccd7d3; border-radius: 4px; cursor: pointer; font: 700 9px var(--mono); min-height: 33px; }
 .staff-account-list button:disabled { cursor: not-allowed; opacity: .4; }
 
+.so-master-workspace { margin: 28px clamp(22px, 4vw, 58px); }
+.so-master-titlebar { align-items: end; display: flex; justify-content: space-between; margin-bottom: 20px; }
+.so-master-titlebar h2 { font-size: clamp(30px, 4vw, 48px); letter-spacing: -.055em; margin: 4px 0 6px; }
+.so-master-titlebar > div > p:last-child { color: var(--muted); margin: 0; }
+.so-master-freshness { background: #e3f5ef; border: 1px solid #b8ddd1; border-radius: 7px; display: grid; gap: 3px; min-width: 210px; padding: 13px 16px; }
+.so-master-freshness[data-stale="true"] { background: #fff0e8; border-color: #f0ccb9; }
+.so-master-freshness span { color: #137258; font: 800 8px var(--mono); letter-spacing: .12em; }
+.so-master-freshness[data-stale="true"] span { color: #a94b24; }
+.so-master-freshness strong { font: 800 12px var(--mono); }
+.so-master-freshness small { color: var(--muted); font: 9px var(--mono); }
+.so-master-metrics { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); margin-bottom: 14px; }
+.so-master-metrics article { background: #fff; border: 1px solid var(--line); border-radius: 7px; display: grid; gap: 5px; padding: 18px 20px; }
+.so-master-metrics span { color: var(--muted); font: 700 8px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.so-master-metrics strong { font: 850 28px var(--mono); }
+.so-master-metrics small { color: var(--muted); font-size: 10px; }
+.so-master-panel { border-radius: 8px; overflow: hidden; }
+.so-master-filterbar { align-items: end; border-bottom: 1px solid var(--line); display: grid; gap: 10px; grid-template-columns: minmax(260px, 1.7fr) repeat(3, minmax(125px, .7fr)) auto; padding: 18px; }
+.so-master-filterbar label { display: grid; gap: 6px; }
+.so-master-filterbar label > span { color: #71807c; font: 700 8px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.so-master-filterbar input,
+.so-master-filterbar select { background: #fff; border: 1px solid #cdd8d4; border-radius: 5px; min-height: 43px; outline: none; padding: 0 11px; }
+.so-master-filterbar input:focus,
+.so-master-filterbar select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(47, 158, 133, .1); }
+.so-master-filterbar > button,
+.so-master-pagination button,
+.so-master-table-row > button { background: #fff; border: 1px solid #c7d3cf; border-radius: 4px; cursor: pointer; font: 750 9px var(--mono); min-height: 39px; padding: 0 14px; }
+.so-master-table-wrap { overflow-x: auto; }
+.so-master-table-head,
+.so-master-table-row { align-items: center; display: grid; gap: 12px; grid-template-columns: minmax(230px, 1.5fr) minmax(180px, 1.2fr) minmax(90px, .55fr) minmax(110px, .7fr) 100px 70px 70px; min-width: 1030px; padding: 12px 18px; }
+.so-master-table-head { background: #10231e; color: #b9d0c9; font: 800 8px var(--mono); letter-spacing: .09em; text-transform: uppercase; }
+.so-master-row-group { border-bottom: 1px solid var(--line); }
+.so-master-row-group:last-child { border-bottom: 0; }
+.so-master-table-row { min-height: 59px; }
+.so-master-table-row > strong { font: 800 11px var(--mono); }
+.so-master-table-row > span { color: #43544f; font-size: 11px; }
+.so-master-table-row > span i { background: #e3f5ef; border-radius: 999px; color: #137258; display: inline-block; font: normal 800 8px var(--mono); padding: 6px 8px; }
+.so-master-table-row > b { font: 800 11px var(--mono); text-align: right; }
+.so-master-detail { background: #f2f6f4; border-top: 1px dashed #c7d3cf; display: grid; gap: 8px; padding: 12px 18px; }
+.so-master-detail > span { color: var(--muted); font: 10px var(--mono); }
+.so-master-detail article { background: #fff; border: 1px solid #d9e2df; border-radius: 5px; display: grid; gap: 12px; grid-template-columns: 1.6fr .7fr .8fr .7fr .5fr; padding: 11px 14px; }
+.so-master-detail article > div { display: grid; gap: 3px; }
+.so-master-detail small { color: var(--muted); font: 700 7px var(--mono); letter-spacing: .08em; }
+.so-master-detail strong { font: 750 10px var(--mono); }
+.so-master-empty,
+.so-master-error { align-items: center; display: flex; justify-content: center; min-height: 180px; padding: 30px; }
+.so-master-error { background: #fff0eb; color: #963e24; flex-direction: column; gap: 4px; }
+.so-master-error span,
+.so-master-empty { color: var(--muted); font-size: 11px; }
+.so-master-pagination { align-items: center; background: #f4f7f5; border-top: 1px solid var(--line); display: flex; justify-content: space-between; padding: 13px 18px; }
+.so-master-pagination > span { color: var(--muted); font: 9px var(--mono); }
+.so-master-pagination > div { display: flex; gap: 7px; }
+.so-master-pagination button:disabled { cursor: not-allowed; opacity: .35; }
+
 @media (max-width: 900px) {
   .developer-titlebar { align-items: flex-start; flex-direction: column; gap: 16px; }
   .backend-health-grid { grid-template-columns: repeat(2, 1fr); }
   .backend-health-grid article:nth-child(2) { border-right: 0; }
   .staff-account-form { grid-template-columns: repeat(2, 1fr); }
   .staff-account-form button { grid-column: 1 / -1; }
+  .so-master-titlebar { align-items: flex-start; flex-direction: column; gap: 14px; }
+  .so-master-filterbar { grid-template-columns: repeat(2, 1fr); }
+  .so-master-search { grid-column: 1 / -1; }
+  .so-master-filterbar > button { min-height: 43px; }
 }
 
 @media (max-width: 560px) {
@@ -3447,5 +3504,12 @@ code {
   .role-explainer { grid-template-columns: 1fr; }
   .staff-account-list article { grid-template-columns: 38px 1fr auto; padding: 12px 14px; }
   .staff-account-list article > button { grid-column: 2 / -1; }
+  .so-master-workspace { margin: 14px 10px; }
+  .so-master-freshness { min-width: 0; width: 100%; }
+  .so-master-metrics { grid-template-columns: 1fr; }
+  .so-master-filterbar { grid-template-columns: 1fr; padding: 14px; }
+  .so-master-search { grid-column: auto; }
+  .so-master-pagination { align-items: stretch; flex-direction: column; gap: 10px; }
+  .so-master-pagination > div { display: grid; grid-template-columns: repeat(2, 1fr); }
 }
 

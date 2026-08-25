@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { buildLockedCsv } from "./assignment-csv";
 import { compareActivityTimeDesc, getLoadPosition, STAGING_BARCODES } from "./helper-task-core.mjs";
 import { formatPickerCoverage, pickerMatchesAnyZone } from "./zone-eligibility.mjs";
+import { SoMasterView } from "./so-master-view";
 import { supabase } from "@/lib/supabase-browser";
 
 type RouteCode = "SWL - PSG" | "CSA - KLD" | "BSX" | "CPT - PPL" | "RDS - SLP" | "JLB";
 type AssignmentMode = "route" | "zone";
-type WorkspaceView = "assignment" | "manpower" | "monitor" | "tasks" | "developer";
+type WorkspaceView = "assignment" | "manpower" | "monitor" | "so-master" | "tasks" | "developer";
 type HelperRole = "STAGING_HELPER" | "LINE_HELPER";
 type UserRole = "DEVELOPER" | HelperRole;
 
@@ -983,6 +984,7 @@ export default function Home() {
           {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "assignment" ? "active" : ""}`} aria-label="Buka menu assignment" aria-current={activeView === "assignment" ? "page" : undefined} onClick={() => setActiveView("assignment")}><span>⌁</span><b>Assignment</b></button>}
           {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "manpower" ? "active" : ""}`} aria-label="Buka menu manpower" aria-current={activeView === "manpower" ? "page" : undefined} onClick={() => setActiveView("manpower")}><span>♙</span><b>Manpower</b></button>}
           {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "monitor" ? "active" : ""}`} aria-label="Buka menu picking monitor" aria-current={activeView === "monitor" ? "page" : undefined} onClick={() => setActiveView("monitor")}><span>▷</span><b>Picking monitor</b></button>}
+          {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "so-master" ? "active" : ""}`} aria-label="Buka menu SO Master" aria-current={activeView === "so-master" ? "page" : undefined} onClick={() => setActiveView("so-master")}><span>≡</span><b>SO Master</b></button>}
           {authReady && <button className={`nav-menu-item ${activeView === "tasks" ? "active" : ""}`} aria-label="Buka menu helper task" aria-current={activeView === "tasks" ? "page" : undefined} onClick={() => setActiveView("tasks")}><span>▣</span><b>Helper task</b></button>}
           {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "developer" ? "active" : ""}`} aria-label="Buka menu developer" aria-current={activeView === "developer" ? "page" : undefined} onClick={() => { setActiveView("developer"); void refreshDeveloper(); }}><span>⚙</span><b>Developer</b></button>}
         </nav>
@@ -1045,6 +1047,8 @@ export default function Home() {
           </div>
         </section>
         )}
+
+        {activeView === "so-master" && authUser.role === "DEVELOPER" && <SoMasterView />}
 
         {activeView === "assignment" && <>
         <section className="hero-grid">

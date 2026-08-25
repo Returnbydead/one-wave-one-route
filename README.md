@@ -8,9 +8,10 @@ Frontend adalah static export. Tidak ada API Route, SSR, atau credential backend
 
 ```text
 Superset dataset 400 + 108
-  -> Supabase Cron setiap 5 menit
-  -> Edge Function sync-owor (filter tanggal + pagination 5.000 row)
-  -> Postgres last-valid compact snapshots
+  -> Supabase Cron terpisah setiap 5 menit
+  -> sync-owor: 10 destination IWIR untuk assignment
+  -> sync-so-master: seluruh destination CBT hari berjalan selain CANCELLED
+  -> Postgres last-valid compact snapshots + server-side pagination
   -> Supabase Auth + RLS + RPC
   -> Cloudflare Pages static frontend
 ```
@@ -19,6 +20,8 @@ Superset dataset 400 + 108
 - Browser hanya menerima publishable key dan data yang diizinkan RLS.
 - Snapshot head hanya berpindah setelah satu source selesai penuh; kegagalan mempertahankan snapshot valid terakhir.
 - Orders difilter berdasarkan operational date sebelum data diambil dan ditulis secara batch.
+- SO Master tidak memperlebar feed IWIR: keduanya punya tabel, snapshot head, lock, dan jadwal sendiri.
+- SO Master menyimpan grain `SO × destination × zone × status`; daftar dipaginasi 50 SO dan detail fragment dimuat saat dibuka.
 - Roster picker menggunakan snapshot jadwal harian tervalidasi; assignment ditahan jika roster belum tersedia.
 - Helper-task disimpan di Postgres dan perubahan state dijalankan lewat RPC transaksional.
 

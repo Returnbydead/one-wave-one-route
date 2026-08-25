@@ -38,18 +38,34 @@ test("exports CSV rows only for manually locked SO", async () => {
   assert.equal(csv, "\ufefferror_message;so_id;staff_id\n;7000002;52016");
 });
 
-test("renders assignment, manpower, picking, and helper task as separate menu views", async () => {
+test("renders assignment, manpower, picking, SO master, and helper task as separate menu views", async () => {
   const html = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 
   assert.match(html, /aria-label="Buka menu assignment"/);
   assert.match(html, /aria-label="Buka menu manpower"/);
   assert.match(html, /aria-label="Buka menu picking monitor"/);
+  assert.match(html, /aria-label="Buka menu SO Master"/);
   assert.match(html, /aria-label="Buka menu helper task"/);
   assert.match(html, /aria-label="Buka menu developer"/);
   assert.match(html, /authUser\.role === "DEVELOPER"/);
   assert.match(html, /setActiveView\("tasks"\)/);
   assert.match(html, /Developer control center/);
   assert.doesNotMatch(html, />Completed picking queue</);
+});
+
+test("keeps complete SO search separate from the IWIR assignment snapshot", async () => {
+  const [page, soMaster] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/so-master-view.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /<SoMasterView \/>/);
+  assert.match(soMaster, /owor_search_so_master/);
+  assert.match(soMaster, /owor_get_so_master_detail/);
+  assert.match(soMaster, /p_page_size: PAGE_SIZE/);
+  assert.match(soMaster, /const PAGE_SIZE = 50/);
+  assert.match(soMaster, /Status CANCELLED tidak dimuat/);
+  assert.doesNotMatch(soMaster, /owor_get_live_snapshot/);
 });
 
 test("keeps the V1 assignment, Supabase, and CSV contracts explicit", async () => {

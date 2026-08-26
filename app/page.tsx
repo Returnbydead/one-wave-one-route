@@ -360,10 +360,12 @@ export default function Home() {
   const [lastSyncedAt, setLastSyncedAt] = useState("");
   const [generated, setGenerated] = useState(true);
   const [search, setSearch] = useState("");
+  const [expandedAssignmentZone, setExpandedAssignmentZone] = useState("");
   const [showRules, setShowRules] = useState(false);
   const [toast, setToast] = useState("");
   const [authUser, setAuthUser] = useState<AuthUser>({ staffId: "DEV01", name: "Developer", role: "DEVELOPER" });
   const [authReady, setAuthReady] = useState(false);
+  const [logoutPending, setLogoutPending] = useState(false);
   const [helperRole, setHelperRole] = useState<HelperRole>("STAGING_HELPER");
   const [helperSearch, setHelperSearch] = useState("");
   const [helperSuggestionsOpen, setHelperSuggestionsOpen] = useState(false);
@@ -664,6 +666,26 @@ export default function Home() {
       );
     return routeMatch && searchMatch;
   });
+
+  const assignmentsByZone = useMemo(() => {
+    const groups = new Map<string, Assignment[]>();
+    filteredAssignments.forEach((assignment) => {
+      const key = normalizedZone(assignment.zone);
+      groups.set(key, [...(groups.get(key) ?? []), assignment]);
+    });
+    return [...groups.entries()]
+      .map(([key, items]) => ({
+        key,
+        zone: items[0]?.zone ?? key,
+        items,
+        qty: items.reduce((sum, item) => sum + item.totalQty, 0),
+        so: items.reduce((sum, item) => sum + item.orders.length, 0),
+        routes: [...new Set(items.flatMap((item) => item.orders.map((order) => order.route)))],
+        pickerCount: new Set(items.map((item) => item.picker.staffId)).size,
+        manualCount: items.filter((item) => item.source === "manual").length,
+      }))
+      .sort((a, b) => a.zone.localeCompare(b.zone));
+  }, [filteredAssignments]);
 
   const totals = {
     qty: ordersData.reduce((sum, item) => sum + item.qty, 0),
@@ -1092,8 +1114,11 @@ export default function Home() {
   }
 
   async function logout() {
+    if (logoutPending) return;
+    setLogoutPending(true);
+    setAuthReady(false);
     await supabase.auth.signOut();
-    router.replace("/login/");
+    window.location.replace("/login/");
   }
 
   if (!authReady) {
@@ -1686,19 +1711,42 @@ export default function Home() {
           {!assignments.length ? (
             <div className="empty-state"><strong>Assignment belum dibuat</strong><span>Klik Generate assignment untuk membagi candidate SO.</span></div>
           ) : (
-            <div className="assignment-list">
-              {filteredAssignments.map((assignment, index) => {
-                const load = Math.round((assignment.totalQty / assignment.picker.productivity) * 100);
+            <div className="assignment-zone-list">
+              {assignmentsByZone.map((group, zoneIndex) => {
+                const expanded = expandedAssignmentZone === group.key || Boolean(search.trim());
                 return (
-                  <article className="assignment-card" data-source={assignment.source} key={`${assignment.source}-${assignment.route}-${assignment.zone}-${assignment.picker.staffId}`}>
-                    <div className="assignment-index">{String(index + 1).padStart(2, "0")}</div>
-                    <div className="picker-avatar">{assignment.picker.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</div>
-                    <div className="picker-info"><strong>{assignment.picker.name} {assignment.source === "manual" && <em>MANUAL</em>}</strong><span>{assignment.picker.staffId} · {assignment.picker.shift}</span></div>
-                    <div className="assignment-route"><strong>{assignment.zone}</strong><span>{assignment.route}</span></div>
-                    <div className="assignment-load"><div><strong>{number(assignment.totalQty)}</strong><span>{assignment.source === "manual" ? "manual locked qty" : `/ ${number(assignment.picker.productivity)} qty`}</span></div><i><em className={load > 100 && assignment.source === "auto" ? "over" : ""} style={{ width: assignment.source === "manual" ? "100%" : `${Math.min(100, load)}%` }} /></i></div>
-                    <div className="assignment-so"><strong>{assignment.orders.length}</strong><span>SO</span></div>
-                    <div className="load-badge" data-over={load > 100 && assignment.source === "auto"}>{assignment.source === "manual" ? "LOCKED" : `${load}%`}</div>
-                  </article>
+                  <section className="assignment-zone-group" key={group.key}>
+                    <button
+                      className="assignment-zone-toggle"
+                      aria-expanded={expanded}
+                      aria-controls={`assignment-zone-${group.key}`}
+                      onClick={() => setExpandedAssignmentZone(expandedAssignmentZone === group.key ? "" : group.key)}
+                    >
+                      <span className="assignment-zone-number">{String(zoneIndex + 1).padStart(2, "0")}</span>
+                      <div><small>PICKING ZONE</small><strong>{group.zone}</strong><em>{group.routes.join(" · ")}</em></div>
+                      <div><small>TOTAL LOAD</small><strong>{number(group.qty)}</strong><em>{group.so} SO</em></div>
+                      <div><small>MANPOWER</small><strong>{group.pickerCount} MP</strong><em>{group.manualCount ? `${group.manualCount} manual lock` : "auto balanced"}</em></div>
+                      <b>{expanded ? "Tutup MP ↑" : "Lihat MP ↓"}</b>
+                    </button>
+                    {expanded && (
+                      <div className="assignment-list" id={`assignment-zone-${group.key}`}>
+                        {group.items.map((assignment, index) => {
+                          const load = Math.round((assignment.totalQty / assignment.picker.productivity) * 100);
+                          return (
+                            <article className="assignment-card" data-source={assignment.source} key={`${assignment.source}-${assignment.route}-${assignment.zone}-${assignment.picker.staffId}`}>
+                              <div className="assignment-index">{String(index + 1).padStart(2, "0")}</div>
+                              <div className="picker-avatar">{assignment.picker.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</div>
+                              <div className="picker-info"><strong>{assignment.picker.name} {assignment.source === "manual" && <em>MANUAL</em>}</strong><span>{assignment.picker.staffId} · {assignment.picker.shift}</span></div>
+                              <div className="assignment-route"><strong>{assignment.zone}</strong><span>{assignment.route}</span></div>
+                              <div className="assignment-load"><div><strong>{number(assignment.totalQty)}</strong><span>{assignment.source === "manual" ? "manual locked qty" : `/ ${number(assignment.picker.productivity)} qty`}</span></div><i><em className={load > 100 && assignment.source === "auto" ? "over" : ""} style={{ width: assignment.source === "manual" ? "100%" : `${Math.min(100, load)}%` }} /></i></div>
+                              <div className="assignment-so"><strong>{assignment.orders.length}</strong><span>SO</span></div>
+                              <div className="load-badge" data-over={load > 100 && assignment.source === "auto"}>{assignment.source === "manual" ? "LOCKED" : `${load}%`}</div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </section>
                 );
               })}
             </div>

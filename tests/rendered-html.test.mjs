@@ -120,6 +120,21 @@ test("keeps complete SO search separate from the IWIR assignment snapshot", asyn
   assert.doesNotMatch(soMaster, /owor_get_live_snapshot/);
 });
 
+test("opens SO detail as its own workspace and collapses assignment preview by zone", async () => {
+  const [page, soMaster] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/so-master-view.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(soMaster, /setSelectedRow\(row\)/);
+  assert.match(soMaster, /Kembali ke SO Master/);
+  assert.match(soMaster, /aria-label="Bagian detail SO"/);
+  assert.match(soMaster, /Detail distribusi/);
+  assert.match(page, /assignmentsByZone/);
+  assert.match(page, /aria-expanded=\{expanded\}/);
+  assert.match(page, /Lihat MP ↓/);
+});
+
 test("keeps the V1 assignment, Supabase, and CSV contracts explicit", async () => {
   const [page, layout, nextConfig, packageJson, csv] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),

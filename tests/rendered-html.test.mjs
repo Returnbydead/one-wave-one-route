@@ -194,6 +194,16 @@ test("keeps the Superset backend atomic per SO and origin rack zone", async () =
   assert.doesNotMatch(backend, /Object\.keys\(order\.zones\)\.sort/);
 });
 
+test("rejects disabled legacy Supabase keys before a production build", async () => {
+  const browserClient = await readFile(
+    new URL("../lib/supabase-browser.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(browserClient, /startsWith\("sb_publishable_"\)/);
+  assert.match(browserClient, /Legacy Supabase API keys are not supported/);
+});
+
 test("excludes cancelled SO from the assignment snapshot query", async () => {
   const backend = await readFile(new URL("../backend/Code.gs", import.meta.url), "utf8");
   let capturedRequest;

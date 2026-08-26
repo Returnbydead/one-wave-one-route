@@ -1,7 +1,7 @@
 import { adminClient, clean, corsHeaders, env, json } from "../_shared/runtime.ts";
 import { checksum, operationalDate } from "../_shared/owor.ts";
 
-const ALLOWED_ROLES = new Set(["DEVELOPER", "STAGING_HELPER", "LINE_HELPER"]);
+const ALLOWED_ROLES = new Set(["DEVELOPER", "STAGING_HELPER", "LINE_HELPER", "CONSOLIDATE_PICKER", "CONSOLIDATOR"]);
 
 function emailForStaff(staffId: string) {
   return `${staffId.toLowerCase().replace(/[^a-z0-9._-]/g, "")}@owor.local`;

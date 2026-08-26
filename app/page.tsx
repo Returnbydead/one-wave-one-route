@@ -11,10 +11,10 @@ import { supabase } from "@/lib/supabase-browser";
 
 type RouteCode = "SWL - PSG" | "CSA - KLD" | "BSX" | "CPT - PPL" | "RDS - SLP" | "JLB";
 type AssignmentMode = "route" | "zone";
-type WorkspaceView = "assignment" | "monitor" | "so-master" | "consolidate" | "tasks" | "developer";
+type WorkspaceView = "assignment" | "monitor" | "so-master" | "consolidate" | "staging-tasks" | "line-tasks" | "developer";
 type HelperRole = "STAGING_HELPER" | "LINE_HELPER";
 type CameraScanTarget = "SO" | "LOCATION";
-type UserRole = "DEVELOPER" | HelperRole;
+type UserRole = "DEVELOPER" | HelperRole | "CONSOLIDATE_PICKER" | "CONSOLIDATOR";
 
 type AuthUser = {
   staffId: string;
@@ -455,7 +455,9 @@ export default function Home() {
       setAuthUser(user);
       if (user.role === "STAGING_HELPER" || user.role === "LINE_HELPER") {
           setHelperRole(user.role);
-          setActiveView("tasks");
+          setActiveView(user.role === "STAGING_HELPER" ? "staging-tasks" : "line-tasks");
+      } else if (user.role === "CONSOLIDATE_PICKER" || user.role === "CONSOLIDATOR") {
+          setActiveView("consolidate");
       }
       await Promise.all([refreshLiveData(), refreshHelperTasks()]);
       if (active) setAuthReady(true);
@@ -1089,8 +1091,9 @@ export default function Home() {
           {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "assignment" ? "active" : ""}`} aria-label="Buka menu assignment" aria-current={activeView === "assignment" ? "page" : undefined} onClick={() => setActiveView("assignment")}><span>⌁</span><b>Assignment</b></button>}
           {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "monitor" ? "active" : ""}`} aria-label="Buka menu picking monitor" aria-current={activeView === "monitor" ? "page" : undefined} onClick={() => setActiveView("monitor")}><span>▷</span><b>Picking monitor</b></button>}
           {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "so-master" ? "active" : ""}`} aria-label="Buka menu SO Master" aria-current={activeView === "so-master" ? "page" : undefined} onClick={() => setActiveView("so-master")}><span>≡</span><b>SO Master</b></button>}
-          {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "consolidate" ? "active" : ""}`} aria-label="Buka menu consolidate picking" aria-current={activeView === "consolidate" ? "page" : undefined} onClick={() => setActiveView("consolidate")}><span>◇</span><b>Consolidate picking</b></button>}
-          {authReady && <button className={`nav-menu-item ${activeView === "tasks" ? "active" : ""}`} aria-label="Buka menu helper task" aria-current={activeView === "tasks" ? "page" : undefined} onClick={() => setActiveView("tasks")}><span>▣</span><b>Helper task</b></button>}
+          {authReady && (authUser.role === "DEVELOPER" || authUser.role === "CONSOLIDATE_PICKER" || authUser.role === "CONSOLIDATOR") && <button className={`nav-menu-item ${activeView === "consolidate" ? "active" : ""}`} aria-label="Buka menu consolidate picking" aria-current={activeView === "consolidate" ? "page" : undefined} onClick={() => setActiveView("consolidate")}><span>◇</span><b>Consolidate picking</b></button>}
+          {authReady && (authUser.role === "DEVELOPER" || authUser.role === "STAGING_HELPER") && <button className={`nav-menu-item ${activeView === "staging-tasks" ? "active" : ""}`} aria-label="Buka menu staging helper" aria-current={activeView === "staging-tasks" ? "page" : undefined} onClick={() => { setHelperRole("STAGING_HELPER"); setSelectedHelperSo(""); setActiveView("staging-tasks"); }}><span>▣</span><b>Staging helper</b></button>}
+          {authReady && (authUser.role === "DEVELOPER" || authUser.role === "LINE_HELPER") && <button className={`nav-menu-item ${activeView === "line-tasks" ? "active" : ""}`} aria-label="Buka menu line checker" aria-current={activeView === "line-tasks" ? "page" : undefined} onClick={() => { setHelperRole("LINE_HELPER"); setSelectedHelperSo(""); setActiveView("line-tasks"); }}><span>▤</span><b>Line checker</b></button>}
           {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "developer" ? "active" : ""}`} aria-label="Buka menu developer" aria-current={activeView === "developer" ? "page" : undefined} onClick={() => { setActiveView("developer"); void refreshDeveloper(); }}><span>⚙</span><b>Developer</b></button>}
         </nav>
         <div className="sidebar-user"><strong>{authUser.name}</strong><span>{authUser.staffId} · {authUser.role.replaceAll("_", " ")}</span><button onClick={() => void logout()}>Keluar</button></div>
@@ -1112,7 +1115,7 @@ export default function Home() {
             </div>
             <button className="soft-button" onClick={() => { setSourceStatus("loading"); void refreshLiveData(); flash("Memeriksa snapshot live terbaru"); }}>↻ Refresh</button>
             {activeView === "assignment" && <button className="primary-button" onClick={() => { setGenerated(true); flash(Object.keys(manualOverrides).length ? "Auto-assignment diperbarui, manual lock tetap aman" : "Assignment berhasil dihitung ulang"); }}>Generate assignment</button>}
-            {activeView === "tasks" && <span className="pilot-badge">SUPABASE LIVE</span>}
+            {(activeView === "staging-tasks" || activeView === "line-tasks") && <span className="pilot-badge">SUPABASE LIVE</span>}
             {activeView === "consolidate" && <span className="pilot-badge">SRA PILOT</span>}
           </div>
         </header>
@@ -1143,11 +1146,11 @@ export default function Home() {
               <div className="staff-account-form">
                 <label><span>Staff ID / username</span><input value={staffForm.staffId} onChange={(event) => setStaffForm((current) => ({ ...current, staffId: event.target.value.toUpperCase() }))} placeholder="Contoh: 52016" /></label>
                 <label><span>Nama staff</span><input value={staffForm.name} onChange={(event) => setStaffForm((current) => ({ ...current, name: event.target.value }))} placeholder="Nama lengkap" /></label>
-                <label><span>Role akses</span><select value={staffForm.role} onChange={(event) => setStaffForm((current) => ({ ...current, role: event.target.value as UserRole }))}><option value="STAGING_HELPER">Staging Helper</option><option value="LINE_HELPER">Line Checker Helper</option><option value="DEVELOPER">Developer</option></select></label>
+                <label><span>Role akses</span><select value={staffForm.role} onChange={(event) => setStaffForm((current) => ({ ...current, role: event.target.value as UserRole }))}><option value="STAGING_HELPER">Staging Helper</option><option value="LINE_HELPER">Line Checker Helper</option><option value="CONSOLIDATE_PICKER">Consolidate Picker</option><option value="CONSOLIDATOR">Consolidator</option><option value="DEVELOPER">Developer</option></select></label>
                 <label><span>Password awal</span><input type="password" autoComplete="new-password" value={staffForm.password} onChange={(event) => setStaffForm((current) => ({ ...current, password: event.target.value }))} placeholder="Minimal 8 karakter" /></label>
                 <button className="primary-button" disabled={developerLoading || !developerStatus?.accountStore} onClick={() => void createStaffAccount()}>Create / reset account</button>
               </div>
-              <div className="role-explainer"><span><b>STAGING HELPER</b> Scan SO dan staging picking</span><span><b>LINE HELPER</b> Staging ke checker line</span><span><b>DEVELOPER</b> Semua menu + settings</span></div>
+              <div className="role-explainer"><span><b>STAGING HELPER</b> Scan SO dan staging picking</span><span><b>LINE HELPER</b> Staging ke checker line</span><span><b>CONSOLIDATE PICKER</b> Picking lintas SO</span><span><b>CONSOLIDATOR</b> Pisahkan barang per SO</span><span><b>DEVELOPER</b> Semua menu + settings</span></div>
               {!staffAccounts.length ? <div className="empty-state"><strong>Belum ada akun staff di backend</strong><span>Akun developer environment tetap aktif sebagai bootstrap.</span></div> : <div className="staff-account-list">{staffAccounts.map((account) => <article key={account.staffId} data-active={account.active}><div className="staff-avatar">{account.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</div><span><strong>{account.name}</strong><small>{account.staffId} · {account.role.replaceAll("_", " ")}</small></span><em>{account.active ? "ACTIVE" : "DISABLED"}</em><button disabled={developerLoading || account.staffId === authUser.staffId} onClick={() => void setStaffAccountActive(account)}>{account.active ? "Disable" : "Enable"}</button></article>)}</div>}
             </section>
           </div>
@@ -1156,7 +1159,7 @@ export default function Home() {
 
         {activeView === "so-master" && authUser.role === "DEVELOPER" && <SoMasterView />}
 
-        {activeView === "consolidate" && authUser.role === "DEVELOPER" && <ConsolidatePickingView />}
+        {activeView === "consolidate" && <ConsolidatePickingView user={authUser} />}
 
         {activeView === "assignment" && <>
         <section className="hero-grid">
@@ -1468,7 +1471,7 @@ export default function Home() {
         </section>
         )}
 
-        {activeView === "tasks" && (
+        {(activeView === "staging-tasks" || activeView === "line-tasks") && (
         <section className="helper-workspace" id="helper-task">
           <div className="helper-hero">
             <div>
@@ -1484,10 +1487,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="helper-role-switch" aria-label="Pilih proses helper">
-            <button className={helperRole === "STAGING_HELPER" ? "active" : ""} disabled={authUser.role !== "DEVELOPER" && authUser.role !== "STAGING_HELPER"} onClick={() => { setHelperRole("STAGING_HELPER"); setSelectedHelperSo(""); }}><b>01</b><span>Staging helper<small>SO → staging picking</small></span></button>
-            <button className={helperRole === "LINE_HELPER" ? "active" : ""} disabled={authUser.role !== "DEVELOPER" && authUser.role !== "LINE_HELPER"} onClick={() => { setHelperRole("LINE_HELPER"); setSelectedHelperSo(""); }}><b>02</b><span>Line checker helper<small>Staging → checker line</small></span></button>
-          </div>
+          <div className="helper-process-banner"><span>{helperRole === "STAGING_HELPER" ? "01" : "02"}</span><div><strong>{helperRole === "STAGING_HELPER" ? "Staging Helper Task" : "Line Checker Task"}</strong><small>{helperRole === "STAGING_HELPER" ? "SO → staging picking" : "Staging picking → checker line"}</small></div></div>
 
           <div className="helper-kpis" aria-label="Ringkasan helper task">
             <article><span>Sedang dibawa</span><strong>{number(helperTaskTotals.active)}</strong><small>task aktif</small></article>

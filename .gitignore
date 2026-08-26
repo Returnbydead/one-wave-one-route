@@ -38,6 +38,7 @@ yarn-error.log*
 
 /dist/
 /.wrangler/
+/supabase/.temp/
 /outputs/
 /work/
 *.tsbuildinfo

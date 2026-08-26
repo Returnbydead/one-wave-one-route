@@ -1074,6 +1074,23 @@ export default function Home() {
     await refreshDeveloper();
   }
 
+  async function resetAllConsolidateTasks() {
+    const confirmed = window.confirm(
+      "Reset seluruh Picking Task dan Consolidation Task untuk trial SRA L2+? Snapshot SO tetap disimpan, tetapi progress task yang sedang berjalan akan hilang.",
+    );
+    if (!confirmed) return;
+    setDeveloperLoading(true);
+    const { data, error } = await supabase.rpc("owor_reset_consolidate_tasks", { p_scope_code: "SRA_L2_UP" });
+    const payload = data as { ok?: boolean; deletedBatches?: number } | null;
+    setDeveloperLoading(false);
+    if (error || payload?.ok !== true) {
+      flash(error?.message || "Reset consolidate task gagal");
+      return;
+    }
+    flash(`${number(payload.deletedBatches || 0)} batch dan seluruh task turunannya berhasil direset`);
+    await refreshDeveloper();
+  }
+
   async function logout() {
     await supabase.auth.signOut();
     router.replace("/login/");
@@ -1152,6 +1169,11 @@ export default function Home() {
               </div>
               <div className="role-explainer"><span><b>STAGING HELPER</b> Scan SO dan staging picking</span><span><b>LINE HELPER</b> Staging ke checker line</span><span><b>CONSOLIDATE PICKER</b> Picking lintas SO</span><span><b>CONSOLIDATOR</b> Pisahkan barang per SO</span><span><b>DEVELOPER</b> Semua menu + settings</span></div>
               {!staffAccounts.length ? <div className="empty-state"><strong>Belum ada akun staff di backend</strong><span>Akun developer environment tetap aktif sebagai bootstrap.</span></div> : <div className="staff-account-list">{staffAccounts.map((account) => <article key={account.staffId} data-active={account.active}><div className="staff-avatar">{account.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</div><span><strong>{account.name}</strong><small>{account.staffId} · {account.role.replaceAll("_", " ")}</small></span><em>{account.active ? "ACTIVE" : "DISABLED"}</em><button disabled={developerLoading || account.staffId === authUser.staffId} onClick={() => void setStaffAccountActive(account)}>{account.active ? "Disable" : "Enable"}</button></article>)}</div>}
+            </section>
+
+            <section className="developer-panel developer-danger-panel panel">
+              <div className="developer-panel-head"><span>03</span><div><h3>Consolidate task controls</h3><p>Kontrol recovery untuk task batch picking trial SRA L2+</p></div><i className="warn">DEVELOPER ONLY</i></div>
+              <div className="developer-danger-actions"><div><strong>Reset all consolidate tasks</strong><p>Menghapus seluruh Picking Task, progress rack/SKU, dan Consolidation Task pada scope SRA L2+. Snapshot SO tidak dihapus sehingga task baru dapat digenerate kembali.</p></div><button disabled={developerLoading} onClick={() => void resetAllConsolidateTasks()}>{developerLoading ? "Processing…" : "Reset all tasks"}</button></div>
             </section>
           </div>
         </section>

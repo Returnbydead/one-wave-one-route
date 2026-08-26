@@ -60,6 +60,7 @@ export function ConsolidatePickingView({ user }: { user: User }) {
   const [expanded, setExpanded] = useState("");
   const [selectedBatchId, setSelectedBatchId] = useState("");
   const [selectedSo, setSelectedSo] = useState("");
+  const [waveFilter, setWaveFilter] = useState("ALL");
   const [qtyInputs, setQtyInputs] = useState<Record<number, string>>({});
   const [soScan, setSoScan] = useState("");
 
@@ -137,7 +138,22 @@ export function ConsolidatePickingView({ user }: { user: User }) {
     });
   }, [area, rows, search]);
   const selectedBatch = tasks.batches.find((batch) => batch.batchId === selectedBatchId) || tasks.batches[0];
-  const selectedConsolidation = tasks.consolidations.find((task) => task.soNumber === selectedSo) || tasks.consolidations[0];
+  const consolidationWaves = useMemo(
+    () => [...new Set(tasks.consolidations.map((task) => task.waveNumber))].sort((left, right) => left - right),
+    [tasks.consolidations],
+  );
+  const consolidationWaveCounts = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const task of tasks.consolidations) counts.set(task.waveNumber, (counts.get(task.waveNumber) || 0) + 1);
+    return counts;
+  }, [tasks.consolidations]);
+  const filteredConsolidations = useMemo(
+    () => waveFilter === "ALL"
+      ? tasks.consolidations
+      : tasks.consolidations.filter((task) => task.waveNumber === Number(waveFilter)),
+    [tasks.consolidations, waveFilter],
+  );
+  const selectedConsolidation = filteredConsolidations.find((task) => task.soNumber === selectedSo) || filteredConsolidations[0];
   const canWorkBatch = selectedBatch && (user.role === "DEVELOPER" || selectedBatch.pickerId === normalize(user.staffId));
   const completedLines = selectedBatch?.lines.filter((line) => line.status === "DONE").length || 0;
   const canWorkConsolidation = selectedConsolidation && (user.role === "DEVELOPER" || selectedConsolidation.consolidatorId === normalize(user.staffId));
@@ -204,7 +220,8 @@ export function ConsolidatePickingView({ user }: { user: User }) {
       {mode === "CONSOLIDATION_TASK" && <section className="task-mobile-layout">
         <div className="task-mobile-queue panel">
           <div className="task-mobile-heading"><span>03</span><div><h3>Consolidation Task</h3><p>Pisahkan hasil batch menjadi sales order.</p></div></div>
-          {!tasks.consolidations.length ? <div className="consolidate-empty"><strong>Belum ada task</strong><span>Task muncul setelah satu batch selesai picking.</span></div> : tasks.consolidations.map((task) => <button key={`${task.batchId}-${task.soNumber}`} className={selectedConsolidation?.soNumber === task.soNumber ? "active" : ""} onClick={() => { setSelectedSo(task.soNumber); setSoScan(""); }}><span><b>SO {shortSo(task.soNumber)}</b><small>{task.hubCode} · Wave {task.waveNumber}</small></span><strong>{number(task.expectedQty)} qty</strong><em data-state={task.status}>{task.status.replaceAll("_", " ")}</em></button>)}
+          {!!tasks.consolidations.length && <div className="task-wave-filter"><span>PRIORITY WAVE</span><div role="group" aria-label="Filter consolidation task berdasarkan wave"><button aria-pressed={waveFilter === "ALL"} className={waveFilter === "ALL" ? "active" : ""} onClick={() => { setWaveFilter("ALL"); setSelectedSo(""); }}>Semua wave <small>{tasks.consolidations.length}</small></button>{consolidationWaves.map((wave) => <button key={wave} aria-pressed={waveFilter === String(wave)} className={waveFilter === String(wave) ? "active" : ""} onClick={() => { setWaveFilter(String(wave)); setSelectedSo(""); }}>Wave {wave} <small>{consolidationWaveCounts.get(wave) || 0}</small></button>)}</div></div>}
+          {!tasks.consolidations.length ? <div className="consolidate-empty"><strong>Belum ada task</strong><span>Task muncul setelah satu batch selesai picking.</span></div> : !filteredConsolidations.length ? <div className="consolidate-empty"><strong>Tidak ada task pada wave ini</strong><span>Pilih wave lain untuk melanjutkan consolidate.</span></div> : filteredConsolidations.map((task) => <button key={`${task.batchId}-${task.soNumber}`} className={selectedConsolidation?.soNumber === task.soNumber ? "active" : ""} onClick={() => { setSelectedSo(task.soNumber); setSoScan(""); }}><span><b>SO {shortSo(task.soNumber)}</b><small>{task.hubCode} · Wave {task.waveNumber}</small></span><strong>{number(task.expectedQty)} qty</strong><em data-state={task.status}>{task.status.replaceAll("_", " ")}</em></button>)}
         </div>
         <aside className="task-mobile-detail panel">
           {!selectedConsolidation ? <div className="consolidate-empty"><strong>Pilih SO</strong></div> : <>

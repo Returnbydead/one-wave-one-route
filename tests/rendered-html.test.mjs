@@ -83,6 +83,28 @@ test("separates helper operations and exposes task submenus under consolidate pi
   assert.match(consolidate, /Consolidation Task/);
 });
 
+test("prioritizes consolidation work by wave and exposes a developer-only task reset", async () => {
+  const [page, consolidate, migration] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/consolidate-picking-view.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../supabase/migrations/20260827030000_consolidate_wave_filter_reset.sql", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(consolidate, /const \[waveFilter, setWaveFilter\] = useState/);
+  assert.match(consolidate, /aria-label="Filter consolidation task berdasarkan wave"/);
+  assert.match(consolidate, /Semua wave/);
+  assert.match(consolidate, /filteredConsolidations\.map/);
+  assert.match(page, /owor_reset_consolidate_tasks/);
+  assert.match(page, /Reset all consolidate tasks/);
+  assert.match(page, /window\.confirm/);
+  assert.match(migration, /v_profile\.role <> 'DEVELOPER'/);
+  assert.match(migration, /delete from public\.owor_consolidate_batches/);
+  assert.match(migration, /scope_code = v_scope_code/);
+});
+
 test("keeps complete SO search separate from the IWIR assignment snapshot", async () => {
   const [page, soMaster] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),

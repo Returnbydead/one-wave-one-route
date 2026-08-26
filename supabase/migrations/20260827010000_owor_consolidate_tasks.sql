@@ -171,7 +171,10 @@ begin
   select b.batch_id,
     row_number() over(partition by b.batch_id order by r.origin_rack_name, r.expiry_date nulls last, r.sku_number),
     r.zone_family, r.floor_number, r.origin_rack_name, r.sku_number, max(r.product_name),
-    r.expiry_date, sum(r.request_qty),
+    case
+      when btrim(r.expiry_date) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then btrim(r.expiry_date)::date
+      else null
+    end, sum(r.request_qty),
     jsonb_agg(distinct r.wave_number order by r.wave_number),
     jsonb_agg(jsonb_build_object('soNumber', r.so_number, 'hubCode', r.hub_code,
       'waveNumber', r.wave_number, 'requestQty', r.request_qty) order by r.wave_number, r.hub_code, r.so_number)

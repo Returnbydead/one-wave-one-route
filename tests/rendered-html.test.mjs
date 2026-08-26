@@ -38,19 +38,35 @@ test("exports CSV rows only for manually locked SO", async () => {
   assert.equal(csv, "\ufefferror_message;so_id;staff_id\n;7000002;52016");
 });
 
-test("renders assignment, picking, SO master, and helper task as separate menu views", async () => {
+test("renders assignment, picking, SO master, consolidate, and helper task as separate menu views", async () => {
   const html = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 
   assert.match(html, /aria-label="Buka menu assignment"/);
   assert.doesNotMatch(html, /aria-label="Buka menu manpower"/);
   assert.match(html, /aria-label="Buka menu picking monitor"/);
   assert.match(html, /aria-label="Buka menu SO Master"/);
+  assert.match(html, /aria-label="Buka menu consolidate picking"/);
   assert.match(html, /aria-label="Buka menu helper task"/);
   assert.match(html, /aria-label="Buka menu developer"/);
   assert.match(html, /authUser\.role === "DEVELOPER"/);
   assert.match(html, /setActiveView\("tasks"\)/);
   assert.match(html, /Developer control center/);
   assert.doesNotMatch(html, />Completed picking queue</);
+});
+
+test("keeps consolidate picking scoped to SRA level 2+ and non-wave-1 allocations", async () => {
+  const [page, consolidate] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/consolidate-picking-view.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /<ConsolidatePickingView \/>/);
+  assert.match(consolidate, /owor_get_consolidate_picklist/);
+  assert.match(consolidate, /sync_consolidate/);
+  assert.match(consolidate, /SRA · LEVEL 2\+/);
+  assert.match(consolidate, /Wave 2–4 · Wave 1 dikecualikan/);
+  assert.match(consolidate, /row\.allocations\.map/);
+  assert.doesNotMatch(consolidate, /x-sync-secret|SUPERSET_SESSION_COOKIE/);
 });
 
 test("keeps complete SO search separate from the IWIR assignment snapshot", async () => {

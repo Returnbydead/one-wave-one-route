@@ -1,0 +1,20 @@
+project_id = "inventory-control-tower"
+
+[functions.sync-putaway]
+verify_jwt = false
+[functions.sync-soh]
+verify_jwt = false
+[functions.planogram-tasks]
+verify_jwt = false
+
+[functions.sync-owor]
+verify_jwt = false
+
+[functions.sync-so-master]
+verify_jwt = false
+
+[functions.owor-admin]
+verify_jwt = false
+
+[functions.sync-consolidate-picking]
+verify_jwt = false

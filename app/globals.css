@@ -2688,6 +2688,21 @@ code {
   font-weight: 800;
 }
 
+.helper-scan-field > div:first-of-type .camera-scan-button { background: var(--green); min-width: 68px; }
+.mobile-barcode-camera { background: #f2f7f5; border: 1px solid #c9ddd6; border-radius: 8px; margin-top: 18px; overflow: hidden; }
+.mobile-barcode-camera-head { align-items: center; display: flex; gap: 12px; justify-content: space-between; padding: 11px 12px; }
+.mobile-barcode-camera-head > div { display: flex; flex-direction: column; gap: 3px; }
+.mobile-barcode-camera-head span,
+.mobile-barcode-camera-head strong,
+.mobile-barcode-camera > p { font-family: var(--mono); }
+.mobile-barcode-camera-head span { color: var(--green); font-size: 7px; font-weight: 800; }
+.mobile-barcode-camera-head strong { font-size: 10px; }
+.mobile-barcode-camera-head button { background: var(--navy); border: 0; border-radius: 5px; color: #fff; cursor: pointer; font: 700 8px var(--mono); min-height: 34px; padding: 0 12px; }
+.mobile-barcode-camera-preview { aspect-ratio: 4 / 3; background: #071814; overflow: hidden; position: relative; }
+.mobile-barcode-camera-preview video { height: 100%; object-fit: cover; width: 100%; }
+.mobile-barcode-camera-preview i { border: 2px solid #7de5c6; border-radius: 12px; box-shadow: 0 0 0 999px rgba(3, 20, 16, .38); inset: 28% 9%; pointer-events: none; position: absolute; }
+.mobile-barcode-camera > p { color: #4f625c; font-size: 8px; line-height: 1.5; margin: 0; padding: 10px 12px 12px; }
+
 .staging-shortcuts {
   display: grid !important;
   gap: 6px !important;

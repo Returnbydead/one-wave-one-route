@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { buildLockedCsv } from "./assignment-csv";
 import { compareActivityTimeDesc, filterHelperCandidates, findExactHelperOrder, getLoadPosition, STAGING_BARCODES } from "./helper-task-core.mjs";
@@ -12,6 +12,7 @@ type RouteCode = "SWL - PSG" | "CSA - KLD" | "BSX" | "CPT - PPL" | "RDS - SLP" |
 type AssignmentMode = "route" | "zone";
 type WorkspaceView = "assignment" | "monitor" | "so-master" | "tasks" | "developer";
 type HelperRole = "STAGING_HELPER" | "LINE_HELPER";
+type CameraScanTarget = "SO" | "LOCATION";
 type UserRole = "DEVELOPER" | HelperRole;
 
 type AuthUser = {
@@ -369,6 +370,11 @@ export default function Home() {
   const [helperSoScan, setHelperSoScan] = useState("");
   const [helperLocationScan, setHelperLocationScan] = useState("");
   const [verifiedHelperStep, setVerifiedHelperStep] = useState("");
+  const [cameraTarget, setCameraTarget] = useState<CameraScanTarget | null>(null);
+  const [cameraMessage, setCameraMessage] = useState("");
+  const cameraVideoRef = useRef<HTMLVideoElement>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const cameraControlsRef = useRef<{ stop: () => void } | null>(null);
   const [developerStatus, setDeveloperStatus] = useState<DeveloperStatus | null>(null);
   const [staffAccounts, setStaffAccounts] = useState<StaffAccount[]>([]);
   const [developerLoading, setDeveloperLoading] = useState(false);
@@ -758,6 +764,94 @@ export default function Home() {
     window.setTimeout(() => setToast(""), 2500);
   }
 
+  const releaseCameraResources = useCallback(() => {
+    cameraControlsRef.current?.stop();
+    cameraControlsRef.current = null;
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
+    if (cameraVideoRef.current) cameraVideoRef.current.srcObject = null;
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    releaseCameraResources();
+    setCameraTarget(null);
+    setCameraMessage("");
+  }, [releaseCameraResources]);
+
+  function openCamera(target: CameraScanTarget) {
+    releaseCameraResources();
+    setCameraMessage("Meminta izin kamera belakang…");
+    setCameraTarget(target);
+  }
+
+  useEffect(() => {
+    if (!cameraTarget) return;
+    let disposed = false;
+
+    async function startCameraScanner() {
+      try {
+        if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+          throw new Error("Kamera web membutuhkan HTTPS dan browser yang mendukung akses kamera.");
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        });
+        if (disposed) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        cameraStreamRef.current = stream;
+        const video = cameraVideoRef.current;
+        if (!video) throw new Error("Preview kamera belum siap.");
+        video.srcObject = stream;
+        await video.play();
+        setCameraMessage("Arahkan barcode ke dalam kotak. Kamera membaca otomatis.");
+
+        const { BrowserMultiFormatReader } = await import("@zxing/browser");
+        const reader = new BrowserMultiFormatReader();
+        cameraControlsRef.current = await reader.decodeFromStream(stream, video, (result, _error, controls) => {
+          if (!result || disposed) return;
+          const value = result.getText().trim();
+          if (!value) return;
+          if (cameraTarget === "SO") {
+            const normalized = value.toUpperCase();
+            const valid = normalized === selectedHelperSo.toUpperCase() || normalized === extractWmsSoId(selectedHelperSo);
+            if (valid) {
+              setVerifiedHelperStep(helperVerificationKey);
+              setHelperSoScan("");
+              flash(`SO ${extractWmsSoId(selectedHelperSo)} terverifikasi dari kamera`);
+            } else {
+              setHelperSoScan(value);
+              setVerifiedHelperStep("");
+              flash("Barcode SO tidak cocok dengan task aktif");
+            }
+          } else {
+            setHelperLocationScan(value);
+            flash(`Barcode lokasi ${value} terbaca`);
+          }
+          controls.stop();
+          releaseCameraResources();
+          setCameraTarget(null);
+          setCameraMessage("");
+        });
+      } catch (error) {
+        releaseCameraResources();
+        if (disposed) return;
+        const name = error instanceof DOMException ? error.name : "";
+        if (name === "NotAllowedError") setCameraMessage("Izin kamera ditolak. Izinkan Camera pada pengaturan situs Chrome, lalu coba lagi.");
+        else if (name === "NotFoundError") setCameraMessage("Kamera belakang tidak ditemukan pada perangkat ini.");
+        else setCameraMessage(error instanceof Error ? error.message : "Kamera gagal dibuka. Gunakan input manual.");
+      }
+    }
+
+    void startCameraScanner();
+    return () => {
+      disposed = true;
+      releaseCameraResources();
+    };
+  }, [cameraTarget, helperVerificationKey, releaseCameraResources, selectedHelperSo]);
+
   function chooseHelperSuggestion(order: SalesOrder) {
     setHelperSearch(extractWmsSoId(order.soNumber));
     setHelperSuggestionsOpen(false);
@@ -780,6 +874,7 @@ export default function Home() {
   }
 
   function selectHelperTask(soNumber: string) {
+    stopCamera();
     setSelectedHelperSo(soNumber);
     setHelperSoScan("");
     setHelperLocationScan("");
@@ -1511,15 +1606,25 @@ export default function Home() {
 
                       <label className="helper-scan-field">
                         <span>1 · Scan barcode SO</span>
-                        <div><input autoComplete="off" aria-label="Scan barcode SO helper task" value={helperSoScan} onChange={(event) => setHelperSoScan(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") verifyHelperSo(); }} placeholder={`Scan ${extractWmsSoId(selectedHelperOrder.soNumber)}`} /><button onClick={verifyHelperSo}>Verify</button></div>
+                        <div><input autoComplete="off" aria-label="Scan barcode SO helper task" value={helperSoScan} onChange={(event) => setHelperSoScan(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") verifyHelperSo(); }} placeholder={`Scan ${extractWmsSoId(selectedHelperOrder.soNumber)}`} /><button type="button" className="camera-scan-button" aria-label="Buka kamera scan barcode SO" onClick={() => openCamera("SO")}>Kamera</button><button type="button" onClick={verifyHelperSo}>Verify</button></div>
                         <small className={verifiedHelperStep === helperVerificationKey ? "verified" : ""}>{verifiedHelperStep === helperVerificationKey ? "✓ SO cocok dan siap scan lokasi" : "Menerima nomor SO penuh atau 7 digit SO ID"}</small>
                       </label>
 
                       <label className="helper-scan-field">
                         <span>2 · {helperVerificationPhase === "STAGING" ? "Scan staging picking" : "Scan checker line"}</span>
-                        <div><input autoComplete="off" aria-label="Scan lokasi helper task" value={helperLocationScan} onChange={(event) => setHelperLocationScan(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") submitHelperLocation(); }} placeholder={helperVerificationPhase === "STAGING" ? "STG-MEZZANINE / STG-SPR" : "Contoh LINE-01"} /><button onClick={submitHelperLocation}>Simpan</button></div>
+                        <div><input autoComplete="off" aria-label="Scan lokasi helper task" value={helperLocationScan} onChange={(event) => setHelperLocationScan(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") submitHelperLocation(); }} placeholder={helperVerificationPhase === "STAGING" ? "STG-MEZZANINE / STG-SPR" : "Contoh LINE-01"} /><button type="button" className="camera-scan-button" aria-label="Buka kamera scan lokasi" onClick={() => openCamera("LOCATION")}>Kamera</button><button type="button" onClick={submitHelperLocation}>Simpan</button></div>
                         {helperVerificationPhase === "STAGING" && <div className="staging-shortcuts">{STAGING_BARCODES.map((barcode) => <button key={barcode} onClick={() => setHelperLocationScan(barcode)}>{barcode}</button>)}</div>}
                       </label>
+                      {cameraTarget && (
+                        <section className="mobile-barcode-camera" aria-label={cameraTarget === "SO" ? "Kamera barcode SO" : "Kamera barcode lokasi"}>
+                          <div className="mobile-barcode-camera-head">
+                            <div><span>CAMERA SCANNER</span><strong>{cameraTarget === "SO" ? "Scan barcode SO" : "Scan lokasi checker / staging"}</strong></div>
+                            <button type="button" aria-label="Tutup kamera" onClick={stopCamera}>Tutup</button>
+                          </div>
+                          <div className="mobile-barcode-camera-preview"><video ref={cameraVideoRef} autoPlay muted playsInline /><i aria-hidden="true" /></div>
+                          <p>{cameraMessage}</p>
+                        </section>
+                      )}
                     </div>
                   ) : (
                     <div className="helper-current-location">

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { buildLockedCsv } from "./assignment-csv";
+import { buildBulkCredentialCsv, createInitialPassword, parseBulkStaffIds } from "./bulk-account-core.mjs";
 import { compareActivityTimeDesc, filterHelperCandidates, findExactHelperOrder, getLoadPosition, STAGING_BARCODES } from "./helper-task-core.mjs";
 import { formatPickerCoverage, pickerMatchesAnyZone } from "./zone-eligibility.mjs";
 import { SoMasterView } from "./so-master-view";
@@ -28,6 +29,9 @@ type StaffAccount = AuthUser & {
   updatedAt?: string;
   updatedBy?: string;
 };
+
+type BulkCredential = { staffId: string; name: string; password: string; roles: UserRole[] };
+type BulkCreateResult = { staffId: string; status: "CREATED" | "SKIPPED_EXISTING" | "FAILED"; error?: string };
 
 const ALL_ROLES: Array<{ value: UserRole; label: string }> = [
   { value: "STAGING_HELPER", label: "Staging Helper" }, { value: "LINE_HELPER", label: "Line Checker Helper" },
@@ -343,6 +347,17 @@ function downloadLockedCsv(assignments: Assignment[], route?: RouteCode) {
   URL.revokeObjectURL(url);
 }
 
+function downloadBulkCredentials(rows: BulkCredential[]) {
+  const blob = new Blob([buildBulkCredentialCsv(rows)], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  const operationalDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
+  anchor.download = `owor-akun-baru-${operationalDate}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function Home() {
   const router = useRouter();
   const [activeView, setActiveView] = useState<WorkspaceView>("assignment");
@@ -390,10 +405,15 @@ export default function Home() {
   const [staffAccounts, setStaffAccounts] = useState<StaffAccount[]>([]);
   const [developerLoading, setDeveloperLoading] = useState(false);
   const [staffForm, setStaffForm] = useState({ staffId: "", name: "", roles: ["STAGING_HELPER"] as UserRole[], password: "" });
+  const [bulkStaffIds, setBulkStaffIds] = useState("");
+  const [bulkRoles, setBulkRoles] = useState<UserRole[]>(["CONSOLIDATE_PICKER"]);
+  const [bulkCredentials, setBulkCredentials] = useState<BulkCredential[]>([]);
+  const [bulkAccountSummary, setBulkAccountSummary] = useState("");
   const [helperTasks, setHelperTasks] = useState<Record<string, HelperTaskRecord>>({});
 
   const ordersData = liveOrders ?? EMPTY_ORDERS;
   const pickerRoster = livePickers ?? EMPTY_PICKERS;
+  const parsedBulkStaffIds = useMemo(() => parseBulkStaffIds(bulkStaffIds) as string[], [bulkStaffIds]);
 
   const refreshLiveData = useCallback(async () => {
     try {
@@ -1080,6 +1100,52 @@ export default function Home() {
     await refreshDeveloper();
   }
 
+  async function createBulkStaffAccounts() {
+    if (parsedBulkStaffIds.length === 0 || bulkRoles.length === 0) {
+      flash("Paste minimal satu Staff ID dan pilih minimal satu role");
+      return;
+    }
+    if (!window.confirm(`Buat ${parsedBulkStaffIds.length} akun baru? Akun yang sudah ada akan dilewati tanpa reset password.`)) return;
+
+    const rosterNames = new Map(pickerRoster.map((picker) => [picker.staffId.trim().toUpperCase(), picker.name.trim()]));
+    const credentials: BulkCredential[] = parsedBulkStaffIds.map((staffId) => ({
+      staffId,
+      name: rosterNames.get(staffId) || `Staff ${staffId}`,
+      password: createInitialPassword(crypto.getRandomValues(new Uint8Array(12))),
+      roles: bulkRoles,
+    }));
+    const results: BulkCreateResult[] = [];
+    setDeveloperLoading(true);
+    setBulkCredentials([]);
+    setBulkAccountSummary(`Memproses 0/${credentials.length} akun…`);
+
+    for (let offset = 0; offset < credentials.length; offset += 25) {
+      const chunk = credentials.slice(offset, offset + 25);
+      const { data, error } = await supabase.functions.invoke("owor-admin", {
+        method: "POST",
+        body: { action: "bulk_create", accounts: chunk },
+      });
+      const payload = data as { ok?: boolean; results?: BulkCreateResult[]; error?: string } | null;
+      if (error || payload?.ok !== true || !Array.isArray(payload.results)) {
+        results.push(...chunk.map((account) => ({ staffId: account.staffId, status: "FAILED" as const, error: payload?.error || error?.message || "BATCH_FAILED" })));
+      } else {
+        results.push(...payload.results);
+      }
+      setBulkAccountSummary(`Memproses ${Math.min(offset + chunk.length, credentials.length)}/${credentials.length} akun…`);
+    }
+
+    const statusByStaff = new Map(results.map((result) => [result.staffId, result]));
+    const createdCredentials = credentials.filter((account) => statusByStaff.get(account.staffId)?.status === "CREATED");
+    const skipped = results.filter((result) => result.status === "SKIPPED_EXISTING").length;
+    const failed = results.filter((result) => result.status === "FAILED").length;
+    setBulkCredentials(createdCredentials);
+    setBulkAccountSummary(`${createdCredentials.length} dibuat · ${skipped} sudah ada · ${failed} gagal`);
+    setDeveloperLoading(false);
+    if (createdCredentials.length) downloadBulkCredentials(createdCredentials);
+    flash(createdCredentials.length ? `${createdCredentials.length} akun berhasil dibuat. CSV password sudah diunduh.` : "Tidak ada akun baru yang dibuat");
+    await refreshDeveloper();
+  }
+
   async function setStaffAccountActive(account: StaffAccount) {
     setDeveloperLoading(true);
     const { data, error } = await supabase.functions.invoke("owor-admin", {
@@ -1201,6 +1267,22 @@ export default function Home() {
                 <label><span>Password awal</span><input type="password" autoComplete="new-password" value={staffForm.password} onChange={(event) => setStaffForm((current) => ({ ...current, password: event.target.value }))} placeholder="Minimal 8 karakter" /></label>
                 <button className="primary-button" disabled={developerLoading || !developerStatus?.accountStore} onClick={() => void createStaffAccount()}>Create / reset account</button>
               </div>
+              <section className="bulk-account-builder">
+                <div className="bulk-account-intro">
+                  <span>BULK CREATE</span>
+                  <h4>Buat banyak akun sekaligus</h4>
+                  <p>Paste kolom Staff ID dari spreadsheet. Nama dicocokkan dengan roster picker; akun yang sudah ada tidak di-reset.</p>
+                </div>
+                <label className="bulk-account-input"><span>Daftar Staff ID</span><textarea value={bulkStaffIds} onChange={(event) => setBulkStaffIds(event.target.value)} placeholder={"42915\n43194\n42980\n…"} /></label>
+                <fieldset className="staff-role-picker bulk-role-picker"><legend>Role untuk semua akun</legend>{ALL_ROLES.filter((option) => option.value !== "DEVELOPER").map((option) => <label key={option.value}><input type="checkbox" checked={bulkRoles.includes(option.value)} onChange={(event) => setBulkRoles((current) => event.target.checked ? [...new Set([...current, option.value])] : current.filter((role) => role !== option.value))} /><span>{option.label}</span></label>)}</fieldset>
+                <div className="bulk-account-action">
+                  <span><strong>{parsedBulkStaffIds.length}</strong> Staff ID valid</span>
+                  <small>Password unik dibuat otomatis dan hanya tersedia pada CSV hasil.</small>
+                  <button className="primary-button" disabled={developerLoading || !developerStatus?.accountStore || parsedBulkStaffIds.length === 0 || bulkRoles.length === 0} onClick={() => void createBulkStaffAccounts()}>{developerLoading ? "Processing…" : `Create ${parsedBulkStaffIds.length || ""} accounts`}</button>
+                  {bulkCredentials.length > 0 && <button className="secondary-button" onClick={() => downloadBulkCredentials(bulkCredentials)}>Download CSV lagi</button>}
+                  {bulkAccountSummary && <em role="status">{bulkAccountSummary}</em>}
+                </div>
+              </section>
               <div className="role-explainer"><span><b>STAGING HELPER</b> Scan SO dan staging picking</span><span><b>LINE HELPER</b> Staging ke checker line</span><span><b>CONSOLIDATE PICKER</b> Picking lintas SO</span><span><b>CONSOLIDATOR</b> Pisahkan barang per SO</span><span><b>DEVELOPER</b> Semua menu + settings</span></div>
               {!staffAccounts.length ? <div className="empty-state"><strong>Belum ada akun staff di backend</strong><span>Akun developer environment tetap aktif sebagai bootstrap.</span></div> : <div className="staff-account-list">{staffAccounts.map((account) => <article key={account.staffId} data-active={account.active}><div className="staff-avatar">{account.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</div><span><strong>{account.name}</strong><small>{account.staffId} · {account.roles.map((role) => role.replaceAll("_", " ")).join(" + ")}</small></span><em>{account.active ? "ACTIVE" : "DISABLED"}</em><button disabled={developerLoading || account.staffId === authUser.staffId} onClick={() => void setStaffAccountActive(account)}>{account.active ? "Disable" : "Enable"}</button></article>)}</div>}
             </section>

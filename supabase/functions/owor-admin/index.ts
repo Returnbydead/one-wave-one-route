@@ -111,6 +111,61 @@ async function publishRoster(
   }
 }
 
+async function createBulkAccounts(
+  db: ReturnType<typeof adminClient>,
+  body: Record<string, unknown>,
+  updatedBy: string,
+) {
+  const rawAccounts = Array.isArray(body.accounts) ? body.accounts : [];
+  if (rawAccounts.length === 0 || rawAccounts.length > 25) throw new Error("INVALID_BULK_ACCOUNTS");
+  const seen = new Set<string>();
+  const accounts = rawAccounts.flatMap((value) => {
+    if (!value || typeof value !== "object") return [];
+    const item = value as Record<string, unknown>;
+    const staffId = clean(item.staffId).toUpperCase();
+    const name = clean(item.name);
+    const password = String(item.password ?? "");
+    const roles = [...new Set((Array.isArray(item.roles) ? item.roles : [item.role])
+      .map((roleValue) => clean(roleValue).toUpperCase())
+      .filter((roleValue) => ALLOWED_ROLES.has(roleValue)))];
+    if (!/^\d{4,8}$/.test(staffId) || !name || password.length < 12 || roles.length === 0 || seen.has(staffId)) return [];
+    seen.add(staffId);
+    return [{ staffId, name, password, roles, role: roles[0] }];
+  });
+  if (accounts.length !== rawAccounts.length) throw new Error("INVALID_BULK_ACCOUNT_ROW");
+
+  const { data: existingRows, error: existingError } = await db.from("owor_user_profiles")
+    .select("staff_id")
+    .in("staff_id", accounts.map((account) => account.staffId));
+  if (existingError) throw existingError;
+  const existingIds = new Set((existingRows ?? []).map((row) => row.staff_id));
+  const results: Array<{ staffId: string; status: "CREATED" | "SKIPPED_EXISTING" | "FAILED"; error?: string }> = [];
+
+  for (const account of accounts) {
+    if (existingIds.has(account.staffId)) {
+      results.push({ staffId: account.staffId, status: "SKIPPED_EXISTING" });
+      continue;
+    }
+    const { error } = await db.auth.admin.createUser({
+      email: emailForStaff(account.staffId),
+      password: account.password,
+      email_confirm: true,
+      app_metadata: { app: "owor", staff_id: account.staffId, name: account.name, role: account.role, roles: account.roles },
+    });
+    if (error) results.push({ staffId: account.staffId, status: "FAILED", error: error.message.slice(0, 160) });
+    else results.push({ staffId: account.staffId, status: "CREATED" });
+  }
+
+  return {
+    requested: accounts.length,
+    created: results.filter((result) => result.status === "CREATED").length,
+    skipped: results.filter((result) => result.status === "SKIPPED_EXISTING").length,
+    failed: results.filter((result) => result.status === "FAILED").length,
+    results,
+    updatedBy,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
   if (!["GET", "POST", "PATCH"].includes(req.method)) return json(405, { ok: false, error: "METHOD_NOT_ALLOWED" });
@@ -142,6 +197,10 @@ Deno.serve(async (req) => {
     }
 
     const body = req.method === "POST" ? bootstrapBody : await req.json().catch(() => ({})) as Record<string, unknown>;
+    if (req.method === "POST" && clean(body.action).toLowerCase() === "bulk_create") {
+      const result = await createBulkAccounts(db, body, profile.staff_id);
+      return json(200, { ok: true, ...result });
+    }
     if (req.method === "POST" && clean(body.action).toLowerCase() === "import_roster") {
       const result = await publishRoster(db, body, profile.staff_id);
       return json(200, { ok: true, ...result });

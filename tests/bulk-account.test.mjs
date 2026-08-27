@@ -43,3 +43,11 @@ test("developer UI exposes paste, role selection, progress, and credential downl
   assert.match(page, /offset \+= 25/);
   assert.match(css, /\.bulk-account-builder/);
 });
+
+test("developer can reset one staff password and receives a replacement CSV", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /resetStaffAccountPassword/);
+  assert.match(page, />Ganti password<\/button>/);
+  assert.match(page, /downloadBulkCredentials\(\[credential\]\)/);
+  assert.match(page, /Password lama langsung tidak berlaku/);
+});

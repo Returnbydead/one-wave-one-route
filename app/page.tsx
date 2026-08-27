@@ -1162,6 +1162,26 @@ export default function Home() {
     await refreshDeveloper();
   }
 
+  async function resetStaffAccountPassword(account: StaffAccount) {
+    if (!window.confirm(`Buat password baru untuk ${account.name} (${account.staffId})? Password lama langsung tidak berlaku.`)) return;
+    const password = createInitialPassword(crypto.getRandomValues(new Uint8Array(12)));
+    setDeveloperLoading(true);
+    const { data, error } = await supabase.functions.invoke("owor-admin", {
+      method: "POST",
+      body: { staffId: account.staffId, name: account.name, roles: account.roles, password },
+    });
+    const payload = data as { ok?: boolean; error?: string } | null;
+    setDeveloperLoading(false);
+    if (error || payload?.ok !== true) {
+      flash(payload?.error || error?.message || "Password gagal diganti");
+      return;
+    }
+    const credential = { staffId: account.staffId, name: account.name, password, roles: account.roles };
+    setBulkCredentials([credential]);
+    downloadBulkCredentials([credential]);
+    flash(`Password ${account.staffId} berhasil diganti. CSV baru sudah diunduh.`);
+  }
+
   async function runBackendSync() {
     setDeveloperLoading(true);
     const { data, error } = await supabase.functions.invoke("owor-admin", { method: "POST", body: { action: "sync" } });
@@ -1284,7 +1304,7 @@ export default function Home() {
                 </div>
               </section>
               <div className="role-explainer"><span><b>STAGING HELPER</b> Scan SO dan staging picking</span><span><b>LINE HELPER</b> Staging ke checker line</span><span><b>CONSOLIDATE PICKER</b> Picking lintas SO</span><span><b>CONSOLIDATOR</b> Pisahkan barang per SO</span><span><b>DEVELOPER</b> Semua menu + settings</span></div>
-              {!staffAccounts.length ? <div className="empty-state"><strong>Belum ada akun staff di backend</strong><span>Akun developer environment tetap aktif sebagai bootstrap.</span></div> : <div className="staff-account-list">{staffAccounts.map((account) => <article key={account.staffId} data-active={account.active}><div className="staff-avatar">{account.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</div><span><strong>{account.name}</strong><small>{account.staffId} · {account.roles.map((role) => role.replaceAll("_", " ")).join(" + ")}</small></span><em>{account.active ? "ACTIVE" : "DISABLED"}</em><button disabled={developerLoading || account.staffId === authUser.staffId} onClick={() => void setStaffAccountActive(account)}>{account.active ? "Disable" : "Enable"}</button></article>)}</div>}
+              {!staffAccounts.length ? <div className="empty-state"><strong>Belum ada akun staff di backend</strong><span>Akun developer environment tetap aktif sebagai bootstrap.</span></div> : <div className="staff-account-list">{staffAccounts.map((account) => <article key={account.staffId} data-active={account.active}><div className="staff-avatar">{account.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</div><span><strong>{account.name}</strong><small>{account.staffId} · {account.roles.map((role) => role.replaceAll("_", " ")).join(" + ")}</small></span><em>{account.active ? "ACTIVE" : "DISABLED"}</em><div className="staff-account-actions"><button disabled={developerLoading} onClick={() => void resetStaffAccountPassword(account)}>Ganti password</button><button disabled={developerLoading || account.staffId === authUser.staffId} onClick={() => void setStaffAccountActive(account)}>{account.active ? "Disable" : "Enable"}</button></div></article>)}</div>}
             </section>
 
             <section className="developer-panel developer-danger-panel panel">

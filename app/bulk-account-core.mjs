@@ -11,6 +11,15 @@ export function createInitialPassword(bytes) {
   return `Iw!${random}`;
 }
 
+export function normalizeGeneratedPasswordPaste(value) {
+  const raw = String(value ?? "");
+  const trimmed = raw.trim();
+  const unquoted = trimmed.startsWith('"') && trimmed.endsWith('"')
+    ? trimmed.slice(1, -1).replaceAll('""', '"')
+    : trimmed;
+  return /^Iw![A-Za-z0-9]{10,}$/.test(unquoted) ? unquoted : raw;
+}
+
 function csvCell(value) {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }

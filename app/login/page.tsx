@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { oworEmail, supabase } from "@/lib/supabase-browser";
+import { normalizeGeneratedPasswordPaste } from "../bulk-account-core.mjs";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function LoginPage() {
     setError("");
     const { error: loginError } = await supabase.auth.signInWithPassword({
       email: oworEmail(staffId),
-      password,
+      password: normalizeGeneratedPasswordPaste(password),
     });
     setLoading(false);
     if (loginError) {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { buildBulkCredentialCsv, createInitialPassword, parseBulkStaffIds } from "../app/bulk-account-core.mjs";
+import { buildBulkCredentialCsv, createInitialPassword, normalizeGeneratedPasswordPaste, parseBulkStaffIds } from "../app/bulk-account-core.mjs";
 
 test("parses pasted spreadsheet or markdown staff IDs and removes duplicates", () => {
   const input = "| 42915 |\n| :---: |\n43194\n42915\ninvalid\n52016";
@@ -13,6 +13,11 @@ test("creates a strong one-time password without embedding the staff ID", () => 
   const password = createInitialPassword(new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]));
   assert.match(password, /^Iw![A-Za-z0-9]{12}$/);
   assert.equal(password.includes("42915"), false);
+});
+
+test("normalizes a generated password copied from a raw CSV cell", () => {
+  assert.equal(normalizeGeneratedPasswordPaste('  "Iw!Abcdef234567"\r\n'), "Iw!Abcdef234567");
+  assert.equal(normalizeGeneratedPasswordPaste("manual password "), "manual password ");
 });
 
 test("credential CSV preserves multi-role values and spreadsheet characters", () => {

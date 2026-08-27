@@ -3675,12 +3675,18 @@ code {
 .developer-warning { background: #fff2e9; border-top: 1px solid #f2cfbc; color: #854222; display: grid; font-size: 11px; gap: 3px; padding: 14px 22px; }
 .developer-warning code { background: rgba(255, 255, 255, .7); border-radius: 3px; padding: 2px 4px; }
 
-.staff-account-form { align-items: end; display: grid; gap: 12px; grid-template-columns: .8fr 1.2fr 1fr 1fr auto; padding: 20px 22px; }
+.staff-account-form { align-items: end; display: grid; gap: 12px; grid-template-columns: minmax(180px,.8fr) minmax(240px,1.2fr) minmax(300px,1.4fr) minmax(220px,1fr) auto; padding: 20px 22px; }
 .staff-account-form label { display: grid; gap: 7px; }
 .staff-account-form input,
 .staff-account-form select { background: #fff; border: 1px solid #cdd8d4; border-radius: 5px; min-height: 43px; outline: none; padding: 0 11px; }
 .staff-account-form input:focus,
 .staff-account-form select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(47, 158, 133, .1); }
+.staff-role-picker { align-content: center; min-width: 0; padding: 10px 12px 12px; }
+.staff-role-picker label { align-items: center; background: #f4f7f5; border: 1px solid #d4dfdb; cursor: pointer; display: inline-flex; gap: 7px; min-height: 36px; padding: 0 11px; border-radius: 999px; }
+.staff-role-picker label:has(input:checked) { background: #e3f5ef; border-color: #93cdbb; color: #12674f; }
+.staff-role-picker label:focus-within { box-shadow: 0 0 0 3px rgba(47, 158, 133, .14); }
+.staff-role-picker input[type="checkbox"] { accent-color: var(--green); flex: 0 0 16px; height: 16px; margin: 0; min-height: 16px; padding: 0; width: 16px; }
+.staff-account-form .staff-role-picker label > span { color: inherit; font: 750 9px var(--mono); letter-spacing: 0; white-space: nowrap; }
 .staff-account-form button { min-height: 43px; white-space: nowrap; }
 .role-explainer { background: #f4f7f5; border-bottom: 1px solid var(--line); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, 1fr); }
 .role-explainer span { color: var(--muted); display: grid; font-size: 10px; gap: 3px; padding: 12px 22px; }

@@ -28,3 +28,9 @@ test("accounts expose multiple access roles and picking assignments use wave plu
   assert.match(migration, /p_waves integer\[\]/i);
   assert.match(migration, /p_locations text\[\]/i);
 });
+
+test("developer role checkboxes are compact clickable chips instead of full-size text inputs", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /\.staff-role-picker input\[type="checkbox"\]\s*\{[^}]*min-height:\s*16px[^}]*width:\s*16px/is);
+  assert.match(css, /\.staff-role-picker label\s*\{[^}]*display:\s*inline-flex[^}]*border-radius:\s*999px/is);
+});

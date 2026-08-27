@@ -49,7 +49,7 @@ test("renders assignment, picking, SO master, consolidate, and helper operations
   assert.match(html, /aria-label="Buka menu staging helper"/);
   assert.match(html, /aria-label="Buka menu line checker"/);
   assert.match(html, /aria-label="Buka menu developer"/);
-  assert.match(html, /authUser\.role === "DEVELOPER"/);
+  assert.match(html, /hasRole\(authUser, "DEVELOPER"\)/);
   assert.match(html, /setActiveView\("staging-tasks"\)/);
   assert.match(html, /setActiveView\("line-tasks"\)/);
   assert.match(html, /Developer control center/);

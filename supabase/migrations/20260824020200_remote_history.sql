@@ -1,0 +1,1 @@
+-- Historical migration already applied remotely before this repository snapshot.

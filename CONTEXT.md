@@ -6,11 +6,19 @@ A frozen work package created from one valid Consolidate Picking snapshot. A pic
 
 ## Pick row
 
-One rack, SKU, and expiry combination inside a batch picking task. Every pick row must be confirmed before its batch can be completed.
+One rack, SKU, and expiry combination inside a batch picking task. A picker must confirm the SKU and quantity at that rack. Partial confirmations accumulate, may not exceed the target, and the row is complete only when the target is reached.
+
+## Picking assignment
+
+A developer-created allocation of selected waves and selected rack locations to one or more bulk pickers. Every selected location belongs to exactly one picker task in that assignment.
 
 ## Consolidation task
 
 One sales order created after batch picking completes. A consolidator separates the picked stock according to that sales order's SKU allocation.
+
+## Access role
+
+One operational capability attached to an account. An account may hold multiple roles; each role independently unlocks its matching workspace. Developer includes every capability.
 
 ## Staging helper task
 

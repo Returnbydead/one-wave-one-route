@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { advanceBatch, advanceConsolidation, batchProgress } from "../app/consolidate-task-core.mjs";
+import { advanceBatch, advanceConsolidation, batchProgress, validatePickConfirmation } from "../app/consolidate-task-core.mjs";
 
 test("picker claims a ready batch and completes it only after every pick row is done", () => {
   assert.equal(advanceBatch({ status: "READY", totalLines: 3, completedLines: 0 }, "CLAIM_PICKING"), "IN_PROGRESS");
@@ -24,6 +24,13 @@ test("batch progress reports mobile task completion using known quantities", () 
     { totalQty: 22, pickedQty: 10 },
     { totalQty: 30, pickedQty: 0 },
   ]), { totalLines: 3, completedLines: 1, totalQty: 57, pickedQty: 15, percent: 26 });
+});
+
+test("pick confirmation rejects the wrong SKU and supports safe partial quantities", () => {
+  assert.throws(() => validatePickConfirmation({ expectedSku: "899001", scannedSku: "899002", targetQty: 10, pickedQty: 0, inputQty: 4 }), /SKU_MISMATCH/);
+  assert.throws(() => validatePickConfirmation({ expectedSku: "899001", scannedSku: "899001", targetQty: 10, pickedQty: 8, inputQty: 3 }), /PICK_QTY_EXCEEDS_TARGET/);
+  assert.deepEqual(validatePickConfirmation({ expectedSku: "899001", scannedSku: "899001", targetQty: 10, pickedQty: 0, inputQty: 4 }), { nextPickedQty: 4, completed: false });
+  assert.deepEqual(validatePickConfirmation({ expectedSku: "899001", scannedSku: "899001", targetQty: 10, pickedQty: 4, inputQty: 6 }), { nextPickedQty: 10, completed: true });
 });
 
 test("casts snapshot expiry text safely when generating date-based picking rows", async () => {

@@ -32,7 +32,7 @@ async function tryBootstrap(req: Request, body: Record<string, unknown>) {
   if (!staffId || !name || password.length < 12) return json(400, { ok: false, error: "INVALID_BOOTSTRAP_USER" });
   const { data, error } = await db.auth.admin.createUser({
     email: emailForStaff(staffId), password, email_confirm: true,
-    app_metadata: { app: "owor", staff_id: staffId, name, role: "DEVELOPER" },
+    app_metadata: { app: "owor", staff_id: staffId, name, role: "DEVELOPER", roles: ["DEVELOPER"] },
   });
   if (error) throw error;
   return json(201, { ok: true, user: { userId: data.user.id, staffId, name, role: "DEVELOPER" } });
@@ -47,10 +47,10 @@ async function requireDeveloper(req: Request) {
   if (userError || !userData.user) throw new Error("UNAUTHENTICATED");
   const { data: profile, error: profileError } = await db
     .from("owor_user_profiles")
-    .select("user_id,staff_id,name,role,active")
+    .select("user_id,staff_id,name,role,roles,active")
     .eq("user_id", userData.user.id)
     .maybeSingle();
-  if (profileError || !profile?.active || profile.role !== "DEVELOPER") throw new Error("FORBIDDEN");
+  if (profileError || !profile?.active || !(profile.roles ?? [profile.role]).includes("DEVELOPER")) throw new Error("FORBIDDEN");
   return { db, user: userData.user, profile };
 }
 
@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
     const { db, profile } = await requireDeveloper(req);
     if (req.method === "GET") {
       const [usersResult, headsResult, runsResult, tasksResult] = await Promise.all([
-        db.from("owor_user_profiles").select("user_id,staff_id,name,role,active,updated_at").order("name"),
+        db.from("owor_user_profiles").select("user_id,staff_id,name,role,roles,active,updated_at").order("name"),
         db.from("owor_snapshot_heads").select("source,operational_date,generated_at,row_count,checksum").order("source"),
         db.from("owor_sync_runs").select("source,operational_date,status,started_at,finished_at,fetched_rows,written_rows,checksum,error_code").order("started_at", { ascending: false }).limit(12),
         db.from("owor_helper_tasks").select("so_number", { count: "exact", head: true }),
@@ -174,9 +174,10 @@ Deno.serve(async (req) => {
 
     if (req.method === "POST") {
       const name = clean(body.name);
-      const role = clean(body.role).toUpperCase();
+      const roles = [...new Set((Array.isArray(body.roles) ? body.roles : [body.role]).map((value) => clean(value).toUpperCase()).filter((value) => ALLOWED_ROLES.has(value)))];
+      const role = roles[0] ?? "";
       const password = String(body.password ?? "");
-      if (!name || !ALLOWED_ROLES.has(role) || password.length < 8) throw new Error("INVALID_USER_DATA");
+      if (!name || roles.length === 0 || password.length < 8) throw new Error("INVALID_USER_DATA");
       const { data: existing, error: existingError } = await db.from("owor_user_profiles")
         .select("user_id,staff_id")
         .eq("staff_id", staffId)
@@ -186,35 +187,35 @@ Deno.serve(async (req) => {
         const { error: authUpdateError } = await db.auth.admin.updateUserById(existing.user_id, {
           password,
           ban_duration: "none",
-          app_metadata: { app: "owor", staff_id: staffId, name, role },
+          app_metadata: { app: "owor", staff_id: staffId, name, role, roles },
         });
         if (authUpdateError) throw authUpdateError;
         const { error: profileUpdateError } = await db.from("owor_user_profiles")
-          .update({ name, role, active: true, updated_at: new Date().toISOString() })
+          .update({ name, role, roles, active: true, updated_at: new Date().toISOString() })
           .eq("user_id", existing.user_id);
         if (profileUpdateError) throw profileUpdateError;
-        return json(200, { ok: true, user: { userId: existing.user_id, staffId, name, role, active: true }, reset: true, updatedBy: profile.staff_id });
+        return json(200, { ok: true, user: { userId: existing.user_id, staffId, name, role, roles, active: true }, reset: true, updatedBy: profile.staff_id });
       }
       const { data, error } = await db.auth.admin.createUser({
         email: emailForStaff(staffId),
         password,
         email_confirm: true,
-        app_metadata: { app: "owor", staff_id: staffId, name, role },
+        app_metadata: { app: "owor", staff_id: staffId, name, role, roles },
       });
       if (error) throw error;
-      return json(201, { ok: true, user: { userId: data.user.id, staffId, name, role, active: true }, updatedBy: profile.staff_id });
+      return json(201, { ok: true, user: { userId: data.user.id, staffId, name, role, roles, active: true }, updatedBy: profile.staff_id });
     }
 
     const active = body.active === true;
     const { data: target, error: targetError } = await db.from("owor_user_profiles")
-      .select("user_id,staff_id,name,role")
+      .select("user_id,staff_id,name,role,roles")
       .eq("staff_id", staffId)
       .maybeSingle();
     if (targetError || !target) throw new Error("USER_NOT_FOUND");
     if (target.user_id === profile.user_id) throw new Error("CANNOT_DISABLE_SELF");
     const { error: authError } = await db.auth.admin.updateUserById(target.user_id, {
       ban_duration: active ? "none" : "876000h",
-      app_metadata: { app: "owor", staff_id: target.staff_id, name: target.name, role: target.role },
+      app_metadata: { app: "owor", staff_id: target.staff_id, name: target.name, role: target.role, roles: target.roles ?? [target.role] },
     });
     if (authError) throw authError;
     const { error: profileUpdateError } = await db.from("owor_user_profiles")

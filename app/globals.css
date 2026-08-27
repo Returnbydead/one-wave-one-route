@@ -3323,6 +3323,24 @@ code {
 .consolidation-allocation-list article b, .consolidation-allocation-list article > strong { font: 850 11px var(--mono); }
 .consolidation-allocation-list article small { color: var(--muted); font-size: 9px; }
 .consolidation-scan-card { border-top: 1px solid var(--line); display: grid; gap: 10px; padding: 16px; }
+.picking-assignment-builder { display: grid; gap: 14px; grid-template-columns: minmax(220px,1.2fr) repeat(3,minmax(150px,1fr)) auto; margin-top: 15px; padding: 18px; }
+.picking-assignment-builder > div > span { color: #15916e; font: 850 8px var(--mono); letter-spacing: .12em; }
+.picking-assignment-builder h3 { margin: 5px 0; }
+.picking-assignment-builder p { color: var(--muted); font-size: 10px; margin: 0; }
+.picking-assignment-builder fieldset, .staff-role-picker { border: 1px solid #d5dfdb; border-radius: 6px; display: flex; flex-wrap: wrap; gap: 7px; margin: 0; padding: 10px; }
+.picking-assignment-builder legend, .staff-role-picker legend { color: #667772; font: 800 8px var(--mono); padding: 0 5px; }
+.picking-assignment-builder label, .staff-role-picker label { align-items: center; display: flex; gap: 7px; min-height: 34px; }
+.picking-assignment-builder label span { display: grid; font: 750 9px var(--mono); }
+.picking-assignment-builder label small { color: var(--muted); font-size: 7px; }
+.assignment-location-list { max-height: 150px; overflow-y: auto; }
+.pick-location-button { align-items: center; background: transparent; border: 0; cursor: pointer; display: flex; justify-content: space-between; min-height: 48px; padding: 0; text-align: left; width: 100%; }
+.pick-location-button span { display: grid; gap: 3px; }
+.pick-location-button em { color: #168263; font: normal 850 8px var(--mono); }
+.pick-confirmation-form { display: grid !important; gap: 9px !important; grid-template-columns: 1fr 1fr !important; padding-top: 10px; }
+.pick-confirmation-form > strong, .pick-confirmation-form > p { grid-column: 1 / -1; }
+.pick-confirmation-form > p { margin: 0 !important; }
+.task-active-head > button { background: transparent; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; color: #fff; cursor: pointer; font-size: 20px; height: 40px; width: 40px; }
+.consolidation-mobile-backdrop { display: none; }
 .helper-process-banner { align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 8px; display: flex; gap: 14px; margin-bottom: 14px; padding: 13px 16px; }
 .helper-process-banner > span { color: #ff6638; font: 850 11px var(--mono); }
 .helper-process-banner > div { display: grid; gap: 3px; }
@@ -3340,6 +3358,8 @@ code {
   .consolidate-list { overflow-x: auto; }
   .consolidate-list-label,
   .consolidate-row-main { min-width: 900px; }
+  .picking-assignment-builder { grid-template-columns: 1fr 1fr; }
+  .picking-assignment-builder > div { grid-column: 1 / -1; }
 }
 
 @media (max-width: 560px) {
@@ -3357,11 +3377,18 @@ code {
   .consolidate-tabs { gap: 5px; grid-template-columns: 1fr; }
   .consolidate-tabs button { min-height: 48px; }
   .task-mobile-layout { grid-template-columns: 1fr; }
+  .picking-assignment-builder { grid-template-columns: 1fr; }
+  .picking-assignment-builder > div { grid-column: auto; }
   .task-mobile-queue > button { min-height: 74px; }
   .task-pick-lines { padding: 8px; }
   .task-pick-lines article > div { grid-template-columns: 1fr; }
+  .pick-confirmation-form { grid-template-columns: 1fr !important; }
+  .pick-confirmation-form > strong, .pick-confirmation-form > p { grid-column: auto; }
   .task-pick-lines article button { min-height: 48px; }
   .consolidation-allocation-list { max-height: none; }
+  .consolidation-mobile-backdrop { background: rgba(5,20,16,.55); border: 0; display: block; inset: 0; position: fixed; z-index: 90; }
+  .consolidation-detail-sheet { background: #fff; border-radius: 18px 18px 0 0; bottom: 0; left: 0; max-height: min(82vh,720px); overflow-y: auto; position: fixed; right: 0; transform: translateY(110%); transition: transform .2s ease; z-index: 91; }
+  .consolidation-detail-sheet.open { transform: translateY(0); }
   .consolidate-list-label { display: none; }
   .consolidate-list { overflow: visible; }
   .consolidate-row-main { gap: 10px; grid-template-columns: 1fr auto auto; min-height: 0; min-width: 0; padding: 16px; }

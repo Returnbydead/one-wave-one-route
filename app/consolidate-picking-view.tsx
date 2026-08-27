@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
+import { validatePickConfirmation } from "./consolidate-task-core.mjs";
 
 type ConsolidateRole = "DEVELOPER" | "CONSOLIDATE_PICKER" | "CONSOLIDATOR" | "STAGING_HELPER" | "LINE_HELPER";
-type User = { staffId: string; name: string; role: ConsolidateRole };
+type User = { staffId: string; name: string; role: ConsolidateRole; roles: ConsolidateRole[] };
 type ViewMode = "PICKLIST" | "PICKING_TASK" | "CONSOLIDATION_TASK";
 type Allocation = { soNumber: string; hubCode: string; waveNumber: number; requestQty: number };
 type PickItem = {
@@ -42,14 +43,17 @@ function freshness(value?: string | null) {
   return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
-function defaultMode(role: ConsolidateRole): ViewMode {
-  if (role === "CONSOLIDATE_PICKER") return "PICKING_TASK";
-  if (role === "CONSOLIDATOR") return "CONSOLIDATION_TASK";
+function defaultMode(roles: ConsolidateRole[]): ViewMode {
+  if (roles.includes("CONSOLIDATE_PICKER")) return "PICKING_TASK";
+  if (roles.includes("CONSOLIDATOR")) return "CONSOLIDATION_TASK";
   return "PICKLIST";
 }
 
 export function ConsolidatePickingView({ user }: { user: User }) {
-  const [mode, setMode] = useState<ViewMode>(() => defaultMode(user.role));
+  const isDeveloper = user.roles.includes("DEVELOPER");
+  const canPick = isDeveloper || user.roles.includes("CONSOLIDATE_PICKER");
+  const canConsolidate = isDeveloper || user.roles.includes("CONSOLIDATOR");
+  const [mode, setMode] = useState<ViewMode>(() => defaultMode(user.roles));
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [tasks, setTasks] = useState<TaskPayload>({ ok: true, batches: [], consolidations: [] });
   const [loading, setLoading] = useState(true);
@@ -62,7 +66,13 @@ export function ConsolidatePickingView({ user }: { user: User }) {
   const [selectedSo, setSelectedSo] = useState("");
   const [waveFilter, setWaveFilter] = useState("ALL");
   const [qtyInputs, setQtyInputs] = useState<Record<number, string>>({});
+  const [skuInputs, setSkuInputs] = useState<Record<number, string>>({});
+  const [activePickLineId, setActivePickLineId] = useState<number | null>(null);
   const [soScan, setSoScan] = useState("");
+  const [assignmentOptions, setAssignmentOptions] = useState<{ pickers: Array<{staffId:string;name:string}>; waves:number[]; locations:string[] }>({ pickers: [], waves: [], locations: [] });
+  const [assignedPickers, setAssignedPickers] = useState<string[]>([]);
+  const [assignedWaves, setAssignedWaves] = useState<number[]>([]);
+  const [assignedLocations, setAssignedLocations] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,6 +95,17 @@ export function ConsolidatePickingView({ user }: { user: User }) {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => {
+    if (!isDeveloper) return;
+    void supabase.rpc("owor_get_consolidate_assignment_options", { p_scope_code: "SRA_L2_UP" }).then(({ data }) => {
+      const options = data as typeof assignmentOptions | null;
+      if (!options) return;
+      setAssignmentOptions(options);
+      setAssignedWaves(options.waves ?? []);
+      setAssignedLocations(options.locations ?? []);
+    });
+  }, [isDeveloper]);
 
   async function runSync() {
     setBusy(true);
@@ -113,6 +134,32 @@ export function ConsolidatePickingView({ user }: { user: User }) {
     setBusy(false);
   }
 
+  async function assignPickingTasks() {
+    if (!assignedPickers.length || !assignedWaves.length || !assignedLocations.length) {
+      setMessage("Pilih minimal satu picker, wave, dan lokasi."); return;
+    }
+    setBusy(true);
+    const { data, error } = await supabase.rpc("owor_assign_consolidate_picking", {
+      p_picker_ids: assignedPickers, p_waves: assignedWaves, p_locations: assignedLocations, p_scope_code: "SRA_L2_UP",
+    });
+    if (error) setMessage(error.message || "Assignment gagal dibuat");
+    else { setTasks(data as TaskPayload); setMessage("Picking Task sudah dibagi ke picker berdasarkan wave dan lokasi."); }
+    setBusy(false);
+  }
+
+  async function confirmPick(batch: Batch, line: BatchLine) {
+    try {
+      validatePickConfirmation({ expectedSku: line.skuNumber, scannedSku: skuInputs[line.lineId] || "", targetQty: line.totalQty, pickedQty: line.pickedQty, inputQty: Number(qtyInputs[line.lineId] || 0) });
+    } catch (error) {
+      setMessage(error instanceof Error && error.message === "SKU_MISMATCH" ? "SKU berbeda. Picking tidak dapat dikonfirmasi." : "Qty tidak valid atau melebihi target."); return;
+    }
+    setBusy(true);
+    const { data, error } = await supabase.rpc("owor_confirm_consolidate_pick", { p_batch_id: batch.batchId, p_line_id: line.lineId, p_sku: skuInputs[line.lineId], p_qty: Number(qtyInputs[line.lineId]) });
+    if (error) setMessage(error.message || "Konfirmasi picking gagal");
+    else { setTasks(data as TaskPayload); setMessage("Qty picking tersimpan."); setQtyInputs((current) => ({ ...current, [line.lineId]: "" })); }
+    setBusy(false);
+  }
+
   async function applyAction(batchId: string, action: string, lineId?: number, qty?: number, soNumber = "") {
     setBusy(true);
     const { data, error } = await supabase.rpc("owor_apply_consolidate_action", {
@@ -137,7 +184,8 @@ export function ConsolidatePickingView({ user }: { user: User }) {
         .some((value) => normalize(String(value || "")).includes(query));
     });
   }, [area, rows, search]);
-  const selectedBatch = tasks.batches.find((batch) => batch.batchId === selectedBatchId) || tasks.batches[0];
+  const visibleBatches = isDeveloper ? tasks.batches : tasks.batches.filter((batch) => batch.pickerId === normalize(user.staffId));
+  const selectedBatch = visibleBatches.find((batch) => batch.batchId === selectedBatchId) || visibleBatches[0];
   const consolidationWaves = useMemo(
     () => [...new Set(tasks.consolidations.map((task) => task.waveNumber))].sort((left, right) => left - right),
     [tasks.consolidations],
@@ -153,10 +201,10 @@ export function ConsolidatePickingView({ user }: { user: User }) {
       : tasks.consolidations.filter((task) => task.waveNumber === Number(waveFilter)),
     [tasks.consolidations, waveFilter],
   );
-  const selectedConsolidation = filteredConsolidations.find((task) => task.soNumber === selectedSo) || filteredConsolidations[0];
-  const canWorkBatch = selectedBatch && (user.role === "DEVELOPER" || selectedBatch.pickerId === normalize(user.staffId));
+  const selectedConsolidation = filteredConsolidations.find((task) => task.soNumber === selectedSo);
+  const canWorkBatch = selectedBatch && (isDeveloper || selectedBatch.pickerId === normalize(user.staffId));
   const completedLines = selectedBatch?.lines.filter((line) => line.status === "DONE").length || 0;
-  const canWorkConsolidation = selectedConsolidation && (user.role === "DEVELOPER" || selectedConsolidation.consolidatorId === normalize(user.staffId));
+  const canWorkConsolidation = selectedConsolidation && (isDeveloper || selectedConsolidation.consolidatorId === normalize(user.staffId));
   const visibleQty = filtered.reduce((total, row) => total + Number(row.totalQty || 0), 0);
   const visibleSo = new Set(filtered.flatMap((row) => row.allocations.map((item) => item.soNumber))).size;
 
@@ -168,9 +216,9 @@ export function ConsolidatePickingView({ user }: { user: User }) {
       </div>
 
       <div className="consolidate-tabs" role="tablist" aria-label="Submenu Consolidate Picking">
-        {user.role === "DEVELOPER" && <button role="tab" aria-selected={mode === "PICKLIST"} className={mode === "PICKLIST" ? "active" : ""} onClick={() => setMode("PICKLIST")}><b>01</b><span>Picklist<small>Raw planning</small></span></button>}
-        {(user.role === "DEVELOPER" || user.role === "CONSOLIDATE_PICKER") && <button role="tab" aria-selected={mode === "PICKING_TASK"} className={mode === "PICKING_TASK" ? "active" : ""} onClick={() => setMode("PICKING_TASK")}><b>02</b><span>Picking Task<small>Rack → SKU</small></span></button>}
-        {(user.role === "DEVELOPER" || user.role === "CONSOLIDATOR") && <button role="tab" aria-selected={mode === "CONSOLIDATION_TASK"} className={mode === "CONSOLIDATION_TASK" ? "active" : ""} onClick={() => setMode("CONSOLIDATION_TASK")}><b>03</b><span>Consolidation Task<small>Barang → SO</small></span></button>}
+        {isDeveloper && <button role="tab" aria-selected={mode === "PICKLIST"} className={mode === "PICKLIST" ? "active" : ""} onClick={() => setMode("PICKLIST")}><b>01</b><span>Picklist<small>Raw planning</small></span></button>}
+        {canPick && <button role="tab" aria-selected={mode === "PICKING_TASK"} className={mode === "PICKING_TASK" ? "active" : ""} onClick={() => setMode("PICKING_TASK")}><b>02</b><span>Picking Task<small>Rack → SKU</small></span></button>}
+        {canConsolidate && <button role="tab" aria-selected={mode === "CONSOLIDATION_TASK"} className={mode === "CONSOLIDATION_TASK" ? "active" : ""} onClick={() => setMode("CONSOLIDATION_TASK")}><b>03</b><span>Consolidation Task<small>Barang → SO</small></span></button>}
       </div>
 
       <div className="consolidate-status" aria-live="polite">
@@ -178,8 +226,7 @@ export function ConsolidatePickingView({ user }: { user: User }) {
         <small>{freshness(snapshot?.generatedAt)}{snapshot?.operationalDate ? ` · operational ${snapshot.operationalDate}` : ""}</small>
         <div>
           <button className="soft-button" disabled={loading || busy} onClick={() => void load()}>↻ Refresh</button>
-          {user.role === "DEVELOPER" && mode === "PICKLIST" && <button className="primary-button" disabled={busy} onClick={() => void runSync()}>{busy ? "Syncing…" : "Sync Superset"}</button>}
-          {user.role === "DEVELOPER" && mode === "PICKING_TASK" && <button className="primary-button" disabled={busy || !snapshot?.ok} onClick={() => void generateTasks()}>Generate task</button>}
+          {isDeveloper && mode === "PICKLIST" && <button className="primary-button" disabled={busy} onClick={() => void runSync()}>{busy ? "Syncing…" : "Sync Superset"}</button>}
         </div>
       </div>
       {message && <div className="consolidate-message" role="status">{message}</div>}
@@ -200,16 +247,24 @@ export function ConsolidatePickingView({ user }: { user: User }) {
         </section>
       </>}
 
+      {mode === "PICKING_TASK" && isDeveloper && <section className="picking-assignment-builder panel" aria-label="Assign by wave and location">
+        <div><span>ASSIGNMENT BUILDER</span><h3>Assign by wave & location</h3><p>Pilih beberapa picker, wave, dan lokasi. Lokasi dibagi merata; satu lokasi hanya masuk ke satu picker.</p></div>
+        <fieldset><legend>Picker</legend>{assignmentOptions.pickers.map((picker) => <label key={picker.staffId}><input type="checkbox" checked={assignedPickers.includes(picker.staffId)} onChange={(event) => setAssignedPickers((current) => event.target.checked ? [...current, picker.staffId] : current.filter((id) => id !== picker.staffId))} /><span>{picker.name}<small>{picker.staffId}</small></span></label>)}</fieldset>
+        <fieldset><legend>Wave</legend>{assignmentOptions.waves.map((wave) => <label key={wave}><input type="checkbox" checked={assignedWaves.includes(wave)} onChange={(event) => setAssignedWaves((current) => event.target.checked ? [...current, wave] : current.filter((value) => value !== wave))} /><span>Wave {wave}</span></label>)}</fieldset>
+        <fieldset className="assignment-location-list"><legend>Lokasi ({assignedLocations.length})</legend>{assignmentOptions.locations.map((location) => <label key={location}><input type="checkbox" checked={assignedLocations.includes(location)} onChange={(event) => setAssignedLocations((current) => event.target.checked ? [...current, location] : current.filter((value) => value !== location))} /><span>{location}</span></label>)}</fieldset>
+        <button className="primary-button" disabled={busy} onClick={() => void assignPickingTasks()}>Buat task picker</button>
+      </section>}
+
       {mode === "PICKING_TASK" && <section className="task-mobile-layout">
         <div className="task-mobile-queue panel">
           <div className="task-mobile-heading"><span>02</span><div><h3>Picking Task</h3><p>Claim satu batch, konfirmasi qty per rack dan SKU.</p></div></div>
-          {!tasks.batches.length ? <div className="consolidate-empty"><strong>Belum ada Picking Task</strong><span>Developer perlu menekan Generate task.</span></div> : tasks.batches.map((batch) => <button key={batch.batchId} className={selectedBatch?.batchId === batch.batchId ? "active" : ""} onClick={() => setSelectedBatchId(batch.batchId)}><span><b>{batch.batchCode}</b><small>{batch.pickingAreaName}</small></span><strong>{batch.lines.length} rows</strong><em data-state={batch.status}>{batch.status.replaceAll("_", " ")}</em></button>)}
+          {!visibleBatches.length ? <div className="consolidate-empty"><strong>Belum ada Picking Task</strong><span>Developer perlu membuat assignment picker.</span></div> : visibleBatches.map((batch) => <button key={batch.batchId} className={selectedBatch?.batchId === batch.batchId ? "active" : ""} onClick={() => setSelectedBatchId(batch.batchId)}><span><b>{batch.batchCode}</b><small>{batch.pickingAreaName}</small></span><strong>{batch.lines.length} rows</strong><em data-state={batch.status}>{batch.status.replaceAll("_", " ")}</em></button>)}
         </div>
         <aside className="task-mobile-detail panel">
           {!selectedBatch ? <div className="consolidate-empty"><strong>Pilih batch</strong></div> : <>
             <div className="task-active-head"><span><small>ACTIVE BATCH</small><strong>{selectedBatch.batchCode}</strong></span><b>{completedLines}/{selectedBatch.lines.length}</b></div>
             {selectedBatch.status === "READY" ? <div className="task-claim-card"><h3>Batch siap diambil</h3><p>{number(selectedBatch.lines.reduce((sum, line) => sum + Number(line.totalQty), 0))} qty · {selectedBatch.lines.length} rack/SKU</p><button disabled={busy} onClick={() => void applyAction(selectedBatch.batchId, "CLAIM_PICKING")}>Ambil Picking Task</button></div> : <div className="task-pick-lines">
-              {selectedBatch.lines.map((line) => <article key={line.lineId} data-done={line.status === "DONE"}><header><span><b>{line.originRackName}</b><small>#{line.lineNo} · W{line.waves.join(" / W")}</small></span><em>{line.status === "DONE" ? "DONE" : "PICK"}</em></header><strong>{line.skuNumber}</strong><p>{line.productName}</p><div><label><span>Target qty</span><input inputMode="numeric" aria-label={`Qty SKU ${line.skuNumber}`} value={qtyInputs[line.lineId] ?? String(line.totalQty)} disabled={line.status === "DONE" || !canWorkBatch} onChange={(event) => setQtyInputs((current) => ({ ...current, [line.lineId]: event.target.value }))} /></label><button disabled={busy || line.status === "DONE" || !canWorkBatch} onClick={() => void applyAction(selectedBatch.batchId, "COMPLETE_LINE", line.lineId, Number(qtyInputs[line.lineId] ?? line.totalQty))}>{line.status === "DONE" ? "Terkonfirmasi" : `Konfirmasi ${number(line.totalQty)}`}</button></div></article>)}
+              {selectedBatch.lines.map((line) => { const open = activePickLineId === line.lineId || line.status === "DONE"; const remaining = Number(line.totalQty) - Number(line.pickedQty || 0); return <article key={line.lineId} data-done={line.status === "DONE"} data-open={open}><button className="pick-location-button" aria-expanded={open} onClick={() => setActivePickLineId(open && line.status !== "DONE" ? null : line.lineId)}><span><b>{line.originRackName}</b><small>#{line.lineNo} · W{line.waves.join(" / W")}</small></span><em>{line.status === "DONE" ? "DONE" : `${number(remaining)} left`}</em></button>{open && <div className="pick-confirmation-form"><strong>{line.skuNumber}</strong><p>{line.productName}</p><label><span>Scan / input SKU</span><input autoComplete="off" inputMode="numeric" aria-label={`Scan SKU ${line.skuNumber}`} value={skuInputs[line.lineId] ?? ""} disabled={line.status === "DONE" || !canWorkBatch} onChange={(event) => setSkuInputs((current) => ({ ...current, [line.lineId]: event.target.value }))} placeholder="Scan barcode atau ketik SKU" /></label><label><span>Qty diambil · target {number(line.totalQty)} · sudah {number(line.pickedQty)}</span><input inputMode="numeric" aria-label={`Qty SKU ${line.skuNumber}`} value={qtyInputs[line.lineId] ?? ""} disabled={line.status === "DONE" || !canWorkBatch} onChange={(event) => setQtyInputs((current) => ({ ...current, [line.lineId]: event.target.value }))} placeholder={`Maks. ${number(remaining)}`} /></label><button disabled={busy || line.status === "DONE" || !canWorkBatch || !skuInputs[line.lineId] || !qtyInputs[line.lineId]} onClick={() => void confirmPick(selectedBatch, line)}>{line.status === "DONE" ? "Picking completed" : "Konfirmasi picking"}</button></div>}</article>; })}
               {selectedBatch.status === "IN_PROGRESS" && <button className="task-finish-button" disabled={busy || completedLines !== selectedBatch.lines.length || !canWorkBatch} onClick={() => void applyAction(selectedBatch.batchId, "COMPLETE_PICKING")}>Selesaikan picking batch</button>}
               {selectedBatch.status === "PICKING_COMPLETED" && <div className="task-complete-state"><strong>Picking completed</strong><span>Task per SO sudah masuk submenu Consolidation Task.</span></div>}
             </div>}
@@ -223,9 +278,10 @@ export function ConsolidatePickingView({ user }: { user: User }) {
           {!!tasks.consolidations.length && <div className="task-wave-filter"><span>PRIORITY WAVE</span><div role="group" aria-label="Filter consolidation task berdasarkan wave"><button aria-pressed={waveFilter === "ALL"} className={waveFilter === "ALL" ? "active" : ""} onClick={() => { setWaveFilter("ALL"); setSelectedSo(""); }}>Semua wave <small>{tasks.consolidations.length}</small></button>{consolidationWaves.map((wave) => <button key={wave} aria-pressed={waveFilter === String(wave)} className={waveFilter === String(wave) ? "active" : ""} onClick={() => { setWaveFilter(String(wave)); setSelectedSo(""); }}>Wave {wave} <small>{consolidationWaveCounts.get(wave) || 0}</small></button>)}</div></div>}
           {!tasks.consolidations.length ? <div className="consolidate-empty"><strong>Belum ada task</strong><span>Task muncul setelah satu batch selesai picking.</span></div> : !filteredConsolidations.length ? <div className="consolidate-empty"><strong>Tidak ada task pada wave ini</strong><span>Pilih wave lain untuk melanjutkan consolidate.</span></div> : filteredConsolidations.map((task) => <button key={`${task.batchId}-${task.soNumber}`} className={selectedConsolidation?.soNumber === task.soNumber ? "active" : ""} onClick={() => { setSelectedSo(task.soNumber); setSoScan(""); }}><span><b>SO {shortSo(task.soNumber)}</b><small>{task.hubCode} · Wave {task.waveNumber}</small></span><strong>{number(task.expectedQty)} qty</strong><em data-state={task.status}>{task.status.replaceAll("_", " ")}</em></button>)}
         </div>
-        <aside className="task-mobile-detail panel">
+        {selectedConsolidation && <button className="consolidation-mobile-backdrop" aria-label="Tutup detail SO" onClick={() => setSelectedSo("")} />}
+        <aside className={`task-mobile-detail consolidation-detail-sheet panel ${selectedConsolidation ? "open" : ""}`} role="dialog" aria-modal="true" aria-label={selectedConsolidation ? `Detail SO ${shortSo(selectedConsolidation.soNumber)}` : "Detail SO"}>
           {!selectedConsolidation ? <div className="consolidate-empty"><strong>Pilih SO</strong></div> : <>
-            <div className="task-active-head"><span><small>ACTIVE SO</small><strong>{shortSo(selectedConsolidation.soNumber)}</strong></span><b>W{selectedConsolidation.waveNumber}</b></div>
+            <div className="task-active-head"><span><small>ACTIVE SO</small><strong>{shortSo(selectedConsolidation.soNumber)}</strong></span><b>W{selectedConsolidation.waveNumber}</b><button aria-label="Tutup detail SO" onClick={() => setSelectedSo("")}>×</button></div>
             <div className="consolidation-allocation-list">{selectedConsolidation.allocations.map((item) => <article key={`${item.lineId}-${item.skuNumber}`}><span><b>{item.skuNumber}</b><small>{item.productName}</small></span><strong>{number(item.requestQty)} qty</strong></article>)}</div>
             {selectedConsolidation.status === "READY" ? <div className="task-claim-card"><h3>SO siap dipisahkan</h3><p>{selectedConsolidation.allocations.length} SKU · {number(selectedConsolidation.expectedQty)} qty</p><button disabled={busy} onClick={() => void applyAction(selectedConsolidation.batchId, "CLAIM_CONSOLIDATION", undefined, undefined, selectedConsolidation.soNumber)}>Ambil Consolidation Task</button></div> : selectedConsolidation.status === "CONSOLIDATING" ? <div className="consolidation-scan-card"><label><span>Scan barcode SO untuk menyelesaikan</span><input inputMode="numeric" autoComplete="off" aria-label="Scan barcode SO consolidation" value={soScan} onChange={(event) => setSoScan(event.target.value)} placeholder={shortSo(selectedConsolidation.soNumber)} /></label><button disabled={busy || !canWorkConsolidation || ![normalize(selectedConsolidation.soNumber), normalize(shortSo(selectedConsolidation.soNumber))].includes(normalize(soScan))} onClick={() => void applyAction(selectedConsolidation.batchId, "COMPLETE_CONSOLIDATION", undefined, undefined, selectedConsolidation.soNumber)}>SO lengkap · Kirim ke staging helper</button></div> : <div className="task-complete-state"><strong>SO consolidated</strong><span>Barang siap diambil Staging Helper.</span></div>}
           </>}

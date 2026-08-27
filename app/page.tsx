@@ -20,6 +20,7 @@ type AuthUser = {
   staffId: string;
   name: string;
   role: UserRole;
+  roles: UserRole[];
 };
 
 type StaffAccount = AuthUser & {
@@ -27,6 +28,13 @@ type StaffAccount = AuthUser & {
   updatedAt?: string;
   updatedBy?: string;
 };
+
+const ALL_ROLES: Array<{ value: UserRole; label: string }> = [
+  { value: "STAGING_HELPER", label: "Staging Helper" }, { value: "LINE_HELPER", label: "Line Checker Helper" },
+  { value: "CONSOLIDATE_PICKER", label: "Consolidate Picker" }, { value: "CONSOLIDATOR", label: "Consolidator" },
+  { value: "DEVELOPER", label: "Developer" },
+];
+const hasRole = (user: Pick<AuthUser, "roles">, role: UserRole) => user.roles.includes("DEVELOPER") || user.roles.includes(role);
 
 const EMPTY_ORDERS: SalesOrder[] = [];
 const EMPTY_PICKERS: Picker[] = [];
@@ -363,7 +371,7 @@ export default function Home() {
   const [expandedAssignmentZone, setExpandedAssignmentZone] = useState("");
   const [showRules, setShowRules] = useState(false);
   const [toast, setToast] = useState("");
-  const [authUser, setAuthUser] = useState<AuthUser>({ staffId: "DEV01", name: "Developer", role: "DEVELOPER" });
+  const [authUser, setAuthUser] = useState<AuthUser>({ staffId: "DEV01", name: "Developer", role: "DEVELOPER", roles: ["DEVELOPER"] });
   const [authReady, setAuthReady] = useState(false);
   const [logoutPending, setLogoutPending] = useState(false);
   const [helperRole, setHelperRole] = useState<HelperRole>("STAGING_HELPER");
@@ -381,7 +389,7 @@ export default function Home() {
   const [developerStatus, setDeveloperStatus] = useState<DeveloperStatus | null>(null);
   const [staffAccounts, setStaffAccounts] = useState<StaffAccount[]>([]);
   const [developerLoading, setDeveloperLoading] = useState(false);
-  const [staffForm, setStaffForm] = useState({ staffId: "", name: "", role: "STAGING_HELPER" as UserRole, password: "" });
+  const [staffForm, setStaffForm] = useState({ staffId: "", name: "", roles: ["STAGING_HELPER"] as UserRole[], password: "" });
   const [helperTasks, setHelperTasks] = useState<Record<string, HelperTaskRecord>>({});
 
   const ordersData = liveOrders ?? EMPTY_ORDERS;
@@ -445,21 +453,22 @@ export default function Home() {
         router.replace("/login/");
         return;
       }
-      const { data: profile, error } = await supabase.rpc("owor_current_profile");
+      const { data: profile, error } = await supabase.rpc("owor_current_access_profile");
       if (!active) return;
       if (error || !profile) {
         await supabase.auth.signOut();
         router.replace("/login/");
         return;
       }
-      const row = profile as { staff_id: string; name: string; role: UserRole };
-      const user = { staffId: row.staff_id, name: row.name, role: row.role };
+      const row = profile as { staff_id: string; name: string; role: UserRole; roles?: UserRole[] };
+      const roles = Array.isArray(row.roles) && row.roles.length ? row.roles : [row.role];
+      const user = { staffId: row.staff_id, name: row.name, role: row.role, roles };
       setAuthUser(user);
-      if (user.role === "STAGING_HELPER" || user.role === "LINE_HELPER") {
+      if (roles.includes("CONSOLIDATE_PICKER") || roles.includes("CONSOLIDATOR")) {
+          setActiveView("consolidate");
+      } else if (user.role === "STAGING_HELPER" || user.role === "LINE_HELPER") {
           setHelperRole(user.role);
           setActiveView(user.role === "STAGING_HELPER" ? "staging-tasks" : "line-tasks");
-      } else if (user.role === "CONSOLIDATE_PICKER" || user.role === "CONSOLIDATOR") {
-          setActiveView("consolidate");
       }
       await Promise.all([refreshLiveData(), refreshHelperTasks()]);
       if (active) setAuthReady(true);
@@ -476,7 +485,7 @@ export default function Home() {
   const refreshDeveloper = useCallback(async () => {
     setDeveloperLoading(true);
     const { data, error } = await supabase.functions.invoke("owor-admin", { method: "GET" });
-    const payload = data as { ok?: boolean; configured?: boolean; accountStore?: boolean; helperTaskCount?: number; snapshotHeads?: DeveloperStatus["snapshotHeads"]; latestRuns?: DeveloperStatus["latestRuns"]; users?: Array<{ staff_id: string; name: string; role: UserRole; active: boolean; updated_at?: string }> } | null;
+    const payload = data as { ok?: boolean; configured?: boolean; accountStore?: boolean; helperTaskCount?: number; snapshotHeads?: DeveloperStatus["snapshotHeads"]; latestRuns?: DeveloperStatus["latestRuns"]; users?: Array<{ staff_id: string; name: string; role: UserRole; roles?: UserRole[]; active: boolean; updated_at?: string }> } | null;
     setDeveloperStatus(!error && payload?.ok ? {
       configured: true,
       accountStore: true,
@@ -484,7 +493,7 @@ export default function Home() {
       snapshotHeads: payload.snapshotHeads ?? [],
       latestRuns: payload.latestRuns ?? [],
     } : { configured: false, accountStore: false, accountError: error?.message || "STATUS_UNAVAILABLE" });
-    setStaffAccounts(Array.isArray(payload?.users) ? payload.users.map((row) => ({ staffId: row.staff_id, name: row.name, role: row.role, active: row.active, updatedAt: row.updated_at })) : []);
+    setStaffAccounts(Array.isArray(payload?.users) ? payload.users.map((row) => ({ staffId: row.staff_id, name: row.name, role: row.role, roles: row.roles?.length ? row.roles : [row.role], active: row.active, updatedAt: row.updated_at })) : []);
     setDeveloperLoading(false);
   }, []);
 
@@ -1054,7 +1063,7 @@ export default function Home() {
   }
 
   async function createStaffAccount() {
-    if (!staffForm.staffId.trim() || !staffForm.name.trim() || staffForm.password.length < 8) {
+    if (!staffForm.staffId.trim() || !staffForm.name.trim() || staffForm.roles.length === 0 || staffForm.password.length < 8) {
       flash("Lengkapi Staff ID, nama, role, dan password minimal 8 karakter");
       return;
     }
@@ -1066,7 +1075,7 @@ export default function Home() {
       flash(payload?.error || error?.message || "Akun gagal dibuat");
       return;
     }
-    setStaffForm({ staffId: "", name: "", role: "STAGING_HELPER", password: "" });
+    setStaffForm({ staffId: "", name: "", roles: ["STAGING_HELPER"], password: "" });
     flash("Akun staff berhasil disimpan");
     await refreshDeveloper();
   }
@@ -1130,15 +1139,15 @@ export default function Home() {
       <aside className="sidebar">
         <div className="sidebar-brand"><div className="brand-mark">1W</div><span>ONE WAVE</span></div>
         <nav aria-label="Navigasi utama">
-          {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "assignment" ? "active" : ""}`} aria-label="Buka menu assignment" aria-current={activeView === "assignment" ? "page" : undefined} onClick={() => setActiveView("assignment")}><span>⌁</span><b>Assignment</b></button>}
-          {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "monitor" ? "active" : ""}`} aria-label="Buka menu picking monitor" aria-current={activeView === "monitor" ? "page" : undefined} onClick={() => setActiveView("monitor")}><span>▷</span><b>Picking monitor</b></button>}
-          {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "so-master" ? "active" : ""}`} aria-label="Buka menu SO Master" aria-current={activeView === "so-master" ? "page" : undefined} onClick={() => setActiveView("so-master")}><span>≡</span><b>SO Master</b></button>}
-          {authReady && (authUser.role === "DEVELOPER" || authUser.role === "CONSOLIDATE_PICKER" || authUser.role === "CONSOLIDATOR") && <button className={`nav-menu-item ${activeView === "consolidate" ? "active" : ""}`} aria-label="Buka menu consolidate picking" aria-current={activeView === "consolidate" ? "page" : undefined} onClick={() => setActiveView("consolidate")}><span>◇</span><b>Consolidate picking</b></button>}
-          {authReady && (authUser.role === "DEVELOPER" || authUser.role === "STAGING_HELPER") && <button className={`nav-menu-item ${activeView === "staging-tasks" ? "active" : ""}`} aria-label="Buka menu staging helper" aria-current={activeView === "staging-tasks" ? "page" : undefined} onClick={() => { setHelperRole("STAGING_HELPER"); setSelectedHelperSo(""); setActiveView("staging-tasks"); }}><span>▣</span><b>Staging helper</b></button>}
-          {authReady && (authUser.role === "DEVELOPER" || authUser.role === "LINE_HELPER") && <button className={`nav-menu-item ${activeView === "line-tasks" ? "active" : ""}`} aria-label="Buka menu line checker" aria-current={activeView === "line-tasks" ? "page" : undefined} onClick={() => { setHelperRole("LINE_HELPER"); setSelectedHelperSo(""); setActiveView("line-tasks"); }}><span>▤</span><b>Line checker</b></button>}
-          {authReady && authUser.role === "DEVELOPER" && <button className={`nav-menu-item ${activeView === "developer" ? "active" : ""}`} aria-label="Buka menu developer" aria-current={activeView === "developer" ? "page" : undefined} onClick={() => { setActiveView("developer"); void refreshDeveloper(); }}><span>⚙</span><b>Developer</b></button>}
+          {authReady && hasRole(authUser, "DEVELOPER") && <button className={`nav-menu-item ${activeView === "assignment" ? "active" : ""}`} aria-label="Buka menu assignment" aria-current={activeView === "assignment" ? "page" : undefined} onClick={() => setActiveView("assignment")}><span>⌁</span><b>Assignment</b></button>}
+          {authReady && hasRole(authUser, "DEVELOPER") && <button className={`nav-menu-item ${activeView === "monitor" ? "active" : ""}`} aria-label="Buka menu picking monitor" aria-current={activeView === "monitor" ? "page" : undefined} onClick={() => setActiveView("monitor")}><span>▷</span><b>Picking monitor</b></button>}
+          {authReady && hasRole(authUser, "DEVELOPER") && <button className={`nav-menu-item ${activeView === "so-master" ? "active" : ""}`} aria-label="Buka menu SO Master" aria-current={activeView === "so-master" ? "page" : undefined} onClick={() => setActiveView("so-master")}><span>≡</span><b>SO Master</b></button>}
+          {authReady && (hasRole(authUser, "CONSOLIDATE_PICKER") || hasRole(authUser, "CONSOLIDATOR")) && <button className={`nav-menu-item ${activeView === "consolidate" ? "active" : ""}`} aria-label="Buka menu consolidate picking" aria-current={activeView === "consolidate" ? "page" : undefined} onClick={() => setActiveView("consolidate")}><span>◇</span><b>Consolidate picking</b></button>}
+          {authReady && hasRole(authUser, "STAGING_HELPER") && <button className={`nav-menu-item ${activeView === "staging-tasks" ? "active" : ""}`} aria-label="Buka menu staging helper" aria-current={activeView === "staging-tasks" ? "page" : undefined} onClick={() => { setHelperRole("STAGING_HELPER"); setSelectedHelperSo(""); setActiveView("staging-tasks"); }}><span>▣</span><b>Staging helper</b></button>}
+          {authReady && hasRole(authUser, "LINE_HELPER") && <button className={`nav-menu-item ${activeView === "line-tasks" ? "active" : ""}`} aria-label="Buka menu line checker" aria-current={activeView === "line-tasks" ? "page" : undefined} onClick={() => { setHelperRole("LINE_HELPER"); setSelectedHelperSo(""); setActiveView("line-tasks"); }}><span>▤</span><b>Line checker</b></button>}
+          {authReady && hasRole(authUser, "DEVELOPER") && <button className={`nav-menu-item ${activeView === "developer" ? "active" : ""}`} aria-label="Buka menu developer" aria-current={activeView === "developer" ? "page" : undefined} onClick={() => { setActiveView("developer"); void refreshDeveloper(); }}><span>⚙</span><b>Developer</b></button>}
         </nav>
-        <div className="sidebar-user"><strong>{authUser.name}</strong><span>{authUser.staffId} · {authUser.role.replaceAll("_", " ")}</span><button onClick={() => void logout()}>Keluar</button></div>
+        <div className="sidebar-user"><strong>{authUser.name}</strong><span>{authUser.staffId} · {authUser.roles.map((role) => role.replaceAll("_", " ")).join(" + ")}</span><button onClick={() => void logout()}>Keluar</button></div>
       </aside>
 
       <section className="workspace">
@@ -1163,7 +1172,7 @@ export default function Home() {
         </header>
 
         <div className="workspace-view" data-workspace-view={activeView}>
-        {activeView === "developer" && authUser.role === "DEVELOPER" && (
+        {activeView === "developer" && hasRole(authUser, "DEVELOPER") && (
         <section className="developer-workspace">
           <div className="developer-titlebar">
             <div><p className="eyebrow">SYSTEM ADMINISTRATION</p><h2>Developer control center</h2><p>Konfigurasi koneksi backend dan akses pengguna OWOR dari satu menu terproteksi.</p></div>
@@ -1188,12 +1197,12 @@ export default function Home() {
               <div className="staff-account-form">
                 <label><span>Staff ID / username</span><input value={staffForm.staffId} onChange={(event) => setStaffForm((current) => ({ ...current, staffId: event.target.value.toUpperCase() }))} placeholder="Contoh: 52016" /></label>
                 <label><span>Nama staff</span><input value={staffForm.name} onChange={(event) => setStaffForm((current) => ({ ...current, name: event.target.value }))} placeholder="Nama lengkap" /></label>
-                <label><span>Role akses</span><select value={staffForm.role} onChange={(event) => setStaffForm((current) => ({ ...current, role: event.target.value as UserRole }))}><option value="STAGING_HELPER">Staging Helper</option><option value="LINE_HELPER">Line Checker Helper</option><option value="CONSOLIDATE_PICKER">Consolidate Picker</option><option value="CONSOLIDATOR">Consolidator</option><option value="DEVELOPER">Developer</option></select></label>
+                <fieldset className="staff-role-picker"><legend>Role akses (bisa lebih dari satu)</legend>{ALL_ROLES.map((option) => <label key={option.value}><input type="checkbox" checked={staffForm.roles.includes(option.value)} onChange={(event) => setStaffForm((current) => ({ ...current, roles: event.target.checked ? [...new Set([...current.roles, option.value])] : current.roles.filter((role) => role !== option.value) }))} /><span>{option.label}</span></label>)}</fieldset>
                 <label><span>Password awal</span><input type="password" autoComplete="new-password" value={staffForm.password} onChange={(event) => setStaffForm((current) => ({ ...current, password: event.target.value }))} placeholder="Minimal 8 karakter" /></label>
                 <button className="primary-button" disabled={developerLoading || !developerStatus?.accountStore} onClick={() => void createStaffAccount()}>Create / reset account</button>
               </div>
               <div className="role-explainer"><span><b>STAGING HELPER</b> Scan SO dan staging picking</span><span><b>LINE HELPER</b> Staging ke checker line</span><span><b>CONSOLIDATE PICKER</b> Picking lintas SO</span><span><b>CONSOLIDATOR</b> Pisahkan barang per SO</span><span><b>DEVELOPER</b> Semua menu + settings</span></div>
-              {!staffAccounts.length ? <div className="empty-state"><strong>Belum ada akun staff di backend</strong><span>Akun developer environment tetap aktif sebagai bootstrap.</span></div> : <div className="staff-account-list">{staffAccounts.map((account) => <article key={account.staffId} data-active={account.active}><div className="staff-avatar">{account.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</div><span><strong>{account.name}</strong><small>{account.staffId} · {account.role.replaceAll("_", " ")}</small></span><em>{account.active ? "ACTIVE" : "DISABLED"}</em><button disabled={developerLoading || account.staffId === authUser.staffId} onClick={() => void setStaffAccountActive(account)}>{account.active ? "Disable" : "Enable"}</button></article>)}</div>}
+              {!staffAccounts.length ? <div className="empty-state"><strong>Belum ada akun staff di backend</strong><span>Akun developer environment tetap aktif sebagai bootstrap.</span></div> : <div className="staff-account-list">{staffAccounts.map((account) => <article key={account.staffId} data-active={account.active}><div className="staff-avatar">{account.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</div><span><strong>{account.name}</strong><small>{account.staffId} · {account.roles.map((role) => role.replaceAll("_", " ")).join(" + ")}</small></span><em>{account.active ? "ACTIVE" : "DISABLED"}</em><button disabled={developerLoading || account.staffId === authUser.staffId} onClick={() => void setStaffAccountActive(account)}>{account.active ? "Disable" : "Enable"}</button></article>)}</div>}
             </section>
 
             <section className="developer-panel developer-danger-panel panel">
@@ -1204,7 +1213,7 @@ export default function Home() {
         </section>
         )}
 
-        {activeView === "so-master" && authUser.role === "DEVELOPER" && <SoMasterView />}
+        {activeView === "so-master" && hasRole(authUser, "DEVELOPER") && <SoMasterView />}
 
         {activeView === "consolidate" && <ConsolidatePickingView user={authUser} />}
 
@@ -1529,7 +1538,7 @@ export default function Home() {
             <div className="helper-session-card">
               <span>LOGGED IN</span>
               <strong>{authUser.name}</strong>
-              <small>{authUser.staffId} · {authUser.role.replaceAll("_", " ")}</small>
+              <small>{authUser.staffId} · {authUser.roles.map((role) => role.replaceAll("_", " ")).join(" + ")}</small>
               <button onClick={() => void logout()}>Keluar</button>
             </div>
           </div>

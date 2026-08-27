@@ -35,3 +35,16 @@ export function batchProgress(lines = []) {
   const pickedQty = lines.reduce((sum, line) => sum + Math.min(Number(line.pickedQty || 0), Number(line.totalQty || 0)), 0);
   return { totalLines, completedLines, totalQty, pickedQty, percent: totalQty ? Math.round((pickedQty / totalQty) * 100) : 0 };
 }
+
+export function validatePickConfirmation({ expectedSku, scannedSku, targetQty, pickedQty = 0, inputQty }) {
+  const expected = String(expectedSku || "").trim().toUpperCase();
+  const scanned = String(scannedSku || "").trim().toUpperCase();
+  if (!scanned || scanned !== expected) throw new Error("SKU_MISMATCH");
+  const target = Number(targetQty || 0);
+  const current = Number(pickedQty || 0);
+  const added = Number(inputQty || 0);
+  if (!Number.isFinite(added) || added <= 0) throw new Error("PICK_QTY_INVALID");
+  const nextPickedQty = current + added;
+  if (nextPickedQty > target) throw new Error("PICK_QTY_EXCEEDS_TARGET");
+  return { nextPickedQty, completed: nextPickedQty === target };
+}

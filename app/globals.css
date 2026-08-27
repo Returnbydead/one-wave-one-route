@@ -3332,6 +3332,31 @@ code {
 .picking-assignment-builder label, .staff-role-picker label { align-items: center; display: flex; gap: 7px; min-height: 34px; }
 .picking-assignment-builder label span { display: grid; font: 750 9px var(--mono); }
 .picking-assignment-builder label small { color: var(--muted); font-size: 7px; }
+.assignment-picker-select { align-self: start; min-width: 0; position: relative; }
+.assignment-field-label { background: var(--paper); color: #667772 !important; font: 800 8px var(--mono) !important; left: 8px; letter-spacing: 0 !important; padding: 0 5px; position: absolute; top: -4px; z-index: 2; }
+.assignment-picker-trigger { align-items: center; background: #fff; border: 1px solid #d5dfdb; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; min-height: 58px; padding: 11px 12px; text-align: left; width: 100%; }
+.assignment-picker-trigger:focus-visible { border-color: #168263; box-shadow: 0 0 0 3px rgba(22,130,99,.13); outline: 0; }
+.assignment-picker-trigger > span { display: grid; gap: 4px; min-width: 0; }
+.assignment-picker-trigger strong { font: 800 10px var(--mono); }
+.assignment-picker-trigger small { color: var(--muted); font: 8px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assignment-picker-trigger > b { color: #ff6638; font-size: 17px; }
+.assignment-picker-dropdown { background: #fff; border: 1px solid #bdcbc6; border-radius: 7px; box-shadow: 0 18px 40px rgba(8,35,28,.18); display: grid; gap: 8px; left: 0; min-width: 320px; padding: 10px; position: absolute; right: 0; top: calc(100% + 7px); z-index: 40; }
+.assignment-picker-dropdown > label { min-height: 0; }
+.assignment-picker-dropdown input { border: 1px solid #d5dfdb; border-radius: 5px; font-size: 12px; min-height: 42px; outline: 0; padding: 0 11px; width: 100%; }
+.assignment-picker-dropdown input:focus { border-color: #168263; box-shadow: 0 0 0 3px rgba(22,130,99,.11); }
+.assignment-picker-options { display: grid; max-height: 260px; overflow-y: auto; }
+.assignment-picker-options > button { align-items: center; background: #fff; border: 0; border-bottom: 1px solid #edf1ef; cursor: pointer; display: grid; gap: 9px; grid-template-columns: 25px 1fr; min-height: 48px; padding: 7px 5px; text-align: left; }
+.assignment-picker-options > button:hover, .assignment-picker-options > button.selected { background: #eef8f5; }
+.assignment-picker-options > button > i { align-items: center; border: 1px solid #cad7d2; border-radius: 4px; color: #168263; display: flex; font: normal 850 11px var(--mono); height: 24px; justify-content: center; }
+.assignment-picker-options > button.selected > i { background: #168263; border-color: #168263; color: #fff; }
+.assignment-picker-options > button > span { display: grid; gap: 2px; }
+.assignment-picker-options strong { font: 800 9px var(--mono); }
+.assignment-picker-options small { color: var(--muted); font: 8px var(--mono); }
+.assignment-picker-empty { color: var(--muted); font-size: 10px; padding: 24px 10px; text-align: center; }
+.assignment-picker-dropdown footer { display: flex; gap: 8px; justify-content: flex-end; }
+.assignment-picker-dropdown footer button { background: #fff; border: 1px solid #d1dbd7; border-radius: 4px; cursor: pointer; min-height: 36px; padding: 0 12px; }
+.assignment-picker-dropdown footer button:last-child { background: #102d25; border-color: #102d25; color: #fff; }
+.assignment-picker-dropdown footer button:disabled { cursor: not-allowed; opacity: .45; }
 .assignment-location-list { max-height: 150px; overflow-y: auto; }
 .pick-location-button { align-items: center; background: transparent; border: 0; cursor: pointer; display: flex; justify-content: space-between; min-height: 48px; padding: 0; text-align: left; width: 100%; }
 .pick-location-button span { display: grid; gap: 3px; }
@@ -3379,6 +3404,8 @@ code {
   .task-mobile-layout { grid-template-columns: 1fr; }
   .picking-assignment-builder { grid-template-columns: 1fr; }
   .picking-assignment-builder > div { grid-column: auto; }
+  .assignment-picker-dropdown { bottom: 12px; left: 12px; min-width: 0; position: fixed; right: 12px; top: auto; z-index: 120; }
+  .assignment-picker-options { max-height: min(52vh, 360px); }
   .task-mobile-queue > button { min-height: 74px; }
   .task-pick-lines { padding: 8px; }
   .task-pick-lines article > div { grid-template-columns: 1fr; }

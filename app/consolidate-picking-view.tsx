@@ -71,6 +71,8 @@ export function ConsolidatePickingView({ user }: { user: User }) {
   const [soScan, setSoScan] = useState("");
   const [assignmentOptions, setAssignmentOptions] = useState<{ pickers: Array<{staffId:string;name:string}>; waves:number[]; locations:string[] }>({ pickers: [], waves: [], locations: [] });
   const [assignedPickers, setAssignedPickers] = useState<string[]>([]);
+  const [pickerDropdownOpen, setPickerDropdownOpen] = useState(false);
+  const [assignmentPickerSearch, setAssignmentPickerSearch] = useState("");
   const [assignedWaves, setAssignedWaves] = useState<number[]>([]);
   const [assignedLocations, setAssignedLocations] = useState<string[]>([]);
 
@@ -207,6 +209,13 @@ export function ConsolidatePickingView({ user }: { user: User }) {
   const canWorkConsolidation = selectedConsolidation && (isDeveloper || selectedConsolidation.consolidatorId === normalize(user.staffId));
   const visibleQty = filtered.reduce((total, row) => total + Number(row.totalQty || 0), 0);
   const visibleSo = new Set(filtered.flatMap((row) => row.allocations.map((item) => item.soNumber))).size;
+  const filteredAssignmentPickers = assignmentOptions.pickers.filter((picker) => {
+    const query = normalize(assignmentPickerSearch);
+    return !query || normalize(picker.name).includes(query) || normalize(picker.staffId).includes(query);
+  });
+  const selectedAssignmentPickers = assignedPickers
+    .map((staffId) => assignmentOptions.pickers.find((picker) => picker.staffId === staffId))
+    .filter((picker): picker is { staffId: string; name: string } => Boolean(picker));
 
   return (
     <section className="consolidate-workspace" aria-labelledby="consolidate-title">
@@ -249,7 +258,20 @@ export function ConsolidatePickingView({ user }: { user: User }) {
 
       {mode === "PICKING_TASK" && isDeveloper && <section className="picking-assignment-builder panel" aria-label="Assign by wave and location">
         <div><span>ASSIGNMENT BUILDER</span><h3>Assign by wave & location</h3><p>Pilih beberapa picker, wave, dan lokasi. Lokasi dibagi merata; satu lokasi hanya masuk ke satu picker.</p></div>
-        <fieldset><legend>Picker</legend>{assignmentOptions.pickers.map((picker) => <label key={picker.staffId}><input type="checkbox" checked={assignedPickers.includes(picker.staffId)} onChange={(event) => setAssignedPickers((current) => event.target.checked ? [...current, picker.staffId] : current.filter((id) => id !== picker.staffId))} /><span>{picker.name}<small>{picker.staffId}</small></span></label>)}</fieldset>
+        <div className="assignment-picker-select">
+          <span className="assignment-field-label">Picker</span>
+          <button type="button" className="assignment-picker-trigger" aria-haspopup="listbox" aria-expanded={pickerDropdownOpen} aria-controls="assignment-picker-options" onClick={() => setPickerDropdownOpen((current) => !current)}>
+            <span><strong>{assignedPickers.length ? `${assignedPickers.length} picker dipilih` : "Pilih picker"}</strong><small>{selectedAssignmentPickers.length ? selectedAssignmentPickers.slice(0, 2).map((picker) => picker.name).join(", ") + (selectedAssignmentPickers.length > 2 ? ` +${selectedAssignmentPickers.length - 2}` : "") : "Cari nama atau Staff ID"}</small></span><b aria-hidden="true">{pickerDropdownOpen ? "−" : "+"}</b>
+          </button>
+          {pickerDropdownOpen && <div className="assignment-picker-dropdown">
+            <label><span className="sr-only">Cari picker</span><input type="search" role="combobox" aria-autocomplete="list" aria-controls="assignment-picker-options" aria-expanded="true" value={assignmentPickerSearch} onChange={(event) => setAssignmentPickerSearch(event.target.value)} placeholder="Cari nama atau Staff ID…" autoFocus /></label>
+            <div id="assignment-picker-options" className="assignment-picker-options" role="listbox" aria-label="Daftar picker" aria-multiselectable="true">
+              {filteredAssignmentPickers.map((picker) => { const selected = assignedPickers.includes(picker.staffId); return <button type="button" role="option" aria-selected={selected} className={selected ? "selected" : ""} key={picker.staffId} onClick={() => setAssignedPickers((current) => selected ? current.filter((id) => id !== picker.staffId) : [...current, picker.staffId])}><i>{selected ? "✓" : "+"}</i><span><strong>{picker.name}</strong><small>{picker.staffId}</small></span></button>; })}
+              {!filteredAssignmentPickers.length && <div className="assignment-picker-empty">Picker tidak ditemukan</div>}
+            </div>
+            <footer><button type="button" disabled={!assignedPickers.length} onClick={() => setAssignedPickers([])}>Clear</button><button type="button" onClick={() => setPickerDropdownOpen(false)}>Selesai · {assignedPickers.length}</button></footer>
+          </div>}
+        </div>
         <fieldset><legend>Wave</legend>{assignmentOptions.waves.map((wave) => <label key={wave}><input type="checkbox" checked={assignedWaves.includes(wave)} onChange={(event) => setAssignedWaves((current) => event.target.checked ? [...current, wave] : current.filter((value) => value !== wave))} /><span>Wave {wave}</span></label>)}</fieldset>
         <fieldset className="assignment-location-list"><legend>Lokasi ({assignedLocations.length})</legend>{assignmentOptions.locations.map((location) => <label key={location}><input type="checkbox" checked={assignedLocations.includes(location)} onChange={(event) => setAssignedLocations((current) => event.target.checked ? [...current, location] : current.filter((value) => value !== location))} /><span>{location}</span></label>)}</fieldset>
         <button className="primary-button" disabled={busy} onClick={() => void assignPickingTasks()}>Buat task picker</button>

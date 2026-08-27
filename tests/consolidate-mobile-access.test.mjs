@@ -29,6 +29,17 @@ test("accounts expose multiple access roles and picking assignments use wave plu
   assert.match(migration, /p_locations text\[\]/i);
 });
 
+test("consolidate assignment uses a searchable compact multi-picker dropdown", async () => {
+  const [view, css] = await Promise.all([
+    readFile(new URL("../app/consolidate-picking-view.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(view, /assignment-picker-trigger/);
+  assert.match(view, /Cari nama atau Staff ID/);
+  assert.match(view, /aria-multiselectable="true"/);
+  assert.match(css, /\.assignment-picker-options \{[^}]*max-height:/s);
+});
+
 test("developer role checkboxes are compact clickable chips instead of full-size text inputs", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(css, /\.staff-role-picker input\[type="checkbox"\]\s*\{[^}]*min-height:\s*16px[^}]*width:\s*16px/is);

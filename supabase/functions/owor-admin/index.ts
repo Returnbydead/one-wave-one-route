@@ -179,7 +179,7 @@ async function upgradeBulkPickerAccounts(
     const item = value as Record<string, unknown>;
     const staffId = clean(item.staffId).toUpperCase();
     const password = String(item.password ?? "");
-    if (!/^\d{4,8}$/.test(staffId) || password.length < 12 || seen.has(staffId)) return [];
+    if (!/^\d{4,8}$/.test(staffId) || password !== `${staffId}!!` || seen.has(staffId)) return [];
     seen.add(staffId);
     return [{ staffId, password }];
   });

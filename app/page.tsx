@@ -1191,12 +1191,12 @@ export default function Home() {
       flash("Tidak ada akun Consolidate Picker yang perlu di-upgrade");
       return;
     }
-    if (!window.confirm(`Upgrade ${bulkUpgradeTargets.length} akun Consolidate Picker? Role Consolidator akan ditambahkan, password lama tidak berlaku, dan password unik baru diunduh sebagai CSV.`)) return;
+    if (!window.confirm(`Upgrade ${bulkUpgradeTargets.length} akun Consolidate Picker? Role Consolidator akan ditambahkan dan password diubah menjadi StaffID!!.`)) return;
 
     const credentials: BulkCredential[] = bulkUpgradeTargets.map((account) => ({
       staffId: account.staffId,
       name: account.name,
-      password: createInitialPassword(crypto.getRandomValues(new Uint8Array(12))),
+      password: `${account.staffId}!!`,
       roles: [...new Set([...account.roles, "CONSOLIDATOR" as UserRole])],
     }));
     const results: BulkUpgradeResult[] = [];
@@ -1225,7 +1225,7 @@ export default function Home() {
     setBulkAccountSummary(`${updatedCredentials.length} di-upgrade · ${skipped} dilewati · ${failed} gagal`);
     setDeveloperLoading(false);
     if (updatedCredentials.length) downloadBulkCredentials(updatedCredentials);
-    flash(updatedCredentials.length ? `${updatedCredentials.length} akun mendapat role Consolidator dan password unik baru.` : "Tidak ada akun yang berhasil di-upgrade");
+    flash(updatedCredentials.length ? `${updatedCredentials.length} akun mendapat role Consolidator dan password StaffID!!.` : "Tidak ada akun yang berhasil di-upgrade");
     await refreshDeveloper();
   }
 
@@ -1351,7 +1351,7 @@ export default function Home() {
                 </div>
               </section>
               <section className="bulk-account-maintenance">
-                <div><span>BULK UPGRADE</span><strong>Consolidate Picker → Picker + Consolidator</strong><small>{bulkUpgradeTargets.length} akun non-Developer akan mendapat role tambahan dan password unik baru.</small></div>
+                <div><span>BULK UPGRADE</span><strong>Consolidate Picker → Picker + Consolidator</strong><small>{bulkUpgradeTargets.length} akun non-Developer akan mendapat role tambahan dan password dengan format StaffID!!.</small></div>
                 <button className="primary-button" disabled={developerLoading || !developerStatus?.accountStore || !bulkUpgradeTargets.length} onClick={() => void upgradeExistingPickerAccounts()}>{developerLoading ? "Processing…" : `Upgrade ${bulkUpgradeTargets.length} akun`}</button>
               </section>
               <div className="role-explainer"><span><b>STAGING HELPER</b> Scan SO dan staging picking</span><span><b>LINE HELPER</b> Staging ke checker line</span><span><b>CONSOLIDATE PICKER</b> Picking lintas SO</span><span><b>CONSOLIDATOR</b> Pisahkan barang per SO</span><span><b>DEVELOPER</b> Semua menu + settings</span></div>

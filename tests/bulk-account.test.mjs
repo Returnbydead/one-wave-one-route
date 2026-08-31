@@ -59,9 +59,12 @@ test("developer can bulk-upgrade consolidate pickers without exposing passwords 
   ]);
   assert.match(page, /action:\s*"bulk_upgrade_pickers"/);
   assert.match(page, /Consolidate Picker → Picker \+ Consolidator/);
+  assert.match(page, /password: `\$\{account\.staffId\}!!`/);
+  assert.match(page, /format StaffID!!/);
   assert.match(page, /downloadBulkCredentials\(updatedCredentials\)/);
   assert.match(backend, /currentRoles\.includes\("DEVELOPER"\)/);
   assert.match(backend, /currentRoles\.includes\("CONSOLIDATE_PICKER"\)/);
   assert.match(backend, /new Set\(\[\.\.\.currentRoles, "CONSOLIDATOR"\]\)/);
+  assert.match(backend, /password !== `\$\{staffId\}!!`/);
   assert.doesNotMatch(backend, /results\.push\([^)]*password/is);
 });

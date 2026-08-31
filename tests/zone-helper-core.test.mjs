@@ -27,8 +27,8 @@ test("maps free-form GSheet picker zones to operational SO zones", () => {
 
 test("derives head body tail from route sequence", () => {
   assert.equal(getLoadPosition("BSX", "BSX"), "HEAD");
-  assert.equal(getLoadPosition("SWL - PSG", "SWL"), "TAIL");
-  assert.equal(getLoadPosition("SWL - PSG", "PSG"), "HEAD");
+  assert.equal(getLoadPosition("PKC - PAM", "PKC"), "TAIL");
+  assert.equal(getLoadPosition("PKC - PAM", "PAM"), "HEAD");
   assert.equal(getLoadPosition("SWG - LIM - BGR3", "LIM"), "BODY");
   assert.equal(getLoadPosition("SWG - LIM - BGR3", "BGR3"), "HEAD");
 });
@@ -57,8 +57,8 @@ test("sorts mixed live timestamp types without crashing", () => {
 
 test("suggests active IWIR SO while excluding completed picking", () => {
   const orders = [
-    { soNumber: "INV/SO/20260825/301/7000001", destination: "SWL", route: "SWL - PSG", zone: "MZE1", qty: 120 },
-    { soNumber: "INV/SO/20260825/302/7000002", destination: "PSG", route: "SWL - PSG", zone: "MZF1", qty: 80 },
+    { soNumber: "INV/SO/20260901/301/7000001", destination: "PKC", route: "PKC - PAM", zone: "MZE1", qty: 120 },
+    { soNumber: "INV/SO/20260901/302/7000002", destination: "PAM", route: "PKC - PAM", zone: "MZF1", qty: 80 },
     { soNumber: "INV/SO/20260825/305/7000003", destination: "BSX", route: "BSX", zone: "SRC1", qty: 60 },
   ];
   const picking = [{ soNumber: orders[2].soNumber, status: "COMPLETED" }];
@@ -68,7 +68,7 @@ test("suggests active IWIR SO while excluding completed picking", () => {
     [orders[0].soNumber, orders[1].soNumber],
   );
   assert.deepEqual(
-    filterHelperCandidates(orders, picking, "PSG", 20).map((order) => order.soNumber),
+    filterHelperCandidates(orders, picking, "PAM", 20).map((order) => order.soNumber),
     [orders[1].soNumber, orders[0].soNumber],
   );
   assert.equal(findExactHelperOrder(orders, "7000002")?.soNumber, orders[1].soNumber);

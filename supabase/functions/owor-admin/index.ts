@@ -166,6 +166,69 @@ async function createBulkAccounts(
   };
 }
 
+async function upgradeBulkPickerAccounts(
+  db: ReturnType<typeof adminClient>,
+  body: Record<string, unknown>,
+  updatedBy: string,
+) {
+  const rawAccounts = Array.isArray(body.accounts) ? body.accounts : [];
+  if (rawAccounts.length === 0 || rawAccounts.length > 25) throw new Error("INVALID_BULK_ACCOUNTS");
+  const seen = new Set<string>();
+  const accounts = rawAccounts.flatMap((value) => {
+    if (!value || typeof value !== "object") return [];
+    const item = value as Record<string, unknown>;
+    const staffId = clean(item.staffId).toUpperCase();
+    const password = String(item.password ?? "");
+    if (!/^\d{4,8}$/.test(staffId) || password.length < 12 || seen.has(staffId)) return [];
+    seen.add(staffId);
+    return [{ staffId, password }];
+  });
+  if (accounts.length !== rawAccounts.length) throw new Error("INVALID_BULK_ACCOUNT_ROW");
+
+  const { data: profileRows, error: profileError } = await db.from("owor_user_profiles")
+    .select("user_id,staff_id,name,role,roles,active")
+    .in("staff_id", accounts.map((account) => account.staffId));
+  if (profileError) throw profileError;
+  const profiles = new Map((profileRows ?? []).map((row) => [row.staff_id, row]));
+  const results: Array<{ staffId: string; status: "UPDATED" | "SKIPPED" | "FAILED"; error?: string }> = [];
+
+  for (const account of accounts) {
+    const target = profiles.get(account.staffId);
+    const currentRoles = target ? (target.roles?.length ? target.roles : [target.role]) : [];
+    if (!target || currentRoles.includes("DEVELOPER") || !currentRoles.includes("CONSOLIDATE_PICKER")) {
+      results.push({ staffId: account.staffId, status: "SKIPPED" });
+      continue;
+    }
+    const roles = [...new Set([...currentRoles, "CONSOLIDATOR"])];
+    const { error: updateError } = await db.from("owor_user_profiles")
+      .update({ roles, updated_at: new Date().toISOString() })
+      .eq("user_id", target.user_id);
+    if (updateError) {
+      results.push({ staffId: account.staffId, status: "FAILED", error: updateError.message.slice(0, 160) });
+      continue;
+    }
+    const { error: authError } = await db.auth.admin.updateUserById(target.user_id, {
+      password: account.password,
+      app_metadata: { app: "owor", staff_id: target.staff_id, name: target.name, role: target.role, roles },
+    });
+    if (authError) {
+      await db.from("owor_user_profiles").update({ roles: currentRoles, updated_at: new Date().toISOString() }).eq("user_id", target.user_id);
+      results.push({ staffId: account.staffId, status: "FAILED", error: authError.message.slice(0, 160) });
+      continue;
+    }
+    results.push({ staffId: account.staffId, status: "UPDATED" });
+  }
+
+  return {
+    requested: accounts.length,
+    updated: results.filter((result) => result.status === "UPDATED").length,
+    skipped: results.filter((result) => result.status === "SKIPPED").length,
+    failed: results.filter((result) => result.status === "FAILED").length,
+    results,
+    updatedBy,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
   if (!["GET", "POST", "PATCH"].includes(req.method)) return json(405, { ok: false, error: "METHOD_NOT_ALLOWED" });
@@ -199,6 +262,10 @@ Deno.serve(async (req) => {
     const body = req.method === "POST" ? bootstrapBody : await req.json().catch(() => ({})) as Record<string, unknown>;
     if (req.method === "POST" && clean(body.action).toLowerCase() === "bulk_create") {
       const result = await createBulkAccounts(db, body, profile.staff_id);
+      return json(200, { ok: true, ...result });
+    }
+    if (req.method === "POST" && clean(body.action).toLowerCase() === "bulk_upgrade_pickers") {
+      const result = await upgradeBulkPickerAccounts(db, body, profile.staff_id);
       return json(200, { ok: true, ...result });
     }
     if (req.method === "POST" && clean(body.action).toLowerCase() === "import_roster") {

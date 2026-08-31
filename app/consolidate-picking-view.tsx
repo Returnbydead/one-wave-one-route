@@ -124,18 +124,6 @@ export function ConsolidatePickingView({ user }: { user: User }) {
     setBusy(false);
   }
 
-  async function generateTasks() {
-    setBusy(true);
-    const { data, error } = await supabase.rpc("owor_generate_consolidate_tasks", { p_scope_code: "SRA_L2_UP" });
-    if (error) setMessage(error.message || "Generate task gagal");
-    else {
-      setTasks(data as TaskPayload);
-      setMessage("Picking Task berhasil dibuat dari snapshot aktif.");
-      setMode("PICKING_TASK");
-    }
-    setBusy(false);
-  }
-
   async function assignPickingTasks() {
     if (!assignedPickers.length || !assignedWaves.length || !assignedLocations.length) {
       setMessage("Pilih minimal satu picker, wave, dan lokasi."); return;
@@ -264,7 +252,7 @@ export function ConsolidatePickingView({ user }: { user: User }) {
             <span><strong>{assignedPickers.length ? `${assignedPickers.length} picker dipilih` : "Pilih picker"}</strong><small>{selectedAssignmentPickers.length ? selectedAssignmentPickers.slice(0, 2).map((picker) => picker.name).join(", ") + (selectedAssignmentPickers.length > 2 ? ` +${selectedAssignmentPickers.length - 2}` : "") : "Cari nama atau Staff ID"}</small></span><b aria-hidden="true">{pickerDropdownOpen ? "−" : "+"}</b>
           </button>
           {pickerDropdownOpen && <div className="assignment-picker-dropdown">
-            <label><span className="sr-only">Cari picker</span><input type="search" role="combobox" aria-autocomplete="list" aria-controls="assignment-picker-options" aria-expanded="true" value={assignmentPickerSearch} onChange={(event) => setAssignmentPickerSearch(event.target.value)} placeholder="Cari nama atau Staff ID…" autoFocus /></label>
+            <label><span className="sr-only">Cari picker</span><input type="search" role="combobox" aria-autocomplete="list" aria-controls="assignment-picker-options" aria-expanded="true" value={assignmentPickerSearch} onChange={(event) => setAssignmentPickerSearch(event.target.value)} placeholder="Cari nama atau Staff ID…" /></label>
             <div id="assignment-picker-options" className="assignment-picker-options" role="listbox" aria-label="Daftar picker" aria-multiselectable="true">
               {filteredAssignmentPickers.map((picker) => { const selected = assignedPickers.includes(picker.staffId); return <button type="button" role="option" aria-selected={selected} className={selected ? "selected" : ""} key={picker.staffId} onClick={() => setAssignedPickers((current) => selected ? current.filter((id) => id !== picker.staffId) : [...current, picker.staffId])}><i>{selected ? "✓" : "+"}</i><span><strong>{picker.name}</strong><small>{picker.staffId}</small></span></button>; })}
               {!filteredAssignmentPickers.length && <div className="assignment-picker-empty">Picker tidak ditemukan</div>}

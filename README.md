@@ -9,7 +9,7 @@ Frontend adalah static export. Tidak ada API Route, SSR, atau credential backend
 ```text
 Superset dataset 400 + 108
   -> Supabase Cron terpisah setiap 5 menit
-  -> sync-owor: 10 destination IWIR untuk assignment
+  -> sync-owor: destination IWIR aktif untuk assignment
   -> sync-so-master: seluruh destination CBT hari berjalan selain CANCELLED
   -> Postgres last-valid compact snapshots + server-side pagination
   -> Supabase Auth + RLS + RPC
@@ -27,7 +27,7 @@ Superset dataset 400 + 108
 
 ## V1 scope
 
-- Route: `SWL - PSG`, `CSA - KLD`, `BSX`, `CPT - PPL`, `RDS - SLP`, dan `JLB`.
+- Route September 2026: `PKC - PAM`, `CSA - KLD`, `BSX`, `ASA - JBG`, `SMN - MRY`, dan `CPT - PPL`.
 - Mode assignment `By route` atau lintas route `By zone`.
 - Satu SO utuh hanya diberikan ke satu picker.
 - SO multi-zone dikarantina sebagai `ZONE_CONFLICT`.

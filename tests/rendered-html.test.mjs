@@ -144,13 +144,14 @@ test("keeps the V1 assignment, Supabase, and CSV contracts explicit", async () =
     readFile(new URL("../app/assignment-csv.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /"SWL - PSG"/);
+  assert.match(page, /"PKC - PAM"/);
   assert.match(page, /"CSA - KLD"/);
-  assert.doesNotMatch(page, /SMN|MRY/);
   assert.match(page, /"BSX"/);
+  assert.match(page, /"ASA - JBG"/);
+  assert.match(page, /"SMN - MRY"/);
   assert.match(page, /"CPT - PPL"/);
-  assert.match(page, /"RDS - SLP"/);
-  assert.match(page, /"JLB"/);
+  assert.doesNotMatch(page, /"SWL - PSG"|"RDS - SLP"|"JLB"/);
+  assert.match(page, /PLAN CBT SEP 2026/);
   assert.match(page, /Assign by route/);
   assert.match(page, /Assign by zone/);
   assert.match(page, /mode === "zone"\s*\? `\$\{normalizedZone\(order\.zone\)\}::\$\{staffId\}`/);
@@ -210,11 +211,14 @@ test("keeps the V1 assignment, Supabase, and CSV contracts explicit", async () =
 });
 
 test("keeps the Superset backend atomic per SO and origin rack zone", async () => {
-  const backend = await readFile(new URL("../backend/Code.gs", import.meta.url), "utf8");
-  for (const hub of ["SWL", "PSG", "CSA", "KLD", "BSX", "CPT", "PPL", "RDS", "SLP", "JLB"]) {
+  const [backend, edgeSync] = await Promise.all([
+    readFile(new URL("../backend/Code.gs", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/sync-owor/index.ts", import.meta.url), "utf8"),
+  ]);
+  for (const hub of ["PKC", "PAM", "CSA", "KLD", "BSX", "ASA", "JBG", "SMN", "MRY", "CPT", "PPL"]) {
     assert.match(backend, new RegExp(`\\b${hub}\\b`));
   }
-  assert.doesNotMatch(backend, /SMN|MRY/);
+  assert.doesNotMatch(backend, /SWL|PSG|RDS|SLP|JLB/);
   assert.match(backend, /origin_rack_name/);
   assert.match(backend, /parsed_zone/);
   assert.match(backend, /ZONE_CONFLICT/);
@@ -223,6 +227,9 @@ test("keeps the Superset backend atomic per SO and origin rack zone", async () =
   assert.match(backend, /SUM\(incoming_quantity\)/);
   assert.match(backend, /picking_start_at/);
   assert.match(backend, /picking_end_at/);
+  assert.match(edgeSync, /OWOR_DESTINATIONS/);
+  assert.match(edgeSync, /normalizeOrders/);
+  assert.match(edgeSync, /normalizePicking/);
   assert.match(backend, /normalizePicking_/);
   assert.match(backend, /OWOR USER ACCOUNTS/);
   assert.match(backend, /upsert_user/);

@@ -1,16 +1,17 @@
-export const OWOR_DESTINATIONS = ["SWL", "PSG", "CSA", "KLD", "BSX", "CPT", "PPL", "RDS", "SLP", "JLB"] as const;
+export const OWOR_DESTINATIONS = ["PKC", "PAM", "CSA", "KLD", "BSX", "ASA", "JBG", "SMN", "MRY", "CPT", "PPL"] as const;
 
 export const OWOR_ROUTES: Record<string, string> = {
-  SWL: "SWL - PSG",
-  PSG: "SWL - PSG",
+  PKC: "PKC - PAM",
+  PAM: "PKC - PAM",
   CSA: "CSA - KLD",
   KLD: "CSA - KLD",
   BSX: "BSX",
   CPT: "CPT - PPL",
   PPL: "CPT - PPL",
-  RDS: "RDS - SLP",
-  SLP: "RDS - SLP",
-  JLB: "JLB",
+  ASA: "ASA - JBG",
+  JBG: "ASA - JBG",
+  SMN: "SMN - MRY",
+  MRY: "SMN - MRY",
 };
 
 export type OworOrder = {
@@ -51,10 +52,12 @@ export type OworPicking = {
 function text(value: unknown): string {
   return String(value ?? "").trim();
 }
+
 function number(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
 }
+
 function timestamp(value: unknown): string | null {
   const raw = text(value);
   if (!raw) return null;

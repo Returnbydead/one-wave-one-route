@@ -51,3 +51,17 @@ test("developer can reset one staff password and receives a replacement CSV", as
   assert.match(page, /downloadBulkCredentials\(\[credential\]\)/);
   assert.match(page, /Password lama langsung tidak berlaku/);
 });
+
+test("developer can bulk-upgrade consolidate pickers without exposing passwords from backend", async () => {
+  const [page, backend] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/owor-admin/index.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(page, /action:\s*"bulk_upgrade_pickers"/);
+  assert.match(page, /Consolidate Picker → Picker \+ Consolidator/);
+  assert.match(page, /downloadBulkCredentials\(updatedCredentials\)/);
+  assert.match(backend, /currentRoles\.includes\("DEVELOPER"\)/);
+  assert.match(backend, /currentRoles\.includes\("CONSOLIDATE_PICKER"\)/);
+  assert.match(backend, /new Set\(\[\.\.\.currentRoles, "CONSOLIDATOR"\]\)/);
+  assert.doesNotMatch(backend, /results\.push\([^)]*password/is);
+});

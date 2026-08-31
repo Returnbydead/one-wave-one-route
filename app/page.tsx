@@ -10,7 +10,7 @@ import { SoMasterView } from "./so-master-view";
 import { ConsolidatePickingView } from "./consolidate-picking-view";
 import { supabase } from "@/lib/supabase-browser";
 
-type RouteCode = "SWL - PSG" | "CSA - KLD" | "BSX" | "CPT - PPL" | "RDS - SLP" | "JLB";
+type RouteCode = "PKC - PAM" | "CSA - KLD" | "BSX" | "ASA - JBG" | "SMN - MRY" | "CPT - PPL";
 type AssignmentMode = "route" | "zone";
 type WorkspaceView = "assignment" | "monitor" | "so-master" | "consolidate" | "staging-tasks" | "line-tasks" | "developer";
 type HelperRole = "STAGING_HELPER" | "LINE_HELPER";
@@ -32,6 +32,7 @@ type StaffAccount = AuthUser & {
 
 type BulkCredential = { staffId: string; name: string; password: string; roles: UserRole[] };
 type BulkCreateResult = { staffId: string; status: "CREATED" | "SKIPPED_EXISTING" | "FAILED"; error?: string };
+type BulkUpgradeResult = { staffId: string; status: "UPDATED" | "SKIPPED" | "FAILED"; error?: string };
 
 const ALL_ROLES: Array<{ value: UserRole; label: string }> = [
   { value: "STAGING_HELPER", label: "Staging Helper" }, { value: "LINE_HELPER", label: "Line Checker Helper" },
@@ -54,7 +55,7 @@ type DeveloperStatus = {
 
 type SalesOrder = {
   soNumber: string;
-  destination: "SWL" | "PSG" | "CSA" | "KLD" | "BSX" | "CPT" | "PPL" | "RDS" | "SLP" | "JLB";
+  destination: "PKC" | "PAM" | "CSA" | "KLD" | "BSX" | "ASA" | "JBG" | "SMN" | "MRY" | "CPT" | "PPL";
   route: RouteCode;
   zone: string;
   qty: number;
@@ -133,8 +134,8 @@ const ROUTES: Array<{
   color: string;
 }> = [
   {
-    code: "SWL - PSG",
-    destinations: ["SWL", "PSG"],
+    code: "PKC - PAM",
+    destinations: ["PKC", "PAM"],
     routeNo: 1,
     color: "#f36c3d",
   },
@@ -144,10 +145,10 @@ const ROUTES: Array<{
     routeNo: 2,
     color: "#7c63e6",
   },
-  { code: "BSX", destinations: ["BSX"], routeNo: 5, color: "#2f9e85" },
+  { code: "BSX", destinations: ["BSX"], routeNo: 3, color: "#2f9e85" },
+  { code: "ASA - JBG", destinations: ["ASA", "JBG"], routeNo: 4, color: "#2783c5" },
+  { code: "SMN - MRY", destinations: ["SMN", "MRY"], routeNo: 5, color: "#cf5a87" },
   { code: "CPT - PPL", destinations: ["CPT", "PPL"], routeNo: 6, color: "#d4972f" },
-  { code: "RDS - SLP", destinations: ["RDS", "SLP"], routeNo: 7, color: "#2783c5" },
-  { code: "JLB", destinations: ["JLB"], routeNo: 8, color: "#cf5a87" },
 ];
 
 const ZONE_RULES: ZoneRule[] = [
@@ -362,7 +363,7 @@ export default function Home() {
   const router = useRouter();
   const [activeView, setActiveView] = useState<WorkspaceView>("assignment");
   const [activeRoute, setActiveRoute] = useState<RouteCode | "ALL">("ALL");
-  const [manualRoute, setManualRoute] = useState<RouteCode>("SWL - PSG");
+  const [manualRoute, setManualRoute] = useState<RouteCode>("PKC - PAM");
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [selectedPickerIds, setSelectedPickerIds] = useState<string[]>([]);
   const [pickerSearch, setPickerSearch] = useState("");
@@ -414,6 +415,9 @@ export default function Home() {
   const ordersData = liveOrders ?? EMPTY_ORDERS;
   const pickerRoster = livePickers ?? EMPTY_PICKERS;
   const parsedBulkStaffIds = useMemo(() => parseBulkStaffIds(bulkStaffIds) as string[], [bulkStaffIds]);
+  const bulkUpgradeTargets = staffAccounts.filter((account) =>
+    !account.roles.includes("DEVELOPER") && account.roles.includes("CONSOLIDATE_PICKER"),
+  );
 
   const refreshLiveData = useCallback(async () => {
     try {
@@ -1182,6 +1186,49 @@ export default function Home() {
     flash(`Password ${account.staffId} berhasil diganti. CSV baru sudah diunduh.`);
   }
 
+  async function upgradeExistingPickerAccounts() {
+    if (!bulkUpgradeTargets.length) {
+      flash("Tidak ada akun Consolidate Picker yang perlu di-upgrade");
+      return;
+    }
+    if (!window.confirm(`Upgrade ${bulkUpgradeTargets.length} akun Consolidate Picker? Role Consolidator akan ditambahkan, password lama tidak berlaku, dan password unik baru diunduh sebagai CSV.`)) return;
+
+    const credentials: BulkCredential[] = bulkUpgradeTargets.map((account) => ({
+      staffId: account.staffId,
+      name: account.name,
+      password: createInitialPassword(crypto.getRandomValues(new Uint8Array(12))),
+      roles: [...new Set([...account.roles, "CONSOLIDATOR" as UserRole])],
+    }));
+    const results: BulkUpgradeResult[] = [];
+    setDeveloperLoading(true);
+    setBulkCredentials([]);
+    setBulkAccountSummary(`Upgrade 0/${credentials.length} akun…`);
+
+    for (let offset = 0; offset < credentials.length; offset += 25) {
+      const chunk = credentials.slice(offset, offset + 25);
+      const { data, error } = await supabase.functions.invoke("owor-admin", {
+        method: "POST",
+        body: { action: "bulk_upgrade_pickers", accounts: chunk.map(({ staffId, password }) => ({ staffId, password })) },
+      });
+      const payload = data as { ok?: boolean; results?: BulkUpgradeResult[]; error?: string } | null;
+      if (error || payload?.ok !== true || !Array.isArray(payload.results)) {
+        results.push(...chunk.map((account) => ({ staffId: account.staffId, status: "FAILED" as const, error: payload?.error || error?.message || "BATCH_FAILED" })));
+      } else results.push(...payload.results);
+      setBulkAccountSummary(`Upgrade ${Math.min(offset + chunk.length, credentials.length)}/${credentials.length} akun…`);
+    }
+
+    const statusByStaff = new Map(results.map((result) => [result.staffId, result.status]));
+    const updatedCredentials = credentials.filter((account) => statusByStaff.get(account.staffId) === "UPDATED");
+    const skipped = results.filter((result) => result.status === "SKIPPED").length;
+    const failed = results.filter((result) => result.status === "FAILED").length;
+    setBulkCredentials(updatedCredentials);
+    setBulkAccountSummary(`${updatedCredentials.length} di-upgrade · ${skipped} dilewati · ${failed} gagal`);
+    setDeveloperLoading(false);
+    if (updatedCredentials.length) downloadBulkCredentials(updatedCredentials);
+    flash(updatedCredentials.length ? `${updatedCredentials.length} akun mendapat role Consolidator dan password unik baru.` : "Tidak ada akun yang berhasil di-upgrade");
+    await refreshDeveloper();
+  }
+
   async function runBackendSync() {
     setDeveloperLoading(true);
     const { data, error } = await supabase.functions.invoke("owor-admin", { method: "POST", body: { action: "sync" } });
@@ -1303,6 +1350,10 @@ export default function Home() {
                   {bulkAccountSummary && <em role="status">{bulkAccountSummary}</em>}
                 </div>
               </section>
+              <section className="bulk-account-maintenance">
+                <div><span>BULK UPGRADE</span><strong>Consolidate Picker → Picker + Consolidator</strong><small>{bulkUpgradeTargets.length} akun non-Developer akan mendapat role tambahan dan password unik baru.</small></div>
+                <button className="primary-button" disabled={developerLoading || !developerStatus?.accountStore || !bulkUpgradeTargets.length} onClick={() => void upgradeExistingPickerAccounts()}>{developerLoading ? "Processing…" : `Upgrade ${bulkUpgradeTargets.length} akun`}</button>
+              </section>
               <div className="role-explainer"><span><b>STAGING HELPER</b> Scan SO dan staging picking</span><span><b>LINE HELPER</b> Staging ke checker line</span><span><b>CONSOLIDATE PICKER</b> Picking lintas SO</span><span><b>CONSOLIDATOR</b> Pisahkan barang per SO</span><span><b>DEVELOPER</b> Semua menu + settings</span></div>
               {!staffAccounts.length ? <div className="empty-state"><strong>Belum ada akun staff di backend</strong><span>Akun developer environment tetap aktif sebagai bootstrap.</span></div> : <div className="staff-account-list">{staffAccounts.map((account) => <article key={account.staffId} data-active={account.active}><div className="staff-avatar">{account.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</div><span><strong>{account.name}</strong><small>{account.staffId} · {account.roles.map((role) => role.replaceAll("_", " ")).join(" + ")}</small></span><em>{account.active ? "ACTIVE" : "DISABLED"}</em><div className="staff-account-actions"><button disabled={developerLoading} onClick={() => void resetStaffAccountPassword(account)}>Ganti password</button><button disabled={developerLoading || account.staffId === authUser.staffId} onClick={() => void setStaffAccountActive(account)}>{account.active ? "Disable" : "Enable"}</button></div></article>)}</div>}
             </section>
@@ -1322,20 +1373,20 @@ export default function Home() {
         {activeView === "assignment" && <>
         <section className="hero-grid">
           <div className="hero-copy">
-            <div className="status-line"><span>WAVE 1</span><span>10 HUB</span><span>TRIAL V1</span></div>
+            <div className="status-line"><span>WAVE 1</span><span>6 ROUTE</span><span>SEP 2026</span></div>
             <h2>Turn route volume into<br /><em>ready-to-upload</em> assignments.</h2>
             <p>Demand per zone, manpower capacity, and whole-SO balancing in one operational view.</p>
           </div>
           <div className="hero-metrics">
             <article><span>Total request</span><strong>{number(totals.qty)}</strong><small>qty · {number(totals.sku)} SKU</small></article>
-            <article><span>Candidate SO</span><strong>{number(totals.so)}</strong><small>10 hub · NEW</small></article>
+            <article><span>Candidate SO</span><strong>{number(totals.so)}</strong><small>6 route · NEW</small></article>
             <article className="accent"><span>MP required</span><strong>{number(totals.mp)}</strong><small>across {zoneStats.length} zone loads</small></article>
           </div>
         </section>
 
         <section className="route-section">
           <div className="section-heading">
-            <div><span>01</span><div><h3>Route demand</h3><p>Trial destinations from PLAN CBT AUG 2026</p></div></div>
+            <div><span>01</span><div><h3>Route demand</h3><p>Trial destinations from PLAN CBT SEP 2026</p></div></div>
             <button className="text-button" onClick={() => setShowRules(true)}>View calculation rules ↗</button>
           </div>
           <div className="route-grid">
@@ -1877,7 +1928,7 @@ export default function Home() {
             <button className="modal-close" onClick={() => setShowRules(false)} aria-label="Tutup">×</button>
             <p className="eyebrow">V1 CALCULATION CONTRACT</p>
             <h2 id="rules-title">Assignment rules</h2>
-            <div className="rule-block"><span>1</span><div><strong>Eligibility</strong><p>SO status NEW dan destination termasuk SWL / PSG / CSA / KLD / BSX / CPT / PPL / RDS / SLP / JLB.</p></div></div>
+            <div className="rule-block"><span>1</span><div><strong>Eligibility</strong><p>SO status NEW dan destination termasuk PKC / PAM / CSA / KLD / BSX / ASA / JBG / SMN / MRY / CPT / PPL.</p></div></div>
             <div className="rule-block"><span>2</span><div><strong>Manpower need</strong><p><code>CEILING(zone request qty / productivity per MP zone)</code></p></div></div>
             <div className="rule-block"><span>3</span><div><strong>Picker roster</strong><p>Job Title = Picker, schedule aktif pada operational date, staff ID valid, bukan OFF DAY/cuti/izin.</p></div></div>
             <div className="rule-block"><span>4</span><div><strong>WMS output</strong><p><code>error_message;so_id;staff_id</code> · satu SO hanya memiliki satu staff ID.</p></div></div>

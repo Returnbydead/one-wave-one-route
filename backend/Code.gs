@@ -8,7 +8,7 @@ const OWOR = Object.freeze({
   MANPOWER_SPREADSHEET_ID: '1yc9Jf8BiVniEZC6E6p-coggZTPcnbZ796hENFdHrfAY',
   COOKIE_SPREADSHEET_ID: '1paykhTW528DVMq3o5O-8l9plXeCrilSzMtchQHoYQZE',
   COOKIE_SHEET: 'COOKIES',
-  ROUTE_SHEET: 'PLAN CBT AUG 2026',
+  ROUTE_SHEET: 'PLAN CBT SEP 2026',
   MANPOWER_SHEET: 'Schedule Manpower 2025',
   SO_SHEET: 'OWOR SO SNAPSHOT',
   CONFLICT_SHEET: 'OWOR SO CONFLICTS',
@@ -23,18 +23,19 @@ const OWOR = Object.freeze({
   SYNC_WINDOW_START_HOUR: 4,
   SYNC_WINDOW_END_HOUR: 20,
   QUOTA_COOLDOWN_MS: 6 * 60 * 60 * 1000,
-  DESTINATIONS: ['SWL', 'PSG', 'CSA', 'KLD', 'BSX', 'CPT', 'PPL', 'RDS', 'SLP', 'JLB'],
+  DESTINATIONS: ['PKC', 'PAM', 'CSA', 'KLD', 'BSX', 'ASA', 'JBG', 'SMN', 'MRY', 'CPT', 'PPL'],
   ROUTES: {
-    SWL: 'SWL - PSG',
-    PSG: 'SWL - PSG',
+    PKC: 'PKC - PAM',
+    PAM: 'PKC - PAM',
     CSA: 'CSA - KLD',
     KLD: 'CSA - KLD',
     BSX: 'BSX',
+    ASA: 'ASA - JBG',
+    JBG: 'ASA - JBG',
+    SMN: 'SMN - MRY',
+    MRY: 'SMN - MRY',
     CPT: 'CPT - PPL',
     PPL: 'CPT - PPL',
-    RDS: 'RDS - SLP',
-    SLP: 'RDS - SLP',
-    JLB: 'JLB',
   },
 });
 
@@ -149,16 +150,17 @@ function runOworSync_(source, scheduled) {
 
 function fetchPickingRows_(cookie) {
   const destinationSql = `CASE
-    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%SWL%' THEN 'SWL'
-    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%PSG%' THEN 'PSG'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%PKC%' THEN 'PKC'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%PAM%' THEN 'PAM'
     WHEN UPPER(COALESCE(destination_name, '')) LIKE '%CSA%' THEN 'CSA'
     WHEN UPPER(COALESCE(destination_name, '')) LIKE '%KLD%' THEN 'KLD'
     WHEN UPPER(COALESCE(destination_name, '')) LIKE '%BSX%' THEN 'BSX'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%ASA%' THEN 'ASA'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%JBG%' THEN 'JBG'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%SMN%' THEN 'SMN'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%MRY%' THEN 'MRY'
     WHEN UPPER(COALESCE(destination_name, '')) LIKE '%CPT%' THEN 'CPT'
     WHEN UPPER(COALESCE(destination_name, '')) LIKE '%PPL%' THEN 'PPL'
-    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%RDS%' THEN 'RDS'
-    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%SLP%' THEN 'SLP'
-    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%JLB%' THEN 'JLB'
     ELSE 'OTHER' END`;
   const destinationColumn = adhocColumn_(destinationSql, 'destination_code');
   const zoneColumn = adhocColumn_("REGEXP_EXTRACT(origin_rack_name, r'^CBT-([^-]+)')", 'parsed_zone');
@@ -275,16 +277,17 @@ function doPost(event) {
 
 function fetchSupersetRows_(cookie) {
   const destinationSql = `CASE
-    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%SWL%' THEN 'SWL'
-    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%PSG%' THEN 'PSG'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%PKC%' THEN 'PKC'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%PAM%' THEN 'PAM'
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%CSA%' THEN 'CSA'
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%KLD%' THEN 'KLD'
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%BSX%' THEN 'BSX'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%ASA%' THEN 'ASA'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%JBG%' THEN 'JBG'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%SMN%' THEN 'SMN'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%MRY%' THEN 'MRY'
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%CPT%' THEN 'CPT'
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%PPL%' THEN 'PPL'
-    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%RDS%' THEN 'RDS'
-    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%SLP%' THEN 'SLP'
-    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%JLB%' THEN 'JLB'
     ELSE 'OTHER' END`;
   const destinationColumn = adhocColumn_(destinationSql, 'destination_code');
   const zoneColumn = adhocColumn_("extract(origin_rack_name, '^CBT-([^-]+)')", 'parsed_zone');

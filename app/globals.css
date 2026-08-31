@@ -3733,6 +3733,12 @@ code {
 .bulk-account-action .secondary-button { background: #fff; border: 1px solid #bfcdeb; color: var(--astro-blue); }
 .bulk-account-action button:disabled { cursor: not-allowed; opacity: .45; }
 .bulk-account-action em { color: #137258; font: normal 750 9px var(--mono); }
+.bulk-account-maintenance { align-items: center; background: #fff8f2; border-top: 1px solid #f0d2c3; display: flex; gap: 20px; justify-content: space-between; padding: 16px 22px; }
+.bulk-account-maintenance > div { display: grid; gap: 4px; }
+.bulk-account-maintenance > div > span { color: #d95c32; font: 850 8px var(--mono); letter-spacing: .12em; }
+.bulk-account-maintenance strong { font-size: 13px; }
+.bulk-account-maintenance small { color: var(--muted); font-size: 9px; }
+.bulk-account-maintenance button { min-height: 42px; white-space: nowrap; }
 .role-explainer { background: #f4f7f5; border-bottom: 1px solid var(--line); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, 1fr); }
 .role-explainer span { color: var(--muted); display: grid; font-size: 10px; gap: 3px; padding: 12px 22px; }
 .role-explainer b { color: var(--ink); font: 800 9px var(--mono); }
@@ -3836,6 +3842,8 @@ code {
   .staff-account-form { grid-template-columns: 1fr; padding: 16px; }
   .bulk-account-builder { grid-template-columns: 1fr; padding: 16px; }
   .bulk-account-intro { grid-column: auto; }
+  .bulk-account-maintenance { align-items: stretch; flex-direction: column; padding: 16px; }
+  .bulk-account-maintenance button { width: 100%; }
   .role-explainer { grid-template-columns: 1fr; }
   .staff-account-list article { grid-template-columns: 38px 1fr auto; padding: 12px 14px; }
   .staff-account-actions { grid-column: 2 / -1; }

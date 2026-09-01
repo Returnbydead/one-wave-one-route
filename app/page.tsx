@@ -8,14 +8,15 @@ import { compareActivityTimeDesc, filterHelperCandidates, findExactHelperOrder, 
 import { formatPickerCoverage, pickerMatchesAnyZone } from "./zone-eligibility.mjs";
 import { SoMasterView } from "./so-master-view";
 import { ConsolidatePickingView } from "./consolidate-picking-view";
+import { KoliAuditView } from "./koli-audit-view";
 import { supabase } from "@/lib/supabase-browser";
 
 type RouteCode = "PKC - PAM" | "CSA - KLD" | "BSX" | "ASA - JBG" | "SMN - MRY" | "CPT - PPL";
 type AssignmentMode = "route" | "zone";
-type WorkspaceView = "assignment" | "monitor" | "so-master" | "consolidate" | "staging-tasks" | "line-tasks" | "developer";
+type WorkspaceView = "assignment" | "monitor" | "so-master" | "consolidate" | "koli-audit" | "staging-tasks" | "line-tasks" | "developer";
 type HelperRole = "STAGING_HELPER" | "LINE_HELPER";
 type CameraScanTarget = "SO" | "LOCATION";
-type UserRole = "DEVELOPER" | HelperRole | "CONSOLIDATE_PICKER" | "CONSOLIDATOR";
+type UserRole = "DEVELOPER" | HelperRole | "CONSOLIDATE_PICKER" | "CONSOLIDATOR" | "AUDITOR";
 
 type AuthUser = {
   staffId: string;
@@ -37,7 +38,7 @@ type BulkUpgradeResult = { staffId: string; status: "UPDATED" | "SKIPPED" | "FAI
 const ALL_ROLES: Array<{ value: UserRole; label: string }> = [
   { value: "STAGING_HELPER", label: "Staging Helper" }, { value: "LINE_HELPER", label: "Line Checker Helper" },
   { value: "CONSOLIDATE_PICKER", label: "Consolidate Picker" }, { value: "CONSOLIDATOR", label: "Consolidator" },
-  { value: "DEVELOPER", label: "Developer" },
+  { value: "AUDITOR", label: "Auditor Koli" }, { value: "DEVELOPER", label: "Developer" },
 ];
 const hasRole = (user: Pick<AuthUser, "roles">, role: UserRole) => user.roles.includes("DEVELOPER") || user.roles.includes(role);
 
@@ -490,6 +491,8 @@ export default function Home() {
       setAuthUser(user);
       if (roles.includes("CONSOLIDATE_PICKER") || roles.includes("CONSOLIDATOR")) {
           setActiveView("consolidate");
+      } else if (roles.includes("AUDITOR")) {
+          setActiveView("koli-audit");
       } else if (user.role === "STAGING_HELPER" || user.role === "LINE_HELPER") {
           setHelperRole(user.role);
           setActiveView(user.role === "STAGING_HELPER" ? "staging-tasks" : "line-tasks");
@@ -1276,6 +1279,7 @@ export default function Home() {
           {authReady && hasRole(authUser, "DEVELOPER") && <button className={`nav-menu-item ${activeView === "monitor" ? "active" : ""}`} aria-label="Buka menu picking monitor" aria-current={activeView === "monitor" ? "page" : undefined} onClick={() => setActiveView("monitor")}><span>▷</span><b>Picking monitor</b></button>}
           {authReady && hasRole(authUser, "DEVELOPER") && <button className={`nav-menu-item ${activeView === "so-master" ? "active" : ""}`} aria-label="Buka menu SO Master" aria-current={activeView === "so-master" ? "page" : undefined} onClick={() => setActiveView("so-master")}><span>≡</span><b>SO Master</b></button>}
           {authReady && (hasRole(authUser, "CONSOLIDATE_PICKER") || hasRole(authUser, "CONSOLIDATOR")) && <button className={`nav-menu-item ${activeView === "consolidate" ? "active" : ""}`} aria-label="Buka menu consolidate picking" aria-current={activeView === "consolidate" ? "page" : undefined} onClick={() => setActiveView("consolidate")}><span>◇</span><b>Consolidate picking</b></button>}
+          {authReady && hasRole(authUser, "AUDITOR") && <button className={`nav-menu-item ${activeView === "koli-audit" ? "active" : ""}`} aria-label="Buka menu audit koli" aria-current={activeView === "koli-audit" ? "page" : undefined} onClick={() => setActiveView("koli-audit")}><span>◎</span><b>Audit koli</b></button>}
           {authReady && hasRole(authUser, "STAGING_HELPER") && <button className={`nav-menu-item ${activeView === "staging-tasks" ? "active" : ""}`} aria-label="Buka menu staging helper" aria-current={activeView === "staging-tasks" ? "page" : undefined} onClick={() => { setHelperRole("STAGING_HELPER"); setSelectedHelperSo(""); setActiveView("staging-tasks"); }}><span>▣</span><b>Staging helper</b></button>}
           {authReady && hasRole(authUser, "LINE_HELPER") && <button className={`nav-menu-item ${activeView === "line-tasks" ? "active" : ""}`} aria-label="Buka menu line checker" aria-current={activeView === "line-tasks" ? "page" : undefined} onClick={() => { setHelperRole("LINE_HELPER"); setSelectedHelperSo(""); setActiveView("line-tasks"); }}><span>▤</span><b>Line checker</b></button>}
           {authReady && hasRole(authUser, "DEVELOPER") && <button className={`nav-menu-item ${activeView === "developer" ? "active" : ""}`} aria-label="Buka menu developer" aria-current={activeView === "developer" ? "page" : undefined} onClick={() => { setActiveView("developer"); void refreshDeveloper(); }}><span>⚙</span><b>Developer</b></button>}
@@ -1354,7 +1358,7 @@ export default function Home() {
                 <div><span>BULK UPGRADE</span><strong>Consolidate Picker → Picker + Consolidator</strong><small>{bulkUpgradeTargets.length} akun non-Developer akan mendapat role tambahan dan password dengan format StaffID!!.</small></div>
                 <button className="primary-button" disabled={developerLoading || !developerStatus?.accountStore || !bulkUpgradeTargets.length} onClick={() => void upgradeExistingPickerAccounts()}>{developerLoading ? "Processing…" : `Upgrade ${bulkUpgradeTargets.length} akun`}</button>
               </section>
-              <div className="role-explainer"><span><b>STAGING HELPER</b> Scan SO dan staging picking</span><span><b>LINE HELPER</b> Staging ke checker line</span><span><b>CONSOLIDATE PICKER</b> Picking lintas SO</span><span><b>CONSOLIDATOR</b> Pisahkan barang per SO</span><span><b>DEVELOPER</b> Semua menu + settings</span></div>
+              <div className="role-explainer"><span><b>STAGING HELPER</b> Scan SO dan staging picking</span><span><b>LINE HELPER</b> Staging ke checker line</span><span><b>CONSOLIDATE PICKER</b> Picking lintas SO</span><span><b>CONSOLIDATOR</b> Pisahkan barang per SO</span><span><b>AUDITOR KOLI</b> Audit SKU dan qty per koli</span><span><b>DEVELOPER</b> Semua menu + settings</span></div>
               {!staffAccounts.length ? <div className="empty-state"><strong>Belum ada akun staff di backend</strong><span>Akun developer environment tetap aktif sebagai bootstrap.</span></div> : <div className="staff-account-list">{staffAccounts.map((account) => <article key={account.staffId} data-active={account.active}><div className="staff-avatar">{account.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</div><span><strong>{account.name}</strong><small>{account.staffId} · {account.roles.map((role) => role.replaceAll("_", " ")).join(" + ")}</small></span><em>{account.active ? "ACTIVE" : "DISABLED"}</em><div className="staff-account-actions"><button disabled={developerLoading} onClick={() => void resetStaffAccountPassword(account)}>Ganti password</button><button disabled={developerLoading || account.staffId === authUser.staffId} onClick={() => void setStaffAccountActive(account)}>{account.active ? "Disable" : "Enable"}</button></div></article>)}</div>}
             </section>
 
@@ -1369,6 +1373,8 @@ export default function Home() {
         {activeView === "so-master" && hasRole(authUser, "DEVELOPER") && <SoMasterView />}
 
         {activeView === "consolidate" && <ConsolidatePickingView user={authUser} />}
+
+        {activeView === "koli-audit" && <KoliAuditView user={authUser} />}
 
         {activeView === "assignment" && <>
         <section className="hero-grid">

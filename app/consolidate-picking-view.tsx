@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
 import { validatePickConfirmation } from "./consolidate-task-core.mjs";
 
-type ConsolidateRole = "DEVELOPER" | "CONSOLIDATE_PICKER" | "CONSOLIDATOR" | "STAGING_HELPER" | "LINE_HELPER";
+type ConsolidateRole = "DEVELOPER" | "CONSOLIDATE_PICKER" | "CONSOLIDATOR" | "STAGING_HELPER" | "LINE_HELPER" | "AUDITOR";
 type User = { staffId: string; name: string; role: ConsolidateRole; roles: ConsolidateRole[] };
 type ViewMode = "PICKLIST" | "PICKING_TASK" | "CONSOLIDATION_TASK";
 type Allocation = { soNumber: string; hubCode: string; waveNumber: number; requestQty: number };

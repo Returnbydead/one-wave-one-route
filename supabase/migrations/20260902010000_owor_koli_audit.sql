@@ -5,6 +5,7 @@ create table if not exists public.owor_koli_audit_tasks (
   task_id uuid primary key default gen_random_uuid(),
   koli_code text not null,
   so_number text not null,
+  hub_code text not null default '',
   destination_name text not null default '',
   source_status text not null default '',
   status text not null default 'READY' check (status in ('READY','IN_PROGRESS','COMPLETED')),
@@ -53,7 +54,7 @@ begin
   if not found or not ('AUDITOR' = any(v_profile.roles) or 'DEVELOPER' = any(v_profile.roles)) then raise exception 'FORBIDDEN'; end if;
   return coalesce((select jsonb_agg(jsonb_build_object(
     'taskId', t.task_id, 'koliCode', t.koli_code, 'soNumber', t.so_number,
-    'destinationName', t.destination_name, 'sourceStatus', t.source_status,
+    'hubCode', t.hub_code, 'destinationName', t.destination_name, 'sourceStatus', t.source_status,
     'status', t.status, 'auditorId', t.auditor_id, 'discrepancyConfirmed', t.discrepancy_confirmed,
     'discrepancyNote', t.discrepancy_note, 'updatedAt', t.updated_at,
     'lines', coalesce((select jsonb_agg(jsonb_build_object('lineId', l.line_id, 'sku', l.sku, 'productName', l.product_name, 'expectedQty', l.expected_qty, 'auditedQty', l.audited_qty) order by l.line_id) from public.owor_koli_audit_lines l where l.task_id=t.task_id), '[]'::jsonb)

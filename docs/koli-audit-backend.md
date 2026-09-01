@@ -6,6 +6,7 @@ Required source mapping:
 
 - `so_number` → `owor_koli_audit_tasks.so_number`
 - `koli_code` → `owor_koli_audit_tasks.koli_code`
+- hub/warehouse code → `owor_koli_audit_tasks.hub_code`
 - destination and `fsoid.status` → task metadata
 - `product_sku_number` → `owor_koli_audit_lines.sku`
 - `product_name` → `owor_koli_audit_lines.product_name`

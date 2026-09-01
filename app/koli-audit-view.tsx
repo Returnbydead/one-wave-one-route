@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase-browser";
 
 type User = { staffId: string; name: string; roles: string[] };
 type Line = { lineId: number; sku: string; productName: string; expectedQty: number; auditedQty: number | null };
-type Task = { taskId: string; koliCode: string; soNumber: string; destinationName: string; sourceStatus: string; status: "READY" | "IN_PROGRESS" | "COMPLETED"; auditorId: string; discrepancyConfirmed: boolean; lines: Line[] };
+type Task = { taskId: string; koliCode: string; soNumber: string; hubCode: string; destinationName: string; sourceStatus: string; status: "READY" | "IN_PROGRESS" | "COMPLETED"; auditorId: string; discrepancyConfirmed: boolean; lines: Line[] };
 
 const n = (v: number) => Number(v || 0).toLocaleString("id-ID");
 
@@ -13,6 +13,7 @@ export function KoliAuditView({ user }: { user: User }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [search, setSearch] = useState("");
+  const [hub, setHub] = useState("ALL");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -32,7 +33,8 @@ export function KoliAuditView({ user }: { user: User }) {
   useEffect(() => { void load(); }, []);
   useEffect(() => () => { readerRef.current?.stop(); streamRef.current?.getTracks().forEach((track) => track.stop()); }, []);
 
-  const filtered = useMemo(() => tasks.filter((task) => `${task.koliCode} ${task.soNumber} ${task.destinationName}`.toLowerCase().includes(search.toLowerCase())), [search, tasks]);
+  const hubs = useMemo(() => [...new Set(tasks.map((task) => task.hubCode).filter(Boolean))].sort(), [tasks]);
+  const filtered = useMemo(() => tasks.filter((task) => (hub === "ALL" || task.hubCode === hub) && `${task.koliCode} ${task.soNumber} ${task.destinationName} ${task.hubCode}`.toLowerCase().includes(search.toLowerCase())), [hub, search, tasks]);
   const discrepancy = Boolean(selected?.lines.some((line) => line.auditedQty !== null && Number(line.auditedQty) !== Number(line.expectedQty)));
   const complete = Boolean(selected && selected.lines.length > 0 && selected.lines.every((line) => line.auditedQty !== null));
 
@@ -77,7 +79,7 @@ export function KoliAuditView({ user }: { user: User }) {
   }
   return <section className="koli-audit-workspace">
     <div className="koli-audit-hero"><div><p className="eyebrow">OUTBOUND QUALITY CONTROL</p><h2>Audit <em>koli</em></h2><p>Scan koli, cocokkan SKU dan qty, lalu simpan histori selisih.</p></div><button className="secondary-button" onClick={exportCsv}>↓ Download hasil audit</button></div>
-    <div className="koli-audit-grid"><section className="koli-audit-panel koli-task-panel"><div className="koli-audit-panel-head"><div><span>01</span><h3>Task audit koli</h3></div><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari koli, SO, tujuan…" /></div><div className="koli-task-list">{filtered.map((task) => <button key={task.taskId} className={selectedId === task.taskId ? "active" : ""} onClick={() => setSelectedId(task.taskId)}><span><b>{task.koliCode}</b><small>SO {task.soNumber} · {task.destinationName || "-"}</small></span><strong>{task.lines.length} SKU<br /><small>{task.status}</small></strong></button>)}{!filtered.length && <div className="koli-empty">Belum ada task audit dari snapshot `fact_supply_order_item_details`.</div>}</div></section>
+    <div className="koli-audit-grid"><section className="koli-audit-panel koli-task-panel"><div className="koli-audit-panel-head"><div><span>01</span><h3>Task audit koli</h3></div><div className="koli-audit-filters"><select aria-label="Filter hub" value={hub} onChange={(e) => setHub(e.target.value)}><option value="ALL">Semua hub</option>{hubs.map((item) => <option key={item} value={item}>{item}</option>)}</select><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari koli, SO, tujuan…" /></div></div><div className="koli-task-list">{filtered.map((task) => <button key={task.taskId} className={selectedId === task.taskId ? "active" : ""} onClick={() => setSelectedId(task.taskId)}><span><b>{task.koliCode}</b><small>{task.hubCode || "Hub -"} · SO {task.soNumber} · {task.destinationName || "-"}</small></span><strong>{task.lines.length} SKU<br /><small>{task.status}</small></strong></button>)}{!filtered.length && <div className="koli-empty">Belum ada task audit dari snapshot `fact_supply_order_item_details`.</div>}</div></section>
       <section className="koli-audit-panel koli-detail-panel">{!selected ? <div className="koli-empty">Pilih task koli untuk mulai audit.</div> : <><div className="koli-detail-head"><div><span>02 · {selected.status}</span><h3>{selected.koliCode}</h3><p>SO {selected.soNumber} · {selected.destinationName || "Tujuan belum tersedia"}</p></div>{selected.status === "READY" && <button className="primary-button" disabled={busy} onClick={() => void claim()}>Ambil task</button>}</div>{selected.status !== "READY" && <div className="koli-scan-tools"><button onClick={() => void startCamera("KOLI")}>▣ Scan koli</button><span>Auditor: {selected.auditorId || user.staffId}</span></div>}<div className="koli-line-list">{selected.lines.map((line) => <article key={line.lineId} className={line.auditedQty !== null ? (Number(line.auditedQty) === Number(line.expectedQty) ? "matched" : "different") : ""}><div><b>{line.sku}</b><strong>{line.productName || "Nama produk belum tersedia"}</strong></div><span>Expected <b>{n(line.expectedQty)}</b></span><label>Qty audit<input inputMode="numeric" type="number" min="0" value={line.auditedQty ?? ""} disabled={selected.status !== "IN_PROGRESS" || busy} onChange={(e) => void confirm(line, e.target.value)} /></label><button className="sku-scan-button" disabled={selected.status !== "IN_PROGRESS"} onClick={() => void startCamera("SKU")}>Scan SKU</button></article>)}</div>{selected.status === "IN_PROGRESS" && <button className="primary-button koli-complete-button" disabled={!complete || busy} onClick={() => void finish()}>Selesaikan audit{discrepancy ? " · Konfirmasi selisih" : ""}</button>}</>}</section></div>
     {message && <div className="koli-audit-message" role="status">{message}</div>}{cameraOpen && <div className="koli-camera-modal" role="dialog"><div><video ref={videoRef} muted playsInline /><p>Scanner {cameraTarget === "KOLI" ? "koli" : "SKU"} aktif. Arahkan barcode ke kamera.</p><button onClick={() => { streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null; setCameraOpen(false); }}>Tutup kamera</button></div></div>}
   </section>;

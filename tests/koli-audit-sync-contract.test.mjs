@@ -13,7 +13,9 @@ test("koli sync targets the verified Superset dataset and only valid destination
   assert.equal(KOLI_AUDIT_COLUMNS.includes("destination_location_id"), false);
   assert.equal(KOLI_AUDIT_COLUMNS.includes("destination_id"), true);
   assert.equal(KOLI_AUDIT_COLUMNS.includes("destination_location_name"), true);
-  assert.match(koliAuditWhere("2026-09-02"), /origin_id\s+IN\s*\(819\)/i);
+  assert.match(koliAuditWhere(), /origin_id\s+IN\s*\(819\)/i);
+  assert.match(koliAuditWhere(), /unloading_status/i);
+  assert.doesNotMatch(koliAuditWhere(), /2026|so_number\s+LIKE/i);
 });
 
 test("large koli snapshots are published in bounded database transactions", () => {

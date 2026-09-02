@@ -42,7 +42,7 @@ function rows(payload: unknown): SourceRow[] {
 function payload(dataset: number,date: string,offset: number) {
   const columns = KOLI_AUDIT_COLUMNS;
   const requestQty = metric("SUM(request_quantity)","request_quantity");
-  const query = { annotation_layers: [],applied_time_extras: {},columns,custom_form_data: {},custom_params: {},extras: { having: "",where: koliAuditWhere(date) },filters: [{ col: "origin_id", op: "IN", val: ["819"] }],metrics: [requestQty],order_desc: false,orderby: [],post_processing: [],row_limit: PAGE_SIZE,row_offset: offset,series_limit: 0,time_offsets: [],url_params: { datasource_id: String(dataset),datasource_type: "table" } };
+  const query = { annotation_layers: [],applied_time_extras: {},columns,custom_form_data: {},custom_params: {},extras: { having: "",where: koliAuditWhere() },filters: [{ col: "origin_id", op: "IN", val: ["819"] }, { col: "unloading_status", op: "NOT IN", val: ["COMPLETED"] }],metrics: [requestQty],order_desc: false,orderby: [],post_processing: [],row_limit: PAGE_SIZE,row_offset: offset,series_limit: 0,time_offsets: [],url_params: { datasource_id: String(dataset),datasource_type: "table" } };
   return { datasource: { id: dataset,type: "table" },force: true,queries: [query],form_data: { datasource: `${dataset}__table`,viz_type: "table",query_mode: "aggregate",groupby: columns,metrics: [requestQty],adhoc_filters: [],row_limit: PAGE_SIZE,row_offset: offset },result_format: "json",result_type: "results" };
 }
 

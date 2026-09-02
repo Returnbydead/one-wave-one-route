@@ -107,9 +107,7 @@ function rowsFromSuperset(payload: unknown, fallbackHeaders: string[]): Record<s
 function queryPayload(source: "orders" | "picking", date: string, offset: number) {
   const isOrders = source === "orders";
   const dataset = isOrders ? DATASET_ORDERS : DATASET_PICKING;
-  const destinationField = isOrders
-    ? "COALESCE(destination_name_adjusted, destination_name)"
-    : "destination_name";
+  const destinationField = "destination_name";
   const destinationColumn = column(destinationSql(destinationField), "destination_code");
   const zoneExpression = isOrders
     ? "extract(origin_rack_name, '^CBT-([^-]+)')"

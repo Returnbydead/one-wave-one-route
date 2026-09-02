@@ -5,8 +5,8 @@ import { supabase } from "@/lib/supabase-browser";
 import { taskContainsRice5Kg } from "./koli-audit-core.mjs";
 
 type User = { staffId: string; name: string; roles: string[] };
-type Line = { lineId: number; sku: string; productName: string; expectedQty: number; auditedQty: number | null };
-type Task = { taskId: string; koliCode: string; soNumber: string; hubCode: string; destinationName: string; sourceStatus: string; status: "READY" | "IN_PROGRESS" | "COMPLETED"; auditorId: string; discrepancyConfirmed: boolean; lines: Line[] };
+type Line = { lineId: number; sku: string; productName: string; expectedQty: number; auditedQty: number | null; confirmedAt?: string | null };
+type Task = { taskId: string; koliCode: string; soNumber: string; hubCode: string; destinationName: string; sourceStatus: string; status: "READY" | "IN_PROGRESS" | "COMPLETED"; auditorId: string; discrepancyConfirmed: boolean; startedAt?: string | null; completedAt?: string | null; updatedAt?: string | null; lines: Line[] };
 
 const n = (v: number) => Number(v || 0).toLocaleString("id-ID");
 
@@ -76,8 +76,8 @@ export function KoliAuditView({ user }: { user: User }) {
     setBusy(false);
   }
   function exportCsv() {
-    const rows = tasks.flatMap((task) => task.lines.map((line) => [task.koliCode, task.soNumber, task.destinationName, task.status, line.sku, line.productName, line.expectedQty, line.auditedQty ?? "", Number(line.auditedQty ?? 0) - Number(line.expectedQty)]));
-    const csv = [["koli_code","so_number","destination","task_status","sku","product_name","expected_qty","audited_qty","difference"], ...rows].map((row) => row.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n");
+    const rows = tasks.flatMap((task) => task.lines.map((line) => [task.koliCode, task.soNumber, task.hubCode, task.destinationName, task.status, task.auditorId, task.startedAt ?? "", task.completedAt ?? "", task.updatedAt ?? "", line.sku, line.productName, line.expectedQty, line.auditedQty ?? "", line.confirmedAt ?? "", Number(line.auditedQty ?? 0) - Number(line.expectedQty)]));
+    const csv = [["koli_code","so_number","hub","destination","task_status","auditor_id","started_at","completed_at","updated_at","sku","product_name","expected_qty","audited_qty","confirmed_at","difference"], ...rows].map((row) => row.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n");
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = `audit-koli-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
   }
   async function startCamera(target: "KOLI" | "SKU") {

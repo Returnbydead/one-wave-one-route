@@ -19,16 +19,16 @@ type Snapshot = {
 };
 type BatchLine = {
   lineId: number; lineNo: number; originRackName: string; skuNumber: string; productName: string;
-  totalQty: number; pickedQty: number; status: "READY" | "DONE"; waves: number[];
+  totalQty: number; pickedQty: number; status: "READY" | "DONE"; waves: number[]; updatedAt?: string | null;
 };
 type Batch = {
   batchId: string; batchCode: string; pickingAreaName: string;
-  status: "READY" | "IN_PROGRESS" | "PICKING_COMPLETED"; pickerId: string; lines: BatchLine[];
+  status: "READY" | "IN_PROGRESS" | "PICKING_COMPLETED"; pickerId: string; startedAt?: string | null; completedAt?: string | null; updatedAt?: string | null; lines: BatchLine[];
 };
 type Consolidation = {
   batchId: string; batchCode: string; soNumber: string; hubCode: string; waveNumber: number;
   status: "READY" | "CONSOLIDATING" | "CONSOLIDATED"; consolidatorId: string;
-  expectedQty: number; allocations: Array<{ lineId: number; skuNumber: string; productName: string; requestQty: number }>;
+  expectedQty: number; startedAt?: string | null; completedAt?: string | null; updatedAt?: string | null; allocations: Array<{ lineId: number; skuNumber: string; productName: string; requestQty: number }>;
 };
 type TaskPayload = { ok: boolean; batches: Batch[]; consolidations: Consolidation[] };
 
@@ -201,6 +201,15 @@ export function ConsolidatePickingView({ user }: { user: User }) {
     const query = normalize(assignmentPickerSearch);
     return !query || normalize(picker.name).includes(query) || normalize(picker.staffId).includes(query);
   });
+  function exportTaskCsv() {
+    const rows = [
+      ["task_type", "batch_code", "so_number", "hub", "wave", "status", "actor", "started_at", "completed_at", "updated_at", "sku", "expected_qty", "picked_qty"],
+      ...tasks.batches.flatMap((batch) => batch.lines.map((line) => ["PICKING", batch.batchCode, "", "", line.waves.join("|"), batch.status, batch.pickerId, batch.startedAt ?? "", batch.completedAt ?? "", line.updatedAt ?? batch.updatedAt ?? "", line.skuNumber, line.totalQty, line.pickedQty])),
+      ...tasks.consolidations.flatMap((task) => task.allocations.map((line) => ["CONSOLIDATION", task.batchCode, task.soNumber, task.hubCode, task.waveNumber, task.status, task.consolidatorId, task.startedAt ?? "", task.completedAt ?? "", task.updatedAt ?? "", line.skuNumber, line.requestQty, ""])),
+    ];
+    const csv = rows.map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); const link = document.createElement("a"); link.href = url; link.download = `consolidate-tasks-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url);
+  }
   const selectedAssignmentPickers = assignedPickers
     .map((staffId) => assignmentOptions.pickers.find((picker) => picker.staffId === staffId))
     .filter((picker): picker is { staffId: string; name: string } => Boolean(picker));
@@ -222,6 +231,7 @@ export function ConsolidatePickingView({ user }: { user: User }) {
         <span data-state={snapshot?.ok ? (snapshot.stale ? "stale" : "live") : "empty"}><i />{snapshot?.ok ? (snapshot.stale ? "Last valid snapshot" : "Live picklist") : "Snapshot belum tersedia"}</span>
         <small>{freshness(snapshot?.generatedAt)}{snapshot?.operationalDate ? ` · operational ${snapshot.operationalDate}` : ""}</small>
         <div>
+          <button className="soft-button" onClick={exportTaskCsv}>↓ Download task CSV</button>
           <button className="soft-button" disabled={loading || busy} onClick={() => void load()}>↻ Refresh</button>
           {isDeveloper && mode === "PICKLIST" && <button className="primary-button" disabled={busy} onClick={() => void runSync()}>{busy ? "Syncing…" : "Sync Superset"}</button>}
         </div>

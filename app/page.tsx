@@ -11,7 +11,7 @@ import { ConsolidatePickingView } from "./consolidate-picking-view";
 import { KoliAuditView } from "./koli-audit-view";
 import { supabase } from "@/lib/supabase-browser";
 
-type RouteCode = "PKC - PAM" | "CSA - KLD" | "BSX" | "ASA - JBG" | "SMN - MRY" | "CPT - PPL";
+type RouteCode = "PKC - PAM" | "CSA - KLD" | "BSX" | "ASA - JBG" | "SMN - MRY" | "CPT - PPL" | "MSB" | "SLP - RDS" | "JLB" | "BDC - BGS" | "PPN - TAP";
 type AssignmentMode = "route" | "zone";
 type WorkspaceView = "assignment" | "monitor" | "so-master" | "consolidate" | "koli-audit" | "staging-tasks" | "line-tasks" | "developer";
 type HelperRole = "STAGING_HELPER" | "LINE_HELPER";
@@ -150,6 +150,11 @@ const ROUTES: Array<{
   { code: "ASA - JBG", destinations: ["ASA", "JBG"], routeNo: 4, color: "#2783c5" },
   { code: "SMN - MRY", destinations: ["SMN", "MRY"], routeNo: 5, color: "#cf5a87" },
   { code: "CPT - PPL", destinations: ["CPT", "PPL"], routeNo: 6, color: "#d4972f" },
+  { code: "MSB", destinations: ["MSB"], routeNo: 7, color: "#2c9c91" },
+  { code: "SLP - RDS", destinations: ["SLP", "RDS"], routeNo: 8, color: "#4d77c8" },
+  { code: "JLB", destinations: ["JLB"], routeNo: 9, color: "#9a63c7" },
+  { code: "BDC - BGS", destinations: ["BDC", "BGS"], routeNo: 10, color: "#d26a4c" },
+  { code: "PPN - TAP", destinations: ["PPN", "TAP"], routeNo: 11, color: "#b58935" },
 ];
 
 const ZONE_RULES: ZoneRule[] = [

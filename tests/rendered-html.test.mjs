@@ -150,7 +150,11 @@ test("keeps the V1 assignment, Supabase, and CSV contracts explicit", async () =
   assert.match(page, /"ASA - JBG"/);
   assert.match(page, /"SMN - MRY"/);
   assert.match(page, /"CPT - PPL"/);
-  assert.doesNotMatch(page, /"SWL - PSG"|"RDS - SLP"|"JLB"/);
+  assert.match(page, /"MSB"/);
+  assert.match(page, /"SLP - RDS"/);
+  assert.match(page, /"JLB"/);
+  assert.match(page, /"BDC - BGS"/);
+  assert.match(page, /"PPN - TAP"/);
   assert.match(page, /PLAN CBT SEP 2026/);
   assert.match(page, /Assign by route/);
   assert.match(page, /Assign by zone/);

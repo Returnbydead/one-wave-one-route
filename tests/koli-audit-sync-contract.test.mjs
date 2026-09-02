@@ -4,6 +4,7 @@ import {
   KOLI_AUDIT_COLUMNS,
   KOLI_AUDIT_DATASET_ID,
   chunkKoliAuditRows,
+  koliAuditWhere,
   normalizeKoliAuditRow,
 } from "../supabase/functions/_shared/koli-audit-source.mjs";
 
@@ -12,6 +13,7 @@ test("koli sync targets the verified Superset dataset and only valid destination
   assert.equal(KOLI_AUDIT_COLUMNS.includes("destination_location_id"), false);
   assert.equal(KOLI_AUDIT_COLUMNS.includes("destination_id"), true);
   assert.equal(KOLI_AUDIT_COLUMNS.includes("destination_location_name"), true);
+  assert.match(koliAuditWhere("2026-09-02"), /origin_id\s+IN\s*\(819\)/i);
 });
 
 test("large koli snapshots are published in bounded database transactions", () => {

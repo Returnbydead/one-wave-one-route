@@ -10,6 +10,11 @@ export const KOLI_AUDIT_COLUMNS = [
   "destination_location_name",
 ];
 
+export function koliAuditWhere(date) {
+  const compact = String(date).replaceAll("-", "");
+  return `so_number LIKE 'INV/SO/${compact}/%' AND origin_id IN (819)`;
+}
+
 const clean = (value) => String(value ?? "").trim();
 
 function hubCode(destinationName, destinationId) {

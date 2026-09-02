@@ -1,0 +1,27 @@
+begin;
+
+create index if not exists owor_koli_audit_tasks_date_updated_idx
+  on public.owor_koli_audit_tasks(operational_date, updated_at desc);
+
+-- Keep the worklist response bounded. The source snapshot remains complete;
+-- operators can narrow by barcode/search before loading a smaller detail set.
+create or replace function public.owor_get_koli_audit_tasks(p_search text default '')
+returns jsonb language plpgsql security definer set search_path=public as $$
+declare v_profile public.owor_user_profiles%rowtype;
+begin
+  select * into v_profile from public.owor_user_profiles where user_id=auth.uid() and active;
+  if not found or not ('AUDITOR'=any(v_profile.roles) or 'DEVELOPER'=any(v_profile.roles)) then raise exception 'FORBIDDEN'; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object(
+    'taskId',t.task_id,'koliCode',t.koli_code,'soNumber',t.so_number,'hubCode',t.hub_code,
+    'destinationName',t.destination_name,'sourceStatus',t.source_status,'status',t.status,'auditorId',t.auditor_id,
+    'discrepancyConfirmed',t.discrepancy_confirmed,'discrepancyNote',t.discrepancy_note,'updatedAt',t.updated_at,
+    'lines',coalesce((select jsonb_agg(jsonb_build_object('lineId',l.line_id,'sku',l.sku,'productName',l.product_name,'expectedQty',l.expected_qty,'auditedQty',l.audited_qty) order by l.line_id) from public.owor_koli_audit_lines l where l.task_id=t.task_id),'[]'::jsonb)
+  ) order by t.updated_at desc) from public.owor_koli_audit_tasks t
+  where t.operational_date=timezone('Asia/Jakarta',now())::date
+    and (p_search='' or lower(t.koli_code||' '||t.so_number||' '||t.destination_name) like '%'||lower(btrim(p_search))||'%')
+  limit 500),'[]'::jsonb);
+end;
+$$;
+
+grant execute on function public.owor_get_koli_audit_tasks(text) to authenticated;
+commit;

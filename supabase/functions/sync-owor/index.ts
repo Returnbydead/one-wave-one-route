@@ -107,13 +107,15 @@ function rowsFromSuperset(payload: unknown, fallbackHeaders: string[]): Record<s
 function queryPayload(source: "orders" | "picking", date: string, offset: number) {
   const isOrders = source === "orders";
   const dataset = isOrders ? DATASET_ORDERS : DATASET_PICKING;
-  const destinationField = isOrders ? "destination_name_adjusted" : "destination_name";
+  const destinationField = isOrders
+    ? "COALESCE(NULLIF(destination_name_adjusted, ''), destination_name)"
+    : "destination_name";
   const destinationColumn = column(destinationSql(destinationField), "destination_code");
   const zoneExpression = isOrders
     ? "extract(origin_rack_name, '^CBT-([^-]+)')"
     : "REGEXP_EXTRACT(origin_rack_name, r'^CBT-([^-]+)')";
   const zoneColumn = column(zoneExpression, "parsed_zone");
-  const destinationsWhere = OWOR_DESTINATIONS.map((code) => `UPPER(${destinationField}) LIKE '%${code}%'`).join(" OR ");
+  const destinationsWhere = OWOR_DESTINATIONS.map((code) => `UPPER(COALESCE(${destinationField}, '')) LIKE '%${code}%'`).join(" OR ");
   const datePrefix = compactDate(date);
   const columns: unknown[] = isOrders
     ? ["so_number", destinationColumn, zoneColumn]

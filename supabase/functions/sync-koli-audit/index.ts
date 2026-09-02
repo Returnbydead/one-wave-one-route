@@ -1,5 +1,6 @@
 import { adminClient, authorizeSync, env, fetchJson, json } from "../_shared/runtime.ts";
 import { compactDate, operationalDate } from "../_shared/owor.ts";
+import { chunkKoliAuditRows, KOLI_AUDIT_COLUMNS, KOLI_AUDIT_DATASET_ID, normalizeKoliAuditRow } from "../_shared/koli-audit-source.mjs";
 
 type SourceRow = Record<string, unknown>;
 const DATASET_NAME = "fact_supply_order_item_details";
@@ -20,7 +21,7 @@ async function csrf() {
   return text(payload.result);
 }
 async function datasetId() {
-  const configured = Number(env("KOLI_AUDIT_DATASET_ID"));
+  const configured = Number(env("KOLI_AUDIT_DATASET_ID", String(KOLI_AUDIT_DATASET_ID)));
   if (Number.isInteger(configured) && configured > 0) return configured;
   const base = env("SUPERSET_BASE_URL", "https://dash.astronauts.id").replace(/\/$/, "");
   const q = `(page:0,page_size:100,filters:!((col:table_name,opr:eq,value:'${DATASET_NAME}')))`;
@@ -39,7 +40,7 @@ function rows(payload: unknown): SourceRow[] {
   return data.map((row) => Array.isArray(row) ? Object.fromEntries(headers.map((header,index) => [header,row[index]])) : row as SourceRow);
 }
 function payload(dataset: number,date: string,offset: number) {
-  const columns = ["so_number","product_sku_number","product_name","koli_code","fsoid.status","destination_location_id"];
+  const columns = KOLI_AUDIT_COLUMNS;
   const requestQty = metric("SUM(request_quantity)","request_quantity");
   const query = { annotation_layers: [],applied_time_extras: {},columns,custom_form_data: {},custom_params: {},extras: { having: "",where: `so_number LIKE 'INV/SO/${compactDate(date)}/%'` },filters: [],metrics: [requestQty],order_desc: false,orderby: [],post_processing: [],row_limit: PAGE_SIZE,row_offset: offset,series_limit: 0,time_offsets: [],url_params: { datasource_id: String(dataset),datasource_type: "table" } };
   return { datasource: { id: dataset,type: "table" },force: true,queries: [query],form_data: { datasource: `${dataset}__table`,viz_type: "table",query_mode: "aggregate",groupby: columns,metrics: [requestQty],adhoc_filters: [],row_limit: PAGE_SIZE,row_offset: offset },result_format: "json",result_type: "results" };
@@ -58,18 +59,26 @@ Deno.serve(async (req) => {
     for (let page=0;page<MAX_PAGES;page+=1) {
       const response = await fetchJson(`${base}/api/v1/chart/data`,{ method:"POST",headers:{ accept:"application/json","content-type":"application/json",cookie:cookie(),referer:`${base}/`,"x-csrftoken":token },body:JSON.stringify(payload(id,date,page*PAGE_SIZE)) },50_000,2);
       const pageRows=rows(response);
-      source.push(...pageRows.map((row) => ({
-        koli_code:text(row.koli_code),so_number:text(row.so_number),sku:text(row.product_sku_number),product_name:text(row.product_name),
-        expected_qty:Number(row.request_quantity ?? 0),source_status:text(row["fsoid.status"] ?? row.status),destination_location_id:text(row.destination_location_id),
-      })).filter((row) => row.koli_code && row.so_number && row.sku && Number.isFinite(row.expected_qty) && row.expected_qty>=0));
+      source.push(...pageRows.map((row) => {
+        const normalized = normalizeKoliAuditRow(row);
+        return { ...normalized, destination_location_id: normalized.hub_code };
+      }).filter((row) => row.koli_code && row.so_number && row.sku && Number.isFinite(row.expected_qty) && row.expected_qty>=0));
       if (pageRows.length<PAGE_SIZE) { completed=true; break; }
     }
     if (!completed) throw new Error("KOLI_AUDIT_PAGE_LIMIT_REACHED");
     const db=adminClient();
-    const { data,error }=await db.rpc("owor_publish_koli_audit_snapshot",{ p_operational_date:date,p_rows:source });
-    if (error) throw error;
-    return json(200,{ ok:true,dataset:DATASET_NAME,datasetId:id,sourceRows:source.length,result:data });
+    const published = { tasks: 0, lines: 0, batches: 0 };
+    for (const batch of chunkKoliAuditRows(source, 1_000)) {
+      const { data,error }=await db.rpc("owor_publish_koli_audit_snapshot",{ p_operational_date:date,p_rows:batch });
+      if (error) throw error;
+      const result = (data ?? {}) as { tasks?: number; lines?: number };
+      published.tasks += Number(result.tasks ?? 0);
+      published.lines += Number(result.lines ?? 0);
+      published.batches += 1;
+    }
+    return json(200,{ ok:true,dataset:DATASET_NAME,datasetId:id,sourceRows:source.length,result:{ ...published, operationalDate:date } });
   } catch (error) {
+    console.error("sync-koli-audit failed", error);
     const message=String((error as { message?:string })?.message||error).replace(/cookie\s*[:=].*/ig,"cookie=[REDACTED]").slice(0,500);
     return json(502,{ ok:false,error:message,operationalDate:date });
   }

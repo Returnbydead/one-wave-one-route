@@ -61,7 +61,17 @@ export function KoliAuditView({ user }: { user: User }) {
     setBusy(true); setMessage("Mengambil semua koli hari ini dari Superset…");
     const { data, error } = await supabase.functions.invoke("owor-admin", { method: "POST", body: { action: "sync_koli_audit" } });
     const payload = data as { ok?: boolean; error?: string } | null;
-    if (error || payload?.ok !== true) setMessage(payload?.error || error?.message || "Sync audit koli gagal");
+    let errorMessage = payload?.error || error?.message || "Sync audit koli gagal";
+    if (error && "context" in error) {
+      try {
+        const response = (error as { context?: Response }).context;
+        const detail = response ? await response.clone().json() as { error?: string; message?: string } : null;
+        errorMessage = detail?.error || detail?.message || errorMessage;
+      } catch {
+        // Keep the SDK fallback when the response is not JSON.
+      }
+    }
+    if (error || payload?.ok !== true) setMessage(errorMessage);
     else { setMessage("Semua koli hari ini sudah diperbarui."); await load(); }
     setBusy(false);
   }

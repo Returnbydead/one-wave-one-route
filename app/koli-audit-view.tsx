@@ -25,6 +25,7 @@ export function KoliAuditView({ user }: { user: User }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const readerRef = useRef<{ stop: () => void } | null>(null);
+  const qtyTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const selected = tasks.find((t) => t.taskId === selectedId) || null;
 
   const load = useCallback(async () => {
@@ -48,10 +49,15 @@ export function KoliAuditView({ user }: { user: User }) {
   async function claim() {
     if (!selected) return; setBusy(true); const { error } = await supabase.rpc("owor_claim_koli_audit", { p_task_id: selected.taskId }); setBusy(false); if (error) setMessage(error.message); else { setMessage("Task audit diambil"); await load(); }
   }
-  async function confirm(line: Line, value: string) {
-    if (!selected || value === "") return; const qty = Number(value); if (!Number.isFinite(qty) || qty < 0) return;
-    if (verifiedSku && verifiedSku !== line.sku) { setMessage(`SKU yang discan ${verifiedSku} tidak cocok dengan baris ${line.sku}`); return; }
-    setBusy(true); const { error } = await supabase.rpc("owor_confirm_koli_audit_line", { p_task_id: selected.taskId, p_line_id: line.lineId, p_qty: qty }); setBusy(false); if (error) setMessage(error.message); else { setMessage(`SKU ${line.sku} tersimpan`); await load(); }
+  function confirm(line: Line, value: string) {
+    const existing = qtyTimers.current[line.lineId];
+    if (existing) clearTimeout(existing);
+    if (!selected || value === "") return;
+    qtyTimers.current[line.lineId] = setTimeout(async () => {
+      const qty = Number(value); if (!Number.isFinite(qty) || qty < 0) return;
+      if (verifiedSku && verifiedSku !== line.sku) { setMessage(`SKU yang discan ${verifiedSku} tidak cocok dengan baris ${line.sku}`); return; }
+      setBusy(true); const { error } = await supabase.rpc("owor_confirm_koli_audit_line", { p_task_id: selected.taskId, p_line_id: line.lineId, p_qty: qty }); setBusy(false); if (error) setMessage(error.message); else { setMessage(`SKU ${line.sku} tersimpan`); await load(); }
+    }, 650);
   }
   async function finish() {
     if (!selected) return; let note = ""; if (discrepancy) { note = window.prompt("Ada selisih. Tulis catatan temuan auditor:", "") || ""; if (!note.trim()) return; }

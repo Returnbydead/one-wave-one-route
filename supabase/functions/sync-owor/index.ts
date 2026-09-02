@@ -108,7 +108,7 @@ function queryPayload(source: "orders" | "picking", date: string, offset: number
   const isOrders = source === "orders";
   const dataset = isOrders ? DATASET_ORDERS : DATASET_PICKING;
   const destinationField = isOrders
-    ? "COALESCE(NULLIF(destination_name_adjusted, ''), destination_name)"
+    ? "COALESCE(destination_name_adjusted, destination_name)"
     : "destination_name";
   const destinationColumn = column(destinationSql(destinationField), "destination_code");
   const zoneExpression = isOrders

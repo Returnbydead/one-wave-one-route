@@ -16,10 +16,12 @@ begin
     'destinationName',t.destination_name,'sourceStatus',t.source_status,'status',t.status,'auditorId',t.auditor_id,
     'discrepancyConfirmed',t.discrepancy_confirmed,'discrepancyNote',t.discrepancy_note,'updatedAt',t.updated_at,
     'lines',coalesce((select jsonb_agg(jsonb_build_object('lineId',l.line_id,'sku',l.sku,'productName',l.product_name,'expectedQty',l.expected_qty,'auditedQty',l.audited_qty) order by l.line_id) from public.owor_koli_audit_lines l where l.task_id=t.task_id),'[]'::jsonb)
-  ) order by t.updated_at desc) from public.owor_koli_audit_tasks t
-  where t.operational_date=timezone('Asia/Jakarta',now())::date
-    and (p_search='' or lower(t.koli_code||' '||t.so_number||' '||t.destination_name) like '%'||lower(btrim(p_search))||'%')
-  limit 500),'[]'::jsonb);
+  ) order by t.updated_at desc) from (
+    select * from public.owor_koli_audit_tasks
+    where operational_date=timezone('Asia/Jakarta',now())::date
+      and (p_search='' or lower(koli_code||' '||so_number||' '||destination_name) like '%'||lower(btrim(p_search))||'%')
+    order by updated_at desc limit 500
+  ) t),'[]'::jsonb);
 end;
 $$;
 

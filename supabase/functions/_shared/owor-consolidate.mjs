@@ -17,8 +17,37 @@ export function extractHubCode(destination, hubCodes) {
     .sort((left, right) => right.length - left.length || left.localeCompare(right));
   return ordered.find((code) => new RegExp(`(^|[^A-Z0-9])${code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^A-Z0-9]|$)`).test(source)) ?? "";
 }
-export function normalizeConsolidateRows(sourceRows, waveMap, scope) {
-  const hubs = Object.keys(waveMap ?? {});
+function routeConfigFor(value) {
+  if (value && typeof value === "object") {
+    return { waveNumber: Number(value.waveNumber ?? value.wave_number), routeCode: String(value.routeCode ?? value.route_code ?? "").trim().toUpperCase() };
+  }
+  return { waveNumber: Number(value), routeCode: "" };
+}
+
+export function balanceLocationsByQty(sourceRows, pickerIds) {
+  const locationQty = new Map();
+  for (const row of sourceRows ?? []) {
+    const location = String(row?.origin_rack_name ?? "").trim().toUpperCase();
+    const qty = Number(row?.request_qty ?? 0);
+    if (!location || !Number.isFinite(qty) || qty <= 0) continue;
+    locationQty.set(location, (locationQty.get(location) ?? 0) + qty);
+  }
+  const assignments = [...new Set((pickerIds ?? []).map((id) => String(id).trim().toUpperCase()).filter(Boolean))]
+    .map((pickerId, index) => ({ pickerId, locations: [], totalQty: 0, index }));
+  if (!assignments.length) return [];
+  const locations = [...locationQty].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+  for (const [location, qty] of locations) {
+    const target = [...assignments].sort((left, right) => left.totalQty - right.totalQty || left.index - right.index)[0];
+    target.locations.push(location);
+    target.totalQty += qty;
+  }
+  return assignments.filter((assignment) => assignment.locations.length).map((assignment) => ({
+    pickerId: assignment.pickerId, locations: assignment.locations, totalQty: assignment.totalQty,
+  }));
+}
+
+export function normalizeConsolidateRows(sourceRows, routeMap, scope) {
+  const hubs = Object.keys(routeMap ?? {});
   const accepted = new Map();
   const diagnostics = { sourceRows: 0, acceptedRows: 0, excludedArea: 0, excludedWave1: 0, unmappedWave: 0, invalidRows: 0 };
 
@@ -37,7 +66,8 @@ export function normalizeConsolidateRows(sourceRows, waveMap, scope) {
       continue;
     }
     const hubCode = extractHubCode(source.destination_name, hubs);
-    const waveNumber = Number(waveMap?.[hubCode]);
+    const routeConfig = routeConfigFor(routeMap?.[hubCode]);
+    const waveNumber = routeConfig.waveNumber;
     if (!hubCode || !Number.isInteger(waveNumber)) {
       diagnostics.unmappedWave += 1;
       continue;
@@ -52,6 +82,7 @@ export function normalizeConsolidateRows(sourceRows, waveMap, scope) {
       destination_name: String(source.destination_name ?? "UNKNOWN").trim() || "UNKNOWN",
       hub_code: hubCode,
       wave_number: waveNumber,
+      route_code: routeConfig.routeCode,
       picking_area_name: area.pickingAreaName,
       zone_family: area.zoneFamily,
       floor_number: area.floorNumber,

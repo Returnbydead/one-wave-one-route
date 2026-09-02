@@ -253,6 +253,7 @@ function doGet(event) {
 
   const resource = String((event && event.parameter && event.parameter.resource) || 'snapshot');
   if (resource === 'health') return json_(buildHealth_());
+  if (resource === 'route_config') return json_({ ok: true, sheet: OWOR.ROUTE_SHEET, routes: readRouteConfig_() });
   if (resource === 'users') return json_({ ok: true, users: listUserAccounts_() });
   if (resource === 'auth_user') {
     const user = findAuthUser_(String(event.parameter.staff_id || ''));
@@ -567,6 +568,33 @@ function assertRouteConfig_() {
   if (!sheet) throw new Error(`Missing route sheet: ${OWOR.ROUTE_SHEET}`);
   const text = sheet.getDataRange().getDisplayValues().flat().join(' ').toUpperCase();
   OWOR.DESTINATIONS.forEach((code) => { if (!text.includes(code)) throw new Error(`Route code ${code} missing from ${OWOR.ROUTE_SHEET}.`); });
+}
+
+function readRouteConfig_() {
+  const sheet = SpreadsheetApp.openById(OWOR.TARGET_SPREADSHEET_ID).getSheetByName(OWOR.ROUTE_SHEET);
+  if (!sheet) throw new Error(`Missing route sheet: ${OWOR.ROUTE_SHEET}`);
+  const values = sheet.getDataRange().getDisplayValues();
+  const headerIndex = values.findIndex((row) => row.some((value) => String(value).trim().toUpperCase() === 'WAVE') && row.some((value) => String(value).trim().toUpperCase() === 'ROUTE LIST'));
+  if (headerIndex < 0) throw new Error(`Header Wave / Route List tidak ditemukan di ${OWOR.ROUTE_SHEET}.`);
+  const headers = values[headerIndex].map((value) => String(value).trim().toUpperCase());
+  const waveColumn = headers.indexOf('WAVE');
+  const routeColumn = headers.indexOf('ROUTE LIST');
+  const hubColumns = headers.reduce((result, value, index) => { if (value === 'HUB') result.push(index); return result; }, []);
+  const routes = [];
+  values.slice(headerIndex + 1).forEach((row) => {
+    const waveMatch = String(row[waveColumn] || '').trim().match(/WAVE\s*(\d+)/i);
+    const routeCode = String(row[routeColumn] || '').trim().replace(/\s+/g, ' ');
+    if (!waveMatch || !routeCode) return;
+    const waveNumber = Number(waveMatch[1]);
+    const hubs = hubColumns.map((column) => String(row[column] || '').trim().toUpperCase().replace(/\s+/g, ' ')).filter(Boolean);
+    const fallbackHubs = routeCode.toUpperCase().replace(/\([^)]*\)/g, '').split('-').map((value) => value.trim()).filter(Boolean);
+    (hubs.length ? hubs : fallbackHubs).forEach((hubCode, index) => routes.push({
+      warehouse: 'CBT', hub_code: hubCode, wave_number: waveNumber, drop_order: index + 1,
+      route_code: routeCode.toUpperCase(), active: true,
+    }));
+  });
+  if (!routes.length) throw new Error(`Route config kosong di ${OWOR.ROUTE_SHEET}.`);
+  return routes;
 }
 
 function readSupersetCookie_() {

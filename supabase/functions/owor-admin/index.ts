@@ -295,6 +295,15 @@ Deno.serve(async (req) => {
       const payload = await response.json().catch(() => ({ ok: false, error: `CONSOLIDATE_SYNC_HTTP_${response.status}` }));
       return json(response.status, payload);
     }
+    if (req.method === "POST" && clean(body.action).toLowerCase() === "sync_koli_audit") {
+      const response = await fetch(`${env("SUPABASE_URL")}/functions/v1/sync-koli-audit`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-sync-secret": env("SYNC_SECRET") },
+        body: JSON.stringify({ date: clean(body.date) || undefined, requestedBy: profile.staff_id }),
+      });
+      const payload = await response.json().catch(() => ({ ok: false, error: `KOLI_AUDIT_SYNC_HTTP_${response.status}` }));
+      return json(response.status, payload);
+    }
     const staffId = clean(body.staffId).toUpperCase();
     if (!staffId || !/^[A-Z0-9._-]{2,40}$/.test(staffId)) throw new Error("INVALID_STAFF_ID");
 

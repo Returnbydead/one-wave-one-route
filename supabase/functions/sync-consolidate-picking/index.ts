@@ -99,6 +99,21 @@ async function fetchPage(date: string, csrf: string, offset: number, limit = PAG
   return rowsFromSuperset(payload);
 }
 
+async function refreshRouteConfig(db: ReturnType<typeof adminClient>): Promise<number> {
+  const endpoint = env("OWOR_ROSTER_SNAPSHOT_URL");
+  const token = env("OWOR_ROSTER_SNAPSHOT_TOKEN");
+  if (!endpoint || !token) return 0;
+  const url = new URL(endpoint);
+  url.searchParams.set("resource", "route_config");
+  url.searchParams.set("token", token);
+  url.searchParams.set("t", String(Date.now()));
+  const payload = await fetchJson(url.toString(), { headers: { accept: "application/json" }, redirect: "follow" }, 25_000, 2) as { ok?: boolean; routes?: Record<string, unknown>[] };
+  if (payload.ok !== true || !Array.isArray(payload.routes) || payload.routes.length === 0) throw new Error("OWOR_ROUTE_CONFIG_INVALID");
+  const { data, error } = await db.rpc("owor_upsert_hub_wave_config", { p_rows: payload.routes });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json(405, { ok: false, error: "METHOD_NOT_ALLOWED" });
   if (!authorizeSync(req)) return json(401, { ok: false, error: "UNAUTHORIZED" });
@@ -109,9 +124,10 @@ Deno.serve(async (req) => {
   let snapshotId = "";
 
   try {
+    const routeRows = await refreshRouteConfig(db);
     const { data: config, error: configError } = await db.rpc("owor_get_consolidate_config", { p_scope_code: scopeCode });
     if (configError) throw configError;
-    const settings = config as { scope?: Scope | null; waveMap?: Record<string, number> };
+    const settings = config as { scope?: Scope | null; waveMap?: Record<string, { waveNumber: number; routeCode: string }> };
     if (!settings.scope?.enabled) return json(409, { ok: false, error: "SCOPE_NOT_READY", scope: scopeCode });
 
     const csrf = await csrfToken();
@@ -155,7 +171,7 @@ Deno.serve(async (req) => {
     const digest = await checksum(acceptedRows);
     const { data: finalized, error: finalizeError } = await db.rpc("owor_finalize_consolidate_snapshot", {
       p_snapshot_id: snapshotId, p_checksum: digest,
-      p_metadata: { source: "Superset dataset 400", source_column: "picking_area_name", scope: settings.scope, diagnostics: totals },
+      p_metadata: { source: "Superset dataset 400", route_source: routeRows > 0 ? "PLAN CBT SEP 2026 live" : "last validated PLAN CBT SEP 2026 snapshot", route_rows: routeRows, source_column: "picking_area_name", scope: settings.scope, diagnostics: totals },
     });
     if (finalizeError) throw finalizeError;
     return json(200, { ok: true, operationalDate: date, scope: settings.scope, diagnostics: totals, writtenRows, snapshot: finalized });

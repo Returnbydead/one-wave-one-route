@@ -219,10 +219,11 @@ test("keeps the Superset backend atomic per SO and origin rack zone", async () =
     readFile(new URL("../backend/Code.gs", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/sync-owor/index.ts", import.meta.url), "utf8"),
   ]);
-  for (const hub of ["PKC", "PAM", "CSA", "KLD", "BSX", "ASA", "JBG", "SMN", "MRY", "CPT", "PPL"]) {
+  for (const hub of ["PKC", "PAM", "CSA", "KLD", "BSX", "ASA", "JBG", "SMN", "MRY", "CPT", "PPL", "MSB", "SLP", "RDS", "JLB", "BDC", "BGS", "PPN", "TAP"]) {
     assert.match(backend, new RegExp(`\\b${hub}\\b`));
   }
-  assert.doesNotMatch(backend, /SWL|PSG|RDS|SLP|JLB/);
+  assert.doesNotMatch(backend, /SWL|PSG/);
+  assert.match(edgeSync, /isOrders \? "destination_name_adjusted" : "destination_name"/);
   assert.match(backend, /origin_rack_name/);
   assert.match(backend, /parsed_zone/);
   assert.match(backend, /ZONE_CONFLICT/);

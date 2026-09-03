@@ -1,4 +1,4 @@
-export const OWOR_DESTINATIONS = ["PKC", "PAM", "CSA", "KLD", "BSX", "ASA", "JBG", "SMN", "MRY", "CPT", "PPL"] as const;
+export const OWOR_DESTINATIONS = ["PKC", "PAM", "CSA", "KLD", "BSX", "ASA", "JBG", "SMN", "MRY", "CPT", "PPL", "MSB", "SLP", "RDS", "JLB", "BDC", "BGS", "PPN", "TAP"] as const;
 
 export const OWOR_ROUTES: Record<string, string> = {
   PKC: "PKC - PAM",
@@ -12,6 +12,14 @@ export const OWOR_ROUTES: Record<string, string> = {
   JBG: "ASA - JBG",
   SMN: "SMN - MRY",
   MRY: "SMN - MRY",
+  MSB: "MSB",
+  SLP: "SLP - RDS",
+  RDS: "SLP - RDS",
+  JLB: "JLB",
+  BDC: "BDC - BGS",
+  BGS: "BDC - BGS",
+  PPN: "PPN - TAP",
+  TAP: "PPN - TAP",
 };
 
 export type OworOrder = {

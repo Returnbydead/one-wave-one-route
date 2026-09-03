@@ -56,7 +56,7 @@ type DeveloperStatus = {
 
 type SalesOrder = {
   soNumber: string;
-  destination: "PKC" | "PAM" | "CSA" | "KLD" | "BSX" | "ASA" | "JBG" | "SMN" | "MRY" | "CPT" | "PPL";
+  destination: "PKC" | "PAM" | "CSA" | "KLD" | "BSX" | "ASA" | "JBG" | "SMN" | "MRY" | "CPT" | "PPL" | "MSB" | "SLP" | "RDS" | "JLB" | "BDC" | "BGS" | "PPN" | "TAP";
   route: RouteCode;
   zone: string;
   qty: number;
@@ -1384,13 +1384,13 @@ export default function Home() {
         {activeView === "assignment" && <>
         <section className="hero-grid">
           <div className="hero-copy">
-            <div className="status-line"><span>WAVE 1</span><span>6 ROUTE</span><span>SEP 2026</span></div>
+            <div className="status-line"><span>WAVE 1</span><span>{ROUTES.length} ROUTE</span><span>SEP 2026</span></div>
             <h2>Turn route volume into<br /><em>ready-to-upload</em> assignments.</h2>
             <p>Demand per zone, manpower capacity, and whole-SO balancing in one operational view.</p>
           </div>
           <div className="hero-metrics">
             <article><span>Total request</span><strong>{number(totals.qty)}</strong><small>qty · {number(totals.sku)} SKU</small></article>
-            <article><span>Candidate SO</span><strong>{number(totals.so)}</strong><small>6 route · NEW</small></article>
+            <article><span>Candidate SO</span><strong>{number(totals.so)}</strong><small>{ROUTES.length} route · NEW</small></article>
             <article className="accent"><span>MP required</span><strong>{number(totals.mp)}</strong><small>across {zoneStats.length} zone loads</small></article>
           </div>
         </section>

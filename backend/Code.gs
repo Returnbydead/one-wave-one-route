@@ -23,7 +23,7 @@ const OWOR = Object.freeze({
   SYNC_WINDOW_START_HOUR: 4,
   SYNC_WINDOW_END_HOUR: 20,
   QUOTA_COOLDOWN_MS: 6 * 60 * 60 * 1000,
-  DESTINATIONS: ['PKC', 'PAM', 'CSA', 'KLD', 'BSX', 'ASA', 'JBG', 'SMN', 'MRY', 'CPT', 'PPL'],
+  DESTINATIONS: ['PKC', 'PAM', 'CSA', 'KLD', 'BSX', 'ASA', 'JBG', 'SMN', 'MRY', 'CPT', 'PPL', 'MSB', 'SLP', 'RDS', 'JLB', 'BDC', 'BGS', 'PPN', 'TAP'],
   ROUTES: {
     PKC: 'PKC - PAM',
     PAM: 'PKC - PAM',
@@ -36,6 +36,14 @@ const OWOR = Object.freeze({
     MRY: 'SMN - MRY',
     CPT: 'CPT - PPL',
     PPL: 'CPT - PPL',
+    MSB: 'MSB',
+    SLP: 'SLP - RDS',
+    RDS: 'SLP - RDS',
+    JLB: 'JLB',
+    BDC: 'BDC - BGS',
+    BGS: 'BDC - BGS',
+    PPN: 'PPN - TAP',
+    TAP: 'PPN - TAP',
   },
 });
 
@@ -161,6 +169,14 @@ function fetchPickingRows_(cookie) {
     WHEN UPPER(COALESCE(destination_name, '')) LIKE '%MRY%' THEN 'MRY'
     WHEN UPPER(COALESCE(destination_name, '')) LIKE '%CPT%' THEN 'CPT'
     WHEN UPPER(COALESCE(destination_name, '')) LIKE '%PPL%' THEN 'PPL'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%MSB%' THEN 'MSB'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%SLP%' THEN 'SLP'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%RDS%' THEN 'RDS'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%JLB%' THEN 'JLB'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%BDC%' THEN 'BDC'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%BGS%' THEN 'BGS'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%PPN%' THEN 'PPN'
+    WHEN UPPER(COALESCE(destination_name, '')) LIKE '%TAP%' THEN 'TAP'
     ELSE 'OTHER' END`;
   const destinationColumn = adhocColumn_(destinationSql, 'destination_code');
   const zoneColumn = adhocColumn_("REGEXP_EXTRACT(origin_rack_name, r'^CBT-([^-]+)')", 'parsed_zone');
@@ -289,6 +305,14 @@ function fetchSupersetRows_(cookie) {
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%MRY%' THEN 'MRY'
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%CPT%' THEN 'CPT'
     WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%PPL%' THEN 'PPL'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%MSB%' THEN 'MSB'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%SLP%' THEN 'SLP'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%RDS%' THEN 'RDS'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%JLB%' THEN 'JLB'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%BDC%' THEN 'BDC'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%BGS%' THEN 'BGS'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%PPN%' THEN 'PPN'
+    WHEN UPPER(COALESCE(destination_name_adjusted, '')) LIKE '%TAP%' THEN 'TAP'
     ELSE 'OTHER' END`;
   const destinationColumn = adhocColumn_(destinationSql, 'destination_code');
   const zoneColumn = adhocColumn_("extract(origin_rack_name, '^CBT-([^-]+)')", 'parsed_zone');

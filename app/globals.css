@@ -1,22 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 :root {
-  --ink: #142321;
-  --muted: #677572;
-  --line: #dce3df;
-  --paper: #f4f6f1;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --paper: #f8fafc;
   --card: #ffffff;
   --orange: #f36c3d;
   --orange-soft: #fff0e9;
-  --navy: #162623;
-  --green: #2f9e85;
+  --navy: #0f172a;
+  --green: #10b981;
   --purple: #7c63e6;
-  --astro-blue: #163bd8;
-  --astro-cyan: #18b7ee;
+  --astro-blue: #0052ff;
+  --astro-cyan: #00c2ff;
   --astro-pink: #ff4f9a;
   --astro-yellow: #ffc83d;
   --mono: "Cascadia Mono", "IBM Plex Mono", Consolas, monospace;
-  --sans: Inter, "Segoe UI", Arial, sans-serif;
+  --sans: "Plus Jakarta Sans", "Outfit", Inter, sans-serif;
+  --heading: "Outfit", "Plus Jakarta Sans", sans-serif;
 }
 
 * {

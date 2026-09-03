@@ -3447,117 +3447,141 @@ code {
   }
 }
 
-/* OWOR WMS access */
+/* OWOR WMS access - Astro Brand UI */
 .wms-login-shell {
-  background: #071411;
-  color: #eef7f3;
+  background: linear-gradient(135deg, #0052ff 0%, #00c2ff 100%);
+  color: #ffffff;
   display: grid;
-  grid-template-columns: minmax(320px, 1.15fr) minmax(360px, .85fr);
+  grid-template-columns: minmax(320px, 1.1fr) minmax(360px, 0.9fr);
   min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.wms-login-shell::before {
+  content: "";
+  position: absolute;
+  top: -10%;
+  right: -10%;
+  width: 50vw;
+  height: 50vw;
+  background: radial-gradient(circle, rgba(255, 200, 61, 0.25) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .wms-login-brand {
   align-items: flex-start;
-  background:
-    linear-gradient(rgba(53, 255, 180, .055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(53, 255, 180, .055) 1px, transparent 1px),
-    #0d201b;
-  background-size: 48px 48px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: clamp(42px, 8vw, 120px);
   position: relative;
+  z-index: 2;
 }
 
 .wms-mark {
   align-items: center;
-  background: #ff6b35;
-  border-radius: 6px;
-  color: #fff;
+  background: #ffffff;
+  border-radius: 16px;
+  color: #0052ff;
   display: flex;
-  font: 900 22px/1 var(--mono);
-  height: 56px;
+  font: 900 24px/1 var(--heading);
+  height: 60px;
   justify-content: center;
-  margin-bottom: 48px;
-  width: 56px;
+  margin-bottom: 40px;
+  width: 60px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 }
 
 .wms-login-brand > p,
 .wms-login-heading > span {
-  color: #7faaa0;
-  font: 700 11px/1.2 var(--mono);
-  letter-spacing: .18em;
+  color: rgba(255, 255, 255, 0.9);
+  font: 700 12px/1.2 var(--heading);
+  letter-spacing: .15em;
+  text-transform: uppercase;
 }
 
 .wms-login-brand h1 {
-  font: 800 clamp(52px, 7vw, 104px)/.88 var(--sans);
-  letter-spacing: -.075em;
-  margin: 16px 0 40px;
+  font: 800 clamp(48px, 6.5vw, 92px)/.9 var(--heading);
+  letter-spacing: -.04em;
+  margin: 16px 0 32px;
+  color: #ffffff;
 }
 
-.wms-login-brand h1 span { color: #ff6b35; }
+.wms-login-brand h1 span { color: #ffc83d; }
 
 .wms-login-status {
   align-items: center;
-  border: 1px solid #29483f;
-  border-radius: 5px;
-  color: #a8c4bd;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50px;
+  color: #ffffff;
   display: flex;
-  font: 600 12px var(--mono);
+  font: 600 13px var(--sans);
   gap: 10px;
-  padding: 12px 15px;
+  padding: 10px 20px;
 }
 
 .wms-login-status i {
-  background: #37d39f;
+  background: #10b981;
   border-radius: 50%;
-  box-shadow: 0 0 0 5px rgba(55, 211, 159, .12);
-  height: 8px;
-  width: 8px;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.3);
+  height: 10px;
+  width: 10px;
 }
 
 .wms-login-panel {
   align-self: center;
-  color: #13211e;
-  margin: clamp(24px, 6vw, 90px);
-  max-width: 480px;
+  background: #ffffff;
+  border-radius: 28px;
+  box-shadow: 0 24px 60px rgba(0, 30, 100, 0.22);
+  color: #0f172a;
+  margin: clamp(24px, 5vw, 60px);
+  max-width: 440px;
+  padding: clamp(32px, 4vw, 48px);
+  position: relative;
+  z-index: 2;
 }
 
 .wms-login-heading h2 {
-  color: #eff7f4;
-  font-size: clamp(29px, 4vw, 44px);
-  letter-spacing: -.045em;
-  margin: 14px 0 8px;
+  color: #0f172a;
+  font: 700 clamp(24px, 3vw, 34px)/1.15 var(--heading);
+  letter-spacing: -.03em;
+  margin: 12px 0 8px;
 }
 
-.wms-login-heading p { color: #91aaa4; margin: 0 0 34px; }
-.wms-login-panel form { display: grid; gap: 18px; }
-.wms-login-panel label { color: #b7cac5; display: grid; font: 700 11px var(--mono); gap: 8px; letter-spacing: .08em; text-transform: uppercase; }
+.wms-login-heading p { color: #64748b; margin: 0 0 28px; font: 500 14px var(--sans); }
+.wms-login-panel form { display: grid; gap: 20px; }
+.wms-login-panel label { color: #334155; display: grid; font: 700 12px var(--heading); gap: 8px; letter-spacing: .05em; text-transform: uppercase; }
 .wms-login-panel input {
-  background: #11241f;
-  border: 1px solid #304c44;
-  border-radius: 5px;
-  color: #fff;
-  font: 600 16px var(--mono);
-  min-height: 56px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  color: #0f172a;
+  font: 600 16px var(--sans);
+  min-height: 52px;
   outline: none;
   padding: 0 16px;
+  transition: all 180ms ease;
 }
-.wms-login-panel input:focus { border-color: #3dd6a4; box-shadow: 0 0 0 3px rgba(61, 214, 164, .12); }
+.wms-login-panel input:focus { border-color: #0052ff; background: #ffffff; box-shadow: 0 0 0 4px rgba(0, 82, 255, 0.12); }
 .wms-login-panel form > button {
-  background: #ff6b35;
+  background: linear-gradient(135deg, #0052ff 0%, #0040cc 100%);
   border: 0;
-  border-radius: 5px;
-  color: #fff;
+  border-radius: 12px;
+  color: #ffffff;
   cursor: pointer;
-  font: 800 13px var(--mono);
-  min-height: 56px;
-  text-transform: uppercase;
+  font: 700 15px var(--heading);
+  min-height: 52px;
+  letter-spacing: 0.02em;
+  box-shadow: 0 8px 20px rgba(0, 82, 255, 0.3);
+  transition: transform 150ms ease, box-shadow 150ms ease;
 }
-.wms-login-panel form > button:disabled { cursor: not-allowed; opacity: .45; }
-.wms-login-error { background: #3b1814; border: 1px solid #77332a; border-radius: 5px; color: #ffb9aa; font-size: 13px; padding: 12px; }
-.wms-login-panel footer { border-top: 1px solid #294039; color: #78938c; display: flex; font: 11px var(--mono); justify-content: space-between; margin-top: 36px; padding-top: 18px; }
+.wms-login-panel form > button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0, 82, 255, 0.4); }
+.wms-login-panel form > button:disabled { cursor: not-allowed; opacity: 0.5; box-shadow: none; }
+.wms-login-error { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; color: #dc2626; font: 600 13px var(--sans); padding: 12px 16px; }
+.wms-login-panel footer { border-top: 1px solid #f1f5f9; color: #94a3b8; display: flex; font: 500 12px var(--sans); justify-content: space-between; margin-top: 28px; padding-top: 16px; }
 
 /* Mobile WMS helper workspace */
 .helper-workspace { --wms-green: #16a97f; --wms-dark: #10231e; }
